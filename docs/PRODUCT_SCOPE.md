@@ -422,7 +422,7 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 
 | Requirement | Target |
 |-------------|--------|
-| Network support | Stokenet and Mainnet via configuration |
+| Network support | Stokenet and Mainnet via configuration; separate deployment per network, configured via `NETWORK_ID` env var |
 | Wallet support | Radix Wallet via dApp Toolkit |
 | Idempotent submission | Re-submitting the same proposal does not create duplicates |
 | Session security | HTTP-only cookies, server-side sessions, single-use ROLA challenges |
@@ -449,8 +449,6 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 
 | Question | Impact | Notes |
 |----------|--------|-------|
-| Badge revocation in MVP | Superadmin ops | Burn/revoke is planned but may be deferred if complex |
-| Multi-network server | Deployment | Can one server instance serve both Stokenet and Mainnet, or separate deployments? |
 | Fee payer funding | Ops | How is the fee payer account initially funded and monitored for low balance? |
 | Vault removal | Data model | Can vaults be removed from the database, or only archived? |
 | Manifest templates | UX | Should the app provide pre-built manifest templates for common operations (transfers, staking)? |
