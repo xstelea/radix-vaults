@@ -139,6 +139,7 @@ Per-group typed error unions (no `S.Never`).
 
 ### VaultsRpc
 - `ImportVault` → create DB record (name + account address), optionally verify auth delegates to superadmin
+- `CreateVault` → build manifest to create new account + set owner to superadmin, sign with fee payer, submit to Gateway, store DB record with new address
 - `ListVaults` → all vaults where `is_superadmin = false`
 - `GetVault` → fetch by id
 - `ResyncVault` → refresh on-chain state for a vault
@@ -192,7 +193,7 @@ export const AppRpc = RpcGroup.make(
 | Pagination | Not for MVP |
 | Superadmin UI | Separate section from vault list |
 | Superadmin in DB | Vault record with `is_superadmin = true` |
-| Vault import | DB record + optional superadmin proposal to set auth delegation |
+| Vault add | Import existing (DB record + optional auth verification) or create new on-chain (fee payer signs creation tx, stores DB record) |
 | Sessions | DB table, HTTP-only cookie with signed session ID |
 | DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
 | Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
@@ -453,6 +454,12 @@ export class ImportVault extends Rpc.make('ImportVault')({
   error: S.Union(/* NotFoundError, NotDelegatedError */),
 }) {}
 
+export class CreateVault extends Rpc.make('CreateVault')({
+  payload: { name: S.String },
+  success: Schemas.Vault,
+  error: S.Union(/* GatewayError, ManifestCompileError */),
+}) {}
+
 // ... ListVaults, GetVault, ResyncVault
 
 // --- Proposals ---
@@ -477,7 +484,7 @@ export class GetBadgeResource extends Rpc.make('GetBadgeResource')({
 
 // --- Groups ---
 export const AuthRpc = RpcGroup.make(GetChallenge, VerifyRola, GetSession, Logout).prefix('auth')
-export const VaultsRpc = RpcGroup.make(ImportVault, ListVaults, GetVault, ResyncVault).prefix('vaults')
+export const VaultsRpc = RpcGroup.make(ImportVault, CreateVault, ListVaults, GetVault, ResyncVault).prefix('vaults')
 export const ProposalsRpc = RpcGroup.make(
   CreateProposal, ListProposals, GetProposal,
   SignProposal, GetSignatureStatus, SubmitProposal
@@ -582,6 +589,7 @@ ServerLayer = Layer.mergeAll(
 
 **`apps/server/src/handlers/vaults.ts`**:
 - `ImportVault` — insert vault record (name + account address), optionally verify auth delegates to superadmin via Gateway
+- `CreateVault` — build manifest (create account + set owner role to superadmin), compile, sign with fee payer key, submit to Gateway, extract new account address from transaction receipt, store vault DB record
 - `ListVaults` — query vaults where `is_superadmin = false`
 - `GetVault` — fetch by id
 - `ResyncVault` — re-fetch on-chain state (balances, verify auth delegation still valid)
@@ -700,6 +708,7 @@ import tailwindcss from '@tailwindcss/vite'
 **`apps/client/src/atom/vaults.ts`**:
 - `vaultsListAtom` — fetches all vaults (flat list)
 - `importVaultAtom`
+- `createVaultAtom`
 - `vaultDetailAtom(id)`
 
 **`apps/client/src/atom/proposals.ts`**:
@@ -746,7 +755,7 @@ File-based routing under `apps/client/src/routes/`:
 
 **`index.tsx`** — Dashboard: vault list + pending proposal counts.
 
-**`vaults/import.tsx`** — Import vault form: account address + name. Verifies auth delegation.
+**`vaults/add.tsx`** — Add vault form with import/create toggle: import mode enters account address + name and verifies auth delegation; create mode enters name only, server creates on-chain account.
 
 **`vaults/$vaultId.tsx`** — Vault detail: balance, proposals list (filterable by status), create proposal button.
 
@@ -911,6 +920,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 
 **`apps/server/src/__tests__/vaults.test.ts`**:
 - Import vault → stores record
+- Create vault → creates on-chain account + stores record
 - List vaults → excludes superadmin
 - Re-sync vault
 
