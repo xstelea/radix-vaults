@@ -194,6 +194,10 @@ export const AppRpc = RpcGroup.make(
 | Superadmin in DB | Vault record with `is_superadmin = true` |
 | Vault import | DB record + optional superadmin proposal to set auth delegation |
 | Sessions | DB table, HTTP-only cookie with signed session ID |
+| DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
+| Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
+| Column naming | camelCase JS props, explicit snake_case DB names in Drizzle builders |
+| Timestamp overrides | Override with `S.DateFromString` in derived schemas (RPC wire format is ISO string) |
 | Raw .ts exports | Standard pnpm/turbo monorepo pattern |
 | TS Radix Engine Toolkit | Supports V2 (SubintentManifestV2, PartialTransactionV2) |
 | `@radix-effects/gateway` | User's own published library on npm |
@@ -248,6 +252,8 @@ Create five workspaces:
 - `packages/database/package.json` — name: `db`
 
 Each with `"type": "module"` and appropriate deps from catalog.
+
+**Dependency graph**: `shared` depends on `db` (`"db": "workspace:*"`) so it can import Drizzle table definitions for schema derivation.
 
 ### Step 1.3: TypeScript Configs
 
@@ -315,13 +321,25 @@ DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 
 ### Step 2.2: Schema Definition
 
-**`packages/database/src/schema.ts`** — 6 tables as defined in the Database Schema section above:
-- `vaults` (with `is_superadmin` flag, no `group_id`)
-- `proposals` (references `vaults.id`)
-- `signatures` (UNIQUE on `proposal_id, signer_key_hash`)
-- `submission_attempts`
-- `sessions`
-- `challenges`
+**`packages/database/src/schema.ts`** — 6 tables as defined in the Database Schema section above. All tables use **camelCase JS property names** with **explicit snake_case DB column names** so that `createSelectSchema` produces camelCase fields matching Effect schema conventions:
+
+```typescript
+export const vaults = pgTable('vaults', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  accountAddress: varchar('account_address', { length: 255 }).notNull(),
+  isSuperadmin: boolean('is_superadmin').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+```
+
+Same pattern for all 6 tables:
+- `vaults` (with `isSuperadmin` flag, no `groupId`)
+- `proposals` (references `vaults.id`, fields: `vaultId`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
+- `signatures` (UNIQUE on `proposalId, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `isValid`, `createdAt`)
+- `submissionAttempts` (`proposalId`, `feePayerAccount`, `txHash`, `status`, `errorMessage`, `createdAt`)
+- `sessions` (`sessionId`, `walletAddress`, `createdAt`, `expiresAt`)
+- `challenges` (`challenge`, `expiresAt`, `used`)
 
 ### Step 2.3: Generate Initial Migration
 
@@ -344,50 +362,19 @@ In `apps/server/src/db/`:
 
 ### Step 3.1: Domain Schemas
 
-**`packages/shared/src/schemas.ts`** — Effect Schema definitions:
+**`packages/shared/src/schemas.ts`** — Effect Schema definitions. DB-backed schemas are **derived from Drizzle tables** via `drizzle-orm/effect-schema`; non-DB schemas remain hand-written.
 
 ```typescript
 import { Schema as S } from 'effect'
+import { createSelectSchema, createInsertSchema } from 'drizzle-orm/effect-schema'
+import { vaults, proposals, signatures } from 'db/schema'
+
+// --- Hand-written (non-DB) ---
 
 export const ProposalStatus = S.Literal(
   'created', 'signing', 'ready', 'submitting',
   'committed', 'failed', 'expired', 'invalid'
 )
-
-export class Vault extends S.Class<Vault>('Vault')({
-  id: S.Number,
-  name: S.String,
-  accountAddress: S.String,
-  isSuperadmin: S.Boolean,
-  createdAt: S.DateFromString,
-}) {}
-
-export class Proposal extends S.Class<Proposal>('Proposal')({
-  id: S.Number,
-  vaultId: S.Number,
-  manifestText: S.String,
-  status: ProposalStatus,
-  epochMin: S.NullOr(S.Number),
-  epochMax: S.NullOr(S.Number),
-  subintentHash: S.NullOr(S.String),
-  intentDiscriminator: S.NullOr(S.String),
-  minProposerTimestamp: S.NullOr(S.String),
-  maxProposerTimestamp: S.NullOr(S.String),
-  createdBy: S.String,
-  createdAt: S.DateFromString,
-  submittedAt: S.NullOr(S.DateFromString),
-  txId: S.NullOr(S.String),
-  invalidReason: S.NullOr(S.String),
-}) {}
-
-export class Signature extends S.Class<Signature>('Signature')({
-  id: S.Number,
-  proposalId: S.Number,
-  signerPublicKey: S.String,
-  signerKeyHash: S.String,
-  isValid: S.Boolean,
-  createdAt: S.DateFromString,
-}) {}
 
 export class Signer extends S.Class<Signer>('Signer')({
   signerPublicKey: S.String,
@@ -399,6 +386,33 @@ export class AccessRuleInfo extends S.Class<AccessRuleInfo>('AccessRuleInfo')({
   signers: S.Array(Signer),
   threshold: S.Number,
 }) {}
+
+// --- Derived from Drizzle tables ---
+
+export class Vault extends S.Class<Vault>('Vault')(
+  createSelectSchema(vaults, { createdAt: S.DateFromString }).fields
+) {}
+
+export class Proposal extends S.Class<Proposal>('Proposal')(
+  createSelectSchema(proposals, {
+    status: ProposalStatus,
+    createdAt: S.DateFromString,
+    submittedAt: S.NullOr(S.DateFromString),
+  }).fields
+) {}
+
+export class Signature extends S.Class<Signature>('Signature')(
+  // Omit internal fields not sent to clients
+  S.omit(createSelectSchema(signatures, {
+    createdAt: S.DateFromString,
+  }), 'signatureBytes', 'signedPartialTransactionHex').fields
+) {}
+
+// Insert schemas for server-side validation
+export const VaultInsert = createInsertSchema(vaults)
+export const ProposalInsert = createInsertSchema(proposals)
+
+// --- Hand-written (composite, uses derived Signature) ---
 
 export class SignatureStatus extends S.Class<SignatureStatus>('SignatureStatus')({
   proposalId: S.Number,
@@ -842,11 +856,10 @@ File-based routing under `apps/client/src/routes/`:
 
 **`apps/cli/src/bootstrap.ts`**:
 
-Input: `bootstrap.json`
+Input: `bootstrap.json` + env var `FEE_PAYER_PRIVATE_KEY_HEX`
 ```json
 {
   "networkId": 2,
-  "feePayerPrivateKeyHex": "...",
   "signers": [
     { "publicKeyHex": "...", "keyType": "EddsaEd25519" },
     { "publicKeyHex": "...", "keyType": "EddsaEd25519" },
@@ -861,7 +874,7 @@ Input: `bootstrap.json`
 ```
 
 Steps:
-1. Read config, derive fee payer account from private key
+1. Read config + `FEE_PAYER_PRIVATE_KEY_HEX` from env, derive fee payer account from private key
 2. Create superadmin multisig account on-chain (CountOf threshold + signer virtual badges)
 3. Create soul-bound fungible badge resource with mint authority on superadmin account
 4. Mint initial badges to specified recipient addresses
@@ -885,7 +898,10 @@ All transactions signed with fee payer key.
 ### Step 9.1: Shared Schema Tests
 
 **`packages/shared/src/schemas.test.ts`**:
-- Encode/decode roundtrips for all domain types
+- Encode/decode roundtrips for all domain types (including derived schemas)
+- Roundtrip tests for derived schemas: verify Vault, Proposal, Signature survive encode → decode
+- Verify `S.Class` `instanceof` works on derived schemas (e.g. `decoded instanceof Vault`)
+- Verify insert schemas (`VaultInsert`, `ProposalInsert`) reject auto-generated fields (`id`, `createdAt`)
 - Validation edge cases (empty strings, malformed addresses)
 - ProposalStatus enum validation
 
@@ -968,7 +984,7 @@ Within phases, steps can often be parallelized. Phase 7 can be started alongside
 | `@effect/sql-drizzle` | ^0.47.0 | server |
 | `@effect/sql-pg` | ^0.49.7 | server |
 | `@effect/vitest` | ^0.27.0 | server, shared (dev) |
-| `drizzle-orm` | 0.45.1 | database |
+| `drizzle-orm` | 0.45.1 | database, shared (subpath `drizzle-orm/effect-schema` for schema derivation) |
 | `drizzle-kit` | ^0.31.8 | database (dev) |
 | `pg` | ^8.16.0 | server, database |
 | `@tanstack/react-start` | ^1.132.0 | client |
