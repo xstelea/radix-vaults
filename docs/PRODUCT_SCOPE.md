@@ -54,7 +54,7 @@ Day-to-day: Badge holder logs in via ROLA → Creates proposal →
 | Role | Identification | Capabilities |
 |------|---------------|-------------|
 | Unauthenticated | No wallet / no badge | Public read-only access (vaults/proposals/team status views) |
-| Team Member | Wallet connected + ROLA account proof + hold member badge (balance > 0) | Log in, perform write actions (create/sign/submit/resync/refresh) |
+| Team Member | Wallet connected + ROLA account proof + hold member badge (balance > 0) | Log in, perform write actions (create/submit/resync/refresh), manage own signer source |
 | Signer | Key listed in a **vault's** access rule | Above + signatures count toward the vault's proposal threshold |
 
 **Authentication:**
@@ -91,6 +91,7 @@ sequenceDiagram
 - Vault signer sets are vault-local and can differ between vaults
 - No per-vault app permissions — any badge holder can create proposals on any vault
 - Signer status is determined on-chain, not in the database
+- Signing is blocked until the member self-registers an Ed25519 signer source
 
 ---
 
@@ -121,7 +122,7 @@ A cryptographic approval from a signer on a proposal's subintent. Signatures are
 
 ### 3.4 Team Account
 
-A team account used for membership badge operations and team visibility in the app. Team-level signer info is discovered on-chain and shown as a consistency signal relative to derived member signer sets.
+A team account used for membership badge operations and team visibility in the app. Team-level signer info is discovered on-chain and compared against member self-registered Ed25519 signer sources.
 
 ### 3.5 Badge
 
@@ -236,10 +237,11 @@ sequenceDiagram
 | View signature progress | See collected vs. required signatures, per-signer status |
 
 The signing flow:
-1. Client builds a `SubintentRequest` from proposal metadata (discriminator, proposer timestamps, subintent hash)
-2. Radix Wallet independently computes the same subintent hash and signs
-3. Client sends signed partial transaction back to server
-4. Server extracts and validates signature against **vault's** access rule
+1. Client checks member signer source is set (Ed25519); if missing, signing is blocked
+2. Client builds a `SubintentRequest` from proposal metadata (discriminator, proposer timestamps, subintent hash)
+3. Radix Wallet independently computes the same subintent hash and signs
+4. Client sends signed partial transaction back to server
+5. Server extracts and validates signature against **vault's** access rule
 
 **Sign Proposal**
 
@@ -307,8 +309,10 @@ Submission is idempotent — the Radix network deduplicates by hash. No server-s
 | Action | Description |
 |--------|-------------|
 | View team signers | Current signer list + threshold (fetched from on-chain state) |
-| View derived members | Badge holders parsed to signer keys (Ed25519/Secp256k1) |
-| View signer-set mismatch | Compare owner-rule signer set vs derived member signer set |
+| View member signer sources | Self-registered member Ed25519 signer sources |
+| Set my signer source | Self-service manual entry of full Ed25519 signer source (one per member) |
+| Clear my signer source | Self-service removal of signer source |
+| View signer-set mismatch | Compare owner-rule signer set vs registered member signer sources |
 | View badge resource | Badge resource address |
 | Mint badge | Team-governed badge mint flow |
 | Burn/revoke badge | Team-governed recall + burn flow |
@@ -330,7 +334,7 @@ Vault auth rule changes remain vault-local proposal actions (`SET_OWNER_ROLE` on
 | Change Vault Auth Rules | `/vaults/$vaultId/auth-rules` | Update signer set and/or threshold through a vault-local proposal |
 | Create Proposal | `/vaults/$vaultId/proposals/new` | Write manifest text, set max proposer timestamp, submit |
 | Proposal Detail | `/vaults/$vaultId/proposals/$proposalId` | View status, manifest, signature progress; sign or submit |
-| Team | `/team` | View team signers, derived members, mismatch warning, badge resource, re-sync |
+| Team | `/team` | View team signers, registered member signer sources, mismatch warning, badge resource, re-sync |
 | Badge Management | `/team/badges` | Mint badge (enter recipient), burn/revoke badge |
 | Team Signers | `/team/signers` | View current team owner-rule signers |
 | Team Proposals | `/team/proposals` | List team proposals |
@@ -414,11 +418,11 @@ TEAM_MEMBER_BADGE_ADDRESS=resource_tdx_2_1...
 | Add vault | User can import an existing on-chain account (any parseable access rule) or create a new vault on-chain with specified threshold; app stores the record |
 | Change vault auth rules | User can create and submit a vault-local `SET_OWNER_ROLE` proposal to change signer set and/or threshold |
 | Create proposal | User can submit a manifest; server compiles, validates, previews, and stores the proposal |
-| Sign proposal | Signer can approve via Radix Wallet; signature is validated and recorded |
+| Sign proposal | Signer can approve via Radix Wallet only after setting Ed25519 signer source; signature is validated and recorded |
 | Threshold detection | System correctly identifies when enough signatures are collected against the per-vault threshold |
 | Submit transaction | Fully-signed proposal is re-checked + previewed, then composed with fee payer and submitted to Gateway |
 | Status refresh | Submitted transactions can be manually refreshed in-app |
-| Team management | Badge mint/recall/burn and team visibility flows are available |
+| Team management | Badge mint/recall/burn, member signer-source management, and team visibility flows are available |
 | Bootstrap CLI | Creates team account, badge resource, and initial badges in one run |
 
 ### 7.2 Non-Functional Requirements

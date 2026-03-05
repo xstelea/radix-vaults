@@ -2,7 +2,7 @@
 
 ## Overview
 
-TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. Team account controls member badge mint/recall/burn only. Each vault has its own independent signer set and threshold via owner-role multisig. Reads are public; authenticated member badge holders can perform write actions. Each vault threshold remains the authorization gate for vault signatures.
+TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. Team account controls member badge mint/recall/burn only. Each vault has its own independent signer set and threshold via owner-role multisig. Reads are public; authenticated member badge holders can perform write actions. Each vault threshold remains the authorization gate for vault signatures. Members must self-register an Ed25519 signer source before signing proposals.
 
 ## Reference Repos
 
@@ -15,11 +15,11 @@ TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bo
 
 ### Auth Model
 
-Team account is configured from env (`TEAM_ACCOUNT_ADDRESS`) and only governs badge operations. Each vault uses `OwnerRole::Updatable(require_n_of(vault_threshold, [signer_virtual_badges]))` with signer sets chosen per vault. Signers are discovered from team membership (badge holders -> owner rule parse -> Ed25519/Secp256k1 extraction), but each vault controls its own owner rule and signer updates through vault-local `SET_OWNER_ROLE` proposals.
+Team account is configured from env (`TEAM_ACCOUNT_ADDRESS`) and only governs badge operations. Each vault uses `OwnerRole::Updatable(require_n_of(vault_threshold, [signer_virtual_badges]))` with signer sets chosen per vault. Member signer identity is self-registered as an Ed25519 signer source (manual entry, one per member). Each vault controls its own owner rule and signer updates through vault-local `SET_OWNER_ROLE` proposals.
 
 **ROLA flow**: server generates a challenge (stored in `challenges` table, single-use), client signs with wallet, server verifies signature proves wallet ownership, then checks badge balance > 0 via Gateway. On success, creates or rotates a per-device session (DB row + HTTP-only session cookie).
 
-**Team consistency warning**: compare team account owner-rule signer set with derived member signer set (Ed25519 + Secp256k1). If sets differ, surface a signer-set mismatch warning in Team UI, vault pages, proposal pages, and TeamRpc responses.
+**Team consistency warning**: compare team account owner-rule signer set with registered member signer sources (Ed25519). If sets differ, surface a signer-set mismatch warning in Team UI, vault pages, proposal pages, and TeamRpc responses.
 
 **Team member badge policy (soul-bound fungible)**: use role restrictions to prevent voluntary transfer (withdraw/deposit constraints), while allowing Team-controlled recall and burn. Members can hold/use badge for access, but cannot transfer it to another account.
 
@@ -57,7 +57,7 @@ No server-side polling loop. Server submits to Gateway, returns `{ txId, status:
 
 ---
 
-## Database Schema (6 tables)
+## Database Schema (7 tables)
 
 ### `vaults`
 ```sql
@@ -126,6 +126,16 @@ challenge   varchar(255) NOT NULL UNIQUE
 expires_at  timestamp NOT NULL
 ```
 
+### `member_signer_sources`
+```sql
+id                    serial PRIMARY KEY
+member_wallet_address varchar(255) NOT NULL UNIQUE
+signer_public_key     text NOT NULL
+signer_key_hash       varchar(255) NOT NULL
+created_at            timestamp NOT NULL DEFAULT now()
+updated_at            timestamp NOT NULL DEFAULT now()
+```
+
 ---
 
 ## RPC Groups
@@ -157,8 +167,11 @@ Per-group typed error unions.
 
 ### TeamRpc
 - `GetTeamSigners` → fetch team account owner rule from Gateway, return signer list + threshold
-- `GetMembers` → query badge holders from Gateway, parse each holder account owner rule, return derived Ed25519/Secp256k1 member keys
-- `GetTeamStatus` → return owner-rule signer set, derived member signer set, and `signerSetMismatch`
+- `ListMemberSignerSources` → list self-registered member Ed25519 signer sources
+- `GetMySignerSource` → return current member's signer source (if set)
+- `SetMySignerSource` → upsert current member's signer source (manual entry)
+- `ClearMySignerSource` → clear current member's signer source
+- `GetTeamStatus` → return owner-rule signer set, registered member signer set, and `signerSetMismatch`
 - `GetBadgeResource` → return badge resource address (from env)
 
 ```typescript
@@ -180,14 +193,14 @@ export const AppRpc = RpcGroup.make(
 | Read access | Public read endpoints; auth required for writes |
 | Write authorization | Any authenticated member badge holder |
 | Groups | Removed — flat vault list |
-| Member records | No DB table — discover members on-chain from badge holders + owner-rule parse |
+| Member signer source records | DB table (`member_signer_sources`) populated by self-service member entry |
 | HTTP server | `@effect/platform` NodeHttpServer (not Hono) |
 | RPC transport | `@effect/rpc` + `@effect/platform` |
 | Rendering | SPA only (TanStack Start, no SSR, no Nitro) |
 | Tx submission | No background polling — return tx hash + 'submitted' + manual refresh |
 | Error model | Per-RPC-group typed error unions |
 | Access rules | CountOf + AllOf (flat, no nested) |
-| Key types | Ed25519 + Secp256k1 on server/client; CLI bootstrap remains Ed25519-only |
+| Key types | Access-rule/signature handling supports Ed25519 + Secp256k1; member signer source registration is Ed25519-only |
 | Badge type | Fungible, soul-bound, recallable; transfer blocked by withdraw/deposit restrictions |
 | Badge minting | Team-authorized mint on member badge resource |
 | Vault auth rule changes | Vault-local proposals call `SET_OWNER_ROLE` to change signer set and/or threshold |
@@ -206,6 +219,7 @@ export const AppRpc = RpcGroup.make(
 | Sessions | DB table, HTTP-only session cookie |
 | Session policy | 7-day TTL, sliding refresh only below 50% remaining, single active session per device |
 | Badge revocation check | Evaluated at refresh boundary (accepted delay) |
+| Signer source requirement | Member must set Ed25519 signer source before signing proposals |
 | DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
 | Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
 | Column naming | camelCase JS props, explicit snake_case DB names in Drizzle builders |
@@ -397,13 +411,14 @@ export const vaults = pgTable('vaults', {
 })
 ```
 
-Same pattern for all 6 tables:
+Same pattern for all 7 tables:
 - `vaults` (PK is `accountAddress`; team row is identified by address match)
 - `proposals` (references `vaults.accountAddress`, fields: `vaultAddress`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
 - `signatures` (UNIQUE on `proposalId, signerKeyType, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyType`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `createdAt`)
 - `submissionAttempts` (`proposalId`, `feePayerAccount`, `txHash`, `status`, `errorMessage`, `createdAt`)
 - `sessions` (`sessionId`, `walletAddress`, `createdAt`, `expiresAt`)
 - `challenges` (`challenge`, `expiresAt`)
+- `memberSignerSources` (`memberWalletAddress`, `signerPublicKey`, `signerKeyHash`, `createdAt`, `updatedAt`)
 
 ### Step 2.3: Generate Initial Migration
 
@@ -546,9 +561,25 @@ export class GetTeamSigners extends Rpc.make('GetTeamSigners')({
   error: S.Union(/* GatewayError */),
 }) {}
 
-export class GetMembers extends Rpc.make('GetMembers')({
+export class ListMemberSignerSources extends Rpc.make('ListMemberSignerSources')({
   success: S.Array(Schemas.Signer),
-  error: S.Union(/* GatewayError, UnsupportedOwnerRuleError */),
+  error: S.Union(/* UnauthorizedError */),
+}) {}
+
+export class GetMySignerSource extends Rpc.make('GetMySignerSource')({
+  success: S.NullOr(Schemas.Signer),
+  error: S.Union(/* UnauthorizedError */),
+}) {}
+
+export class SetMySignerSource extends Rpc.make('SetMySignerSource')({
+  payload: { signerPublicKey: S.String },
+  success: Schemas.Signer,
+  error: S.Union(/* UnauthorizedError, ValidationError */),
+}) {}
+
+export class ClearMySignerSource extends Rpc.make('ClearMySignerSource')({
+  success: S.Struct({ ok: S.Boolean }),
+  error: S.Union(/* UnauthorizedError */),
 }) {}
 
 export class GetTeamStatus extends Rpc.make('GetTeamStatus')({
@@ -578,7 +609,15 @@ export const ProposalsRpc = RpcGroup.make(
   CreateProposal, ListProposals, GetProposal,
   SignProposal, GetSignatureStatus, SubmitProposal, RefreshSubmissionStatus
 ).prefix('proposals')
-export const TeamRpc = RpcGroup.make(GetTeamSigners, GetMembers, GetTeamStatus, GetBadgeResource).prefix('team')
+export const TeamRpc = RpcGroup.make(
+  GetTeamSigners,
+  ListMemberSignerSources,
+  GetMySignerSource,
+  SetMySignerSource,
+  ClearMySignerSource,
+  GetTeamStatus,
+  GetBadgeResource,
+).prefix('team')
 
 export const AppRpc = RpcGroup.make(
   ...AuthRpc.requests,
@@ -736,8 +775,11 @@ ServerLayer = Layer.mergeAll(
 
 **`apps/server/src/handlers/team.ts`**:
 - `GetTeamSigners` → fetch team owner-rule access rule from Gateway, parse, return signer list + threshold
-- `GetMembers` → enumerate badge holders from Gateway, parse each holder owner rule, extract Ed25519/Secp256k1 signer keys
-- `GetTeamStatus` → compare owner-rule signer set vs derived member signer set, return `signerSetMismatch`
+- `ListMemberSignerSources` → list DB rows from `member_signer_sources`
+- `GetMySignerSource` → fetch current member's signer source row
+- `SetMySignerSource` → validate Ed25519 input, derive key hash, upsert current member's row
+- `ClearMySignerSource` → delete current member's row (self-service)
+- `GetTeamStatus` → compare owner-rule signer set vs registered member signer set, return `signerSetMismatch`
 - `GetBadgeResource` → return `TEAM_MEMBER_BADGE_ADDRESS` from env
 
 ### Step 5.5: Validity & Status Updates
@@ -815,11 +857,12 @@ import tailwindcss from '@tailwindcss/vite'
 **`apps/client/src/atom/signing.ts`**:
 - `handleSignAtom(proposalDetailAtom, sigStatusAtom)`:
   1. Get RDT instance
-  2. Build SubintentRequestBuilder with proposal's header values
-  3. Call `rdt.walletApi.sendPreAuthorizationRequest()`
-  4. Validate returned subintent hash matches expected
-  5. Send signed partial to server via `SignProposal` RPC
-  6. Refresh atoms
+  2. Require member signer source is set (`GetMySignerSource`) — block if missing
+  3. Build SubintentRequestBuilder with proposal's header values
+  4. Call `rdt.walletApi.sendPreAuthorizationRequest()`
+  5. Validate returned subintent hash matches expected
+  6. Send signed partial to server via `SignProposal` RPC
+  7. Refresh atoms
 
 **`apps/client/src/atom/submit.ts`**:
 - `submitProposalAtom(proposalId)` — calls `SubmitProposal` RPC
@@ -829,7 +872,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 **`apps/client/src/atom/team.ts`**:
 - `teamSignersAtom` — fetches team owner-rule signers via `GetTeamSigners` RPC
-- `membersAtom` — fetches derived members (Ed25519 + Secp256k1) via `GetMembers` RPC
+- `memberSignerSourcesAtom` — fetches registered member signer sources via `ListMemberSignerSources` RPC
+- `mySignerSourceAtom` — fetches current member signer source via `GetMySignerSource`
+- `setMySignerSourceAtom` — upserts current member signer source via `SetMySignerSource`
+- `clearMySignerSourceAtom` — clears current member signer source via `ClearMySignerSource`
 - `teamStatusAtom` — fetches signer-set mismatch status via `GetTeamStatus` RPC
 - `badgeResourceAtom` — fetches badge resource address
 
@@ -865,7 +911,7 @@ File-based routing under `apps/client/src/routes/`:
 
 **`vaults/$vaultAddress/proposals/$proposalId.tsx`** — Proposal detail: status badge, manifest text, signature progress (collected/threshold), per-signer table, sign button, submit button, tx ID link.
 
-**`team/index.tsx`** — Team section: owner-rule signers + threshold, derived members, signer-set mismatch warning, badge resource info, re-sync button.
+**`team/index.tsx`** — Team section: owner-rule signers + threshold, registered member signer sources, signer-set mismatch warning, badge resource info, re-sync button.
 
 **`team/badges.tsx`** — Badge management: mint (enter account address), recall + burn membership badge.
 
@@ -1039,8 +1085,9 @@ Use `@testcontainers/postgresql` for real Postgres.
 
 **`apps/server/src/__tests__/team.test.ts`**:
 - `GetTeamSigners` returns team owner-rule signer set
-- `GetMembers` derives Ed25519/Secp256k1 keys from badge holders
-- Team status returns `signerSetMismatch` when owner-rule and derived member sets differ
+- `SetMySignerSource` upserts exactly one Ed25519 signer source per member
+- `SignProposal` is blocked when member signer source is missing
+- Team status returns `signerSetMismatch` when owner-rule and registered member sets differ
 - Badge transfer attempt fails due to withdraw/deposit restrictions
 - Team recall + burn succeeds for membership removal
 
