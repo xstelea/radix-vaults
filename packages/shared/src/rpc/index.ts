@@ -1,1 +1,1 @@
-export * from "./appRpc"
+export * from './appRpc'

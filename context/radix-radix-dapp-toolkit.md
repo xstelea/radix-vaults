@@ -327,8 +327,8 @@ RadixNetwork = {
   Hammunet: 0x22,
   Nergalnet: 0x23,
   Mardunet: 0x24,
-  Dumunet: 0x25,
-};
+  Dumunet: 0x25
+}
 ```
 
 ---

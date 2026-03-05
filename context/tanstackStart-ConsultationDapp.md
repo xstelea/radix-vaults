@@ -85,17 +85,17 @@ The app uses two runtime creation strategies sharing a common `MemoMap` for atom
 
 ```ts
 // Atom.context creates a shared context with a common MemoMap
-export const makeAtomRuntime = Atom.context({ memoMap: Atom.defaultMemoMap });
+export const makeAtomRuntime = Atom.context({ memoMap: Atom.defaultMemoMap })
 
 // Global logger layer added to ALL runtimes created from this factory
 makeAtomRuntime.addGlobalLayer(
   Layer.provideMerge(
     Logger.pretty,
     Logger.minimumLogLevel(
-      envVars.EFFECTIVE_ENV === "dev" ? LogLevel.Debug : LogLevel.Info
+      envVars.EFFECTIVE_ENV === 'dev' ? LogLevel.Debug : LogLevel.Info
     )
   )
-);
+)
 ```
 
 **Lightweight runtime** — `dappToolkitAtom.ts` uses `Atom.runtime(RadixDappToolkit.Live)` directly for wallet-only atoms that don't need the full governance stack.
@@ -110,7 +110,7 @@ const runtime = makeAtomRuntime(
     Layer.provide(GovernanceConfigLayer),
     Layer.provide(Layer.setConfigProvider(ConfigProvider.fromJson(envVars)))
   )
-);
+)
 ```
 
 **VoteClient runtime** — Separate lightweight runtime with just HTTP client:
@@ -118,7 +118,7 @@ const runtime = makeAtomRuntime(
 ```ts
 const voteClientRuntime = makeAtomRuntime(
   VoteClientLive.pipe(Layer.provide(FetchHttpClient.layer))
-);
+)
 ```
 
 ### Atom Types
@@ -128,10 +128,10 @@ const voteClientRuntime = makeAtomRuntime(
 ```ts
 export const governanceParametersAtom = runtime.atom(
   Effect.gen(function* () {
-    const governanceComponent = yield* GovernanceComponent;
-    return yield* governanceComponent.getGovernanceParameters();
+    const governanceComponent = yield* GovernanceComponent
+    return yield* governanceComponent.getGovernanceParameters()
   })
-);
+)
 ```
 
 **Parameterized atoms** — `Atom.family((param) => ...)` for pagination, by-ID lookups. Nested families for multi-param:
@@ -154,17 +154,17 @@ export const walletDataAtom = runtime.atom(
       Effect.gen(function* () {
         const subscription = rdt.walletApi.walletData$.subscribe((data) =>
           emit.single(data)
-        );
-        return Effect.sync(() => subscription.unsubscribe());
+        )
+        return Effect.sync(() => subscription.unsubscribe())
       })
-    );
+    )
     yield* Stream.runForEach(
       Stream.changesWith(walletData /* dedup by account addresses */),
       (value) => Effect.sync(() => get.setSelf(Effect.succeed(value)))
-    );
-    return rdt.walletApi.getWalletData(); // initial value
+    )
+    return rdt.walletApi.getWalletData() // initial value
   })
-);
+)
 ```
 
 **Action atoms** — `runtime.fn(Effect.fn(..., withToast({...})))` for mutations. Actions use `get.refresh(atom)` to invalidate dependent atoms after mutations:
@@ -204,14 +204,14 @@ Failure handling pattern — match on `cause._tag === 'Fail'` then check error c
 
 ```ts
 whenFailure: ({ cause }) => {
-  if (cause._tag === "Fail") {
+  if (cause._tag === 'Fail') {
     if (cause.error instanceof WalletErrorResponse)
-      return Option.some(cause.error.message ?? "Wallet error");
+      return Option.some(cause.error.message ?? 'Wallet error')
     if (cause.error instanceof NoAccountConnectedError)
-      return Option.some(cause.error.message);
+      return Option.some(cause.error.message)
   }
-  return Option.some("Failed");
-};
+  return Option.some('Failed')
+}
 ```
 
 ### Error Types

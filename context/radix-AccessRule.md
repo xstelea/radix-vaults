@@ -82,16 +82,16 @@ pub enum ResourceOrNonFungible {
 
 `proof_rule.rs:199–261`
 
-| Function | Returns | Purpose |
-|---|---|---|
-| `require(T)` | `CompositeRequirement` | Wraps anything `Into<CompositeRequirement>` |
-| `require_any_of(Vec<T>)` | `CompositeRequirement` | `BasicRequirement::AnyOf` |
-| `require_all_of(Vec<T>)` | `CompositeRequirement` | `BasicRequirement::AllOf` |
-| `require_n_of(count, Vec<T>)` | `CompositeRequirement` | `BasicRequirement::CountOf` (M-of-N) |
-| `require_amount(Decimal, resource)` | `CompositeRequirement` | `BasicRequirement::AmountOf` |
-| `signature(public_key)` | `ResourceOrNonFungible` | NFT ID from public key hash (virtual badge) |
-| `global_caller(addr)` | `ResourceOrNonFungible` | NFT ID for global caller badge |
-| `package_of_direct_caller(pkg)` | `ResourceOrNonFungible` | NFT ID for package caller badge |
+| Function                            | Returns                 | Purpose                                     |
+| ----------------------------------- | ----------------------- | ------------------------------------------- |
+| `require(T)`                        | `CompositeRequirement`  | Wraps anything `Into<CompositeRequirement>` |
+| `require_any_of(Vec<T>)`            | `CompositeRequirement`  | `BasicRequirement::AnyOf`                   |
+| `require_all_of(Vec<T>)`            | `CompositeRequirement`  | `BasicRequirement::AllOf`                   |
+| `require_n_of(count, Vec<T>)`       | `CompositeRequirement`  | `BasicRequirement::CountOf` (M-of-N)        |
+| `require_amount(Decimal, resource)` | `CompositeRequirement`  | `BasicRequirement::AmountOf`                |
+| `signature(public_key)`             | `ResourceOrNonFungible` | NFT ID from public key hash (virtual badge) |
+| `global_caller(addr)`               | `ResourceOrNonFungible` | NFT ID for global caller badge              |
+| `package_of_direct_caller(pkg)`     | `ResourceOrNonFungible` | NFT ID for package caller badge             |
 
 ### Virtual Badges
 
@@ -117,11 +117,11 @@ pub enum OwnerRole {
 
 Converts to `OwnerRoleEntry`:
 
-| OwnerRole variant | `rule` | `updater` |
-|---|---|---|
-| `None` | `DenyAll` | `OwnerRoleUpdater::None` |
-| `Fixed(rule)` | `rule` | `OwnerRoleUpdater::None` |
-| `Updatable(rule)` | `rule` | `OwnerRoleUpdater::Owner` |
+| OwnerRole variant | `rule`    | `updater`                 |
+| ----------------- | --------- | ------------------------- |
+| `None`            | `DenyAll` | `OwnerRoleUpdater::None`  |
+| `Fixed(rule)`     | `rule`    | `OwnerRoleUpdater::None`  |
+| `Updatable(rule)` | `rule`    | `OwnerRoleUpdater::Owner` |
 
 ### OwnerRoleUpdater
 
@@ -135,10 +135,10 @@ pub enum OwnerRoleUpdater {
 
 ### Reserved Role Names
 
-| Constant | Value | Meaning |
-|---|---|---|
-| `OWNER_ROLE` | `"_owner_"` | The owner role; always present |
-| `SELF_ROLE` | `"_self_"` | The component itself; resolved to `require(global_caller(self_address))` at runtime |
+| Constant     | Value       | Meaning                                                                             |
+| ------------ | ----------- | ----------------------------------------------------------------------------------- |
+| `OWNER_ROLE` | `"_owner_"` | The owner role; always present                                                      |
+| `SELF_ROLE`  | `"_self_"`  | The component itself; resolved to `require(global_caller(self_address))` at runtime |
 
 ## Role Assignment System
 
@@ -195,14 +195,14 @@ When `RoleAssignmentInit` stores `None` for a role, the runtime falls back to th
 
 `invocations.rs`
 
-| Ident | Input | Description |
-|---|---|---|
-| `"create"` | `OwnerRoleEntry` + `IndexMap<ModuleId, RoleAssignmentInit>` | Initialize role assignment module |
-| `"set"` | `ModuleId` + `RoleKey` + `AccessRule` | Update a role's rule |
-| `"set_owner"` | `AccessRule` | Update the owner rule (requires current owner auth) |
-| `"lock_owner"` | (none) | Make owner immutable (sets updater to None) |
-| `"get"` | `ModuleId` + `RoleKey` | Read a role's rule → `Option<AccessRule>` |
-| `"get_owner_role"` | (none) | Read owner role entry → `OwnerRoleEntry` |
+| Ident              | Input                                                       | Description                                         |
+| ------------------ | ----------------------------------------------------------- | --------------------------------------------------- |
+| `"create"`         | `OwnerRoleEntry` + `IndexMap<ModuleId, RoleAssignmentInit>` | Initialize role assignment module                   |
+| `"set"`            | `ModuleId` + `RoleKey` + `AccessRule`                       | Update a role's rule                                |
+| `"set_owner"`      | `AccessRule`                                                | Update the owner rule (requires current owner auth) |
+| `"lock_owner"`     | (none)                                                      | Make owner immutable (sets updater to None)         |
+| `"get"`            | `ModuleId` + `RoleKey`                                      | Read a role's rule → `Option<AccessRule>`           |
+| `"get_owner_role"` | (none)                                                      | Read owner role entry → `OwnerRoleEntry`            |
 
 ## Macros
 
@@ -273,31 +273,31 @@ All types use SBOR Enum encoding (`0x22`). `ROLE_ASSIGNMENT_TYPES_START = 0xe0 (
 
 ### Discriminator Table
 
-| Type | Well-Known ID | Variant | Disc | Fields |
-|---|---|---|---|---|
-| **AccessRule** | `0xe0` (224) | `AllowAll` | 0 | (none) |
-| | | `DenyAll` | 1 | (none) |
-| | | `Protected` | 2 | `CompositeRequirement` |
-| **CompositeRequirement** | `0xe1` (225) | `BasicRequirement` | 0 | `BasicRequirement` |
-| | | `AnyOf` | 1 | `Vec<CompositeRequirement>` |
-| | | `AllOf` | 2 | `Vec<CompositeRequirement>` |
-| **CompositeRequirementList** | `0xe2` (226) | — | — | `Array<CompositeRequirement>` |
-| **BasicRequirement** | `0xe3` (227) | `Require` | 0 | `ResourceOrNonFungible` |
-| | | `AmountOf` | 1 | `Decimal`, `ResourceAddress` |
-| | | `CountOf` | 2 | `u8`, `Vec<ResourceOrNonFungible>` |
-| | | `AllOf` | 3 | `Vec<ResourceOrNonFungible>` |
-| | | `AnyOf` | 4 | `Vec<ResourceOrNonFungible>` |
-| **ResourceOrNonFungible** | `0xe4` (228) | `NonFungible` | 0 | `NonFungibleGlobalId` |
-| | | `Resource` | 1 | `ResourceAddress` |
-| **ResourceOrNonFungibleList** | `0xe5` (229) | — | — | `Array<ResourceOrNonFungible>` |
-| **OwnerRole** | `0xe6` (230) | `None` | 0 | (none) |
-| | | `Fixed` | 1 | `AccessRule` |
-| | | `Updatable` | 2 | `AccessRule` |
-| **RoleKey** | `0xe7` (231) | — | — | transparent `String` |
-| **ModuleId** | (separate range) | `Main` | 0 | |
-| | | `Metadata` | 1 | |
-| | | `Royalty` | 2 | |
-| | | `RoleAssignment` | 3 | |
+| Type                          | Well-Known ID    | Variant            | Disc | Fields                             |
+| ----------------------------- | ---------------- | ------------------ | ---- | ---------------------------------- |
+| **AccessRule**                | `0xe0` (224)     | `AllowAll`         | 0    | (none)                             |
+|                               |                  | `DenyAll`          | 1    | (none)                             |
+|                               |                  | `Protected`        | 2    | `CompositeRequirement`             |
+| **CompositeRequirement**      | `0xe1` (225)     | `BasicRequirement` | 0    | `BasicRequirement`                 |
+|                               |                  | `AnyOf`            | 1    | `Vec<CompositeRequirement>`        |
+|                               |                  | `AllOf`            | 2    | `Vec<CompositeRequirement>`        |
+| **CompositeRequirementList**  | `0xe2` (226)     | —                  | —    | `Array<CompositeRequirement>`      |
+| **BasicRequirement**          | `0xe3` (227)     | `Require`          | 0    | `ResourceOrNonFungible`            |
+|                               |                  | `AmountOf`         | 1    | `Decimal`, `ResourceAddress`       |
+|                               |                  | `CountOf`          | 2    | `u8`, `Vec<ResourceOrNonFungible>` |
+|                               |                  | `AllOf`            | 3    | `Vec<ResourceOrNonFungible>`       |
+|                               |                  | `AnyOf`            | 4    | `Vec<ResourceOrNonFungible>`       |
+| **ResourceOrNonFungible**     | `0xe4` (228)     | `NonFungible`      | 0    | `NonFungibleGlobalId`              |
+|                               |                  | `Resource`         | 1    | `ResourceAddress`                  |
+| **ResourceOrNonFungibleList** | `0xe5` (229)     | —                  | —    | `Array<ResourceOrNonFungible>`     |
+| **OwnerRole**                 | `0xe6` (230)     | `None`             | 0    | (none)                             |
+|                               |                  | `Fixed`            | 1    | `AccessRule`                       |
+|                               |                  | `Updatable`        | 2    | `AccessRule`                       |
+| **RoleKey**                   | `0xe7` (231)     | —                  | —    | transparent `String`               |
+| **ModuleId**                  | (separate range) | `Main`             | 0    |                                    |
+|                               |                  | `Metadata`         | 1    |                                    |
+|                               |                  | `Royalty`          | 2    |                                    |
+|                               |                  | `RoleAssignment`   | 3    |                                    |
 
 Schema names preserved for backward compat: `CompositeRequirement` → `"AccessRuleNode"`, `BasicRequirement` → `"ProofRule"`.
 
@@ -364,11 +364,13 @@ LOCK_OWNER_ROLE
 ### Requirement Evaluation
 
 `verify_auth_rule` recurses through `CompositeRequirement`:
+
 - `BasicRequirement(rule)` → `verify_proof_rule`
 - `AnyOf(rules)` → short-circuit on first pass
 - `AllOf(rules)` → short-circuit on first fail
 
 `verify_proof_rule` checks the AuthZone stack:
+
 - `Require(resource)` → any matching proof present?
 - `AmountOf(amount, resource)` → proof amount ≥ threshold?
 - `CountOf(count, resources)` → ≥ count matching proofs?
@@ -378,6 +380,7 @@ LOCK_OWNER_ROLE
 ### AuthZone Stack Traversal
 
 For each `auth_zone_stack_matches` call, the engine checks three sources in order:
+
 1. **Local implicit non-fungible proofs** (signature virtual badges)
 2. **Global caller's auth zone** (proofs from the calling component's context)
 3. **Current caller's parent auth zone** (proofs from the transaction-level context)

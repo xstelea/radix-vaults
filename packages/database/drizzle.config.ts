@@ -1,18 +1,18 @@
-import { defineConfig } from "drizzle-kit"
+import { defineConfig } from 'drizzle-kit'
 
 const databaseUrl = process.env.DATABASE_URL
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required to run drizzle commands")
+  throw new Error('DATABASE_URL is required to run drizzle commands')
 }
 
 export default defineConfig({
-  schema: "./src/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
+  schema: './src/schema.ts',
+  out: './drizzle',
+  dialect: 'postgresql',
   dbCredentials: {
-    url: databaseUrl,
+    url: databaseUrl
   },
   strict: true,
-  verbose: true,
+  verbose: true
 })

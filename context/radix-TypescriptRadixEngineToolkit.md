@@ -40,74 +40,74 @@ All methods are `static async` on `RadixEngineToolkit`.
 
 ### Build
 
-| Method | Signature |
-|--------|-----------|
+| Method        | Signature                        |
+| ------------- | -------------------------------- |
 | `information` | `() → Promise<BuildInformation>` |
 
 ### Derive
 
-| Method | Signature |
-|--------|-----------|
-| `virtualAccountAddressFromPublicKey` | `(publicKey, networkId) → Promise<string>` |
-| `virtualIdentityAddressFromPublicKey` | `(publicKey, networkId) → Promise<string>` |
-| `virtualSignatureNonFungibleGlobalIdFromPublicKey` | `(publicKey, networkId) → Promise<string>` |
-| `virtualAccountAddressFromOlympiaAccountAddress` | `(olympiaAddr, networkId) → Promise<string>` |
-| `resourceAddressFromOlympiaResourceAddress` | `(olympiaAddr, networkId) → Promise<string>` |
-| `publicKeyFromOlympiaAccountAddress` | `(olympiaAddr) → Promise<Uint8Array>` |
-| `olympiaAccountAddressFromPublicKey` | `(publicKey: Uint8Array, network: OlympiaNetwork) → Promise<string>` |
-| `nodeAddressFromPublicKey` | `(publicKey: Uint8Array, networkId) → Promise<string>` |
-| `bech32mTransactionIdentifierFromIntentHash` | `(hash: Uint8Array, networkId) → Promise<string>` |
+| Method                                             | Signature                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| `virtualAccountAddressFromPublicKey`               | `(publicKey, networkId) → Promise<string>`                           |
+| `virtualIdentityAddressFromPublicKey`              | `(publicKey, networkId) → Promise<string>`                           |
+| `virtualSignatureNonFungibleGlobalIdFromPublicKey` | `(publicKey, networkId) → Promise<string>`                           |
+| `virtualAccountAddressFromOlympiaAccountAddress`   | `(olympiaAddr, networkId) → Promise<string>`                         |
+| `resourceAddressFromOlympiaResourceAddress`        | `(olympiaAddr, networkId) → Promise<string>`                         |
+| `publicKeyFromOlympiaAccountAddress`               | `(olympiaAddr) → Promise<Uint8Array>`                                |
+| `olympiaAccountAddressFromPublicKey`               | `(publicKey: Uint8Array, network: OlympiaNetwork) → Promise<string>` |
+| `nodeAddressFromPublicKey`                         | `(publicKey: Uint8Array, networkId) → Promise<string>`               |
+| `bech32mTransactionIdentifierFromIntentHash`       | `(hash: Uint8Array, networkId) → Promise<string>`                    |
 
 ### Instructions
 
-| Method | Signature |
-|--------|-----------|
-| `hash` | `(instructions, networkId) → Promise<Uint8Array>` |
-| `convert` | `(instructions, networkId, kind: "String" \| "Parsed") → Promise<Instructions>` |
-| `compile` | `(instructions, networkId) → Promise<Uint8Array>` |
-| `decompile` | `(compiled: Uint8Array, networkId, kind?) → Promise<Instructions>` |
-| `extractAddresses` | `(instructions, networkId) → Promise<Record<EntityType, string[]>>` |
-| `staticallyValidate` | `(instructions, networkId) → Promise<StaticValidationResult>` |
+| Method               | Signature                                                                       |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `hash`               | `(instructions, networkId) → Promise<Uint8Array>`                               |
+| `convert`            | `(instructions, networkId, kind: "String" \| "Parsed") → Promise<Instructions>` |
+| `compile`            | `(instructions, networkId) → Promise<Uint8Array>`                               |
+| `decompile`          | `(compiled: Uint8Array, networkId, kind?) → Promise<Instructions>`              |
+| `extractAddresses`   | `(instructions, networkId) → Promise<Record<EntityType, string[]>>`             |
+| `staticallyValidate` | `(instructions, networkId) → Promise<StaticValidationResult>`                   |
 
 ### TransactionManifest
 
-| Method | Signature |
-|--------|-----------|
-| `hash` | `(manifest, networkId) → Promise<Uint8Array>` |
-| `compile` | `(manifest, networkId) → Promise<Uint8Array>` |
-| `decompile` | `(compiled: Uint8Array, networkId, kind?) → Promise<TransactionManifest>` |
-| `staticallyValidate` | `(manifest, networkId) → Promise<StaticValidationResult>` |
-| `staticallyAnalyze` | `(manifest, networkId) → Promise<StaticManifestAnalysisResult>` |
+| Method               | Signature                                                                 |
+| -------------------- | ------------------------------------------------------------------------- |
+| `hash`               | `(manifest, networkId) → Promise<Uint8Array>`                             |
+| `compile`            | `(manifest, networkId) → Promise<Uint8Array>`                             |
+| `decompile`          | `(compiled: Uint8Array, networkId, kind?) → Promise<TransactionManifest>` |
+| `staticallyValidate` | `(manifest, networkId) → Promise<StaticValidationResult>`                 |
+| `staticallyAnalyze`  | `(manifest, networkId) → Promise<StaticManifestAnalysisResult>`           |
 
 ### Intent
 
-| Method | Signature |
-|--------|-----------|
-| `hash` / `intentHash` | `(intent) → Promise<TransactionHash>` |
-| `compile` | `(intent) → Promise<Uint8Array>` |
-| `decompile` | `(compiled: Uint8Array, kind?) → Promise<Intent>` |
-| `staticallyValidate` | `(intent) → Promise<StaticValidationResult>` |
+| Method                | Signature                                         |
+| --------------------- | ------------------------------------------------- |
+| `hash` / `intentHash` | `(intent) → Promise<TransactionHash>`             |
+| `compile`             | `(intent) → Promise<Uint8Array>`                  |
+| `decompile`           | `(compiled: Uint8Array, kind?) → Promise<Intent>` |
+| `staticallyValidate`  | `(intent) → Promise<StaticValidationResult>`      |
 
 ### SignedIntent
 
-| Method | Signature |
-|--------|-----------|
-| `hash` / `signedIntentHash` | `(signedIntent) → Promise<TransactionHash>` |
-| `intentHash` | `(signedIntent) → Promise<TransactionHash>` |
-| `compile` | `(signedIntent) → Promise<Uint8Array>` |
-| `decompile` | `(compiled: Uint8Array, kind?) → Promise<SignedIntent>` |
-| `staticallyValidate` | `(signedIntent) → Promise<StaticValidationResult>` |
+| Method                      | Signature                                               |
+| --------------------------- | ------------------------------------------------------- |
+| `hash` / `signedIntentHash` | `(signedIntent) → Promise<TransactionHash>`             |
+| `intentHash`                | `(signedIntent) → Promise<TransactionHash>`             |
+| `compile`                   | `(signedIntent) → Promise<Uint8Array>`                  |
+| `decompile`                 | `(compiled: Uint8Array, kind?) → Promise<SignedIntent>` |
+| `staticallyValidate`        | `(signedIntent) → Promise<StaticValidationResult>`      |
 
 ### NotarizedTransaction
 
-| Method | Signature |
-|--------|-----------|
-| `hash` / `notarizedTransactionHash` | `(notarized) → Promise<TransactionHash>` |
-| `signedIntentHash` | `(notarized) → Promise<TransactionHash>` |
-| `intentHash` | `(notarized) → Promise<TransactionHash>` |
-| `compile` | `(notarized) → Promise<Uint8Array>` |
-| `decompile` | `(compiled: Uint8Array, kind?) → Promise<NotarizedTransaction>` |
-| `staticallyValidate` | `(notarized) → Promise<StaticValidationResult>` |
+| Method                              | Signature                                                       |
+| ----------------------------------- | --------------------------------------------------------------- |
+| `hash` / `notarizedTransactionHash` | `(notarized) → Promise<TransactionHash>`                        |
+| `signedIntentHash`                  | `(notarized) → Promise<TransactionHash>`                        |
+| `intentHash`                        | `(notarized) → Promise<TransactionHash>`                        |
+| `compile`                           | `(notarized) → Promise<Uint8Array>`                             |
+| `decompile`                         | `(compiled: Uint8Array, kind?) → Promise<NotarizedTransaction>` |
+| `staticallyValidate`                | `(notarized) → Promise<StaticValidationResult>`                 |
 
 ### V2 Transaction Variants
 
@@ -132,11 +132,13 @@ All methods are `static async` on `RadixEngineToolkit`.
 ### SBOR
 
 **ManifestSbor:**
+
 ```ts
 decodeToString(payload: Uint8Array, networkId, representation: ManifestSborStringRepresentation, schema?: PayloadSchema): Promise<string>
 ```
 
 **ScryptoSbor:**
+
 ```ts
 decodeToString(payload: Uint8Array, networkId, representation: SerializationMode, schema?: PayloadSchema): Promise<string>
 encodeProgrammaticJson(object: any): Promise<Uint8Array>
@@ -144,15 +146,15 @@ encodeProgrammaticJson(object: any): Promise<Uint8Array>
 
 ### Address
 
-| Method | Signature |
-|--------|-----------|
-| `entityType` | `(address: string) → Promise<EntityType>` |
-| `decode` | `(address: string) → Promise<{ networkId, entityType, hrp, data: Uint8Array }>` |
+| Method       | Signature                                                                       |
+| ------------ | ------------------------------------------------------------------------------- |
+| `entityType` | `(address: string) → Promise<EntityType>`                                       |
+| `decode`     | `(address: string) → Promise<{ networkId, entityType, hrp, data: Uint8Array }>` |
 
 ### Utils
 
-| Method | Signature |
-|--------|-----------|
+| Method           | Signature                               |
+| ---------------- | --------------------------------------- |
 | `knownAddresses` | `(networkId) → Promise<KnownAddresses>` |
 
 ---
@@ -285,6 +287,7 @@ const notarized = await v2
 Async variants: `.signAsync(source)`, `.notarizeAsync(source)`.
 
 Preview (no notarization):
+
 ```ts
 .buildPreviewTransaction({
   rootSignerPublicKeys: PublicKey[],
@@ -299,33 +302,37 @@ Preview (no notarization):
 ### Cryptographic Primitives
 
 ```ts
-type Curve = "Secp256k1" | "Ed25519";
-type Bytes = Uint8Array | string;  // hex string or raw bytes
+type Curve = 'Secp256k1' | 'Ed25519'
+type Bytes = Uint8Array | string // hex string or raw bytes
 ```
 
-| Constant | Value |
-|----------|-------|
-| `ED25519_SIGNATURE_LENGTH` | 64 |
-| `SECP256K1_SIGNATURE_LENGTH` | 65 |
-| `ED25519_PUBLIC_KEY_LENGTH` | 32 |
-| `SECP256K1_PUBLIC_KEY_LENGTH` | 33 |
-| `ED25519_PRIVATE_KEY_LENGTH` | 32 |
-| `SECP256K1_PRIVATE_KEY_LENGTH` | 32 |
+| Constant                       | Value |
+| ------------------------------ | ----- |
+| `ED25519_SIGNATURE_LENGTH`     | 64    |
+| `SECP256K1_SIGNATURE_LENGTH`   | 65    |
+| `ED25519_PUBLIC_KEY_LENGTH`    | 32    |
+| `SECP256K1_PUBLIC_KEY_LENGTH`  | 33    |
+| `ED25519_PRIVATE_KEY_LENGTH`   | 32    |
+| `SECP256K1_PRIVATE_KEY_LENGTH` | 32    |
 
 **PublicKey** (abstract class):
+
 - Subclasses: `PublicKey.Secp256k1(bytes)`, `PublicKey.Ed25519(bytes)`
 - Methods: `rawBytes()`, `hexString()`, `hex()`, `toString()`
 
 **PrivateKey** (abstract class, implements `Signer`):
+
 - Subclasses: `PrivateKey.Secp256k1(bytes)`, `PrivateKey.Ed25519(bytes)`
 - Methods: `publicKey()`, `publicKeyBytes()`, `publicKeyHex()`, `sign(hash)`, `signToSignature(hash)`, `signToSignatureWithPublicKey(hash)`, `produceSignature(hash) → SignerResponse`
 - Secp256k1 uses `secp256k1` npm (compressed pubkeys); Ed25519 uses `@noble/ed25519` with `@noble/hashes/sha512`
 
 **Signature** (abstract class):
+
 - Subclasses: `Signature.Secp256k1(bytes)`, `Signature.Ed25519(bytes)`
 - Methods: `rawBytes()`, `hexString()`, `hex()`
 
 **SignatureWithPublicKey** (abstract class):
+
 - `SignatureWithPublicKey.Secp256k1(signature)` — publicKey is `undefined` (recoverable)
 - `SignatureWithPublicKey.Ed25519(signature, publicKey)` — publicKey required
 
@@ -333,43 +340,43 @@ type Bytes = Uint8Array | string;  // hex string or raw bytes
 
 ```ts
 interface TransactionHeader {
-  networkId: number;
-  startEpochInclusive: number;
-  endEpochExclusive: number;
-  nonce: number;
-  notaryPublicKey: PublicKey;
-  notaryIsSignatory: boolean;
-  tipPercentage: number;
+  networkId: number
+  startEpochInclusive: number
+  endEpochExclusive: number
+  nonce: number
+  notaryPublicKey: PublicKey
+  notaryIsSignatory: boolean
+  tipPercentage: number
 }
 
 interface TransactionManifest {
-  instructions: Instructions;
-  blobs: Uint8Array[];
+  instructions: Instructions
+  blobs: Uint8Array[]
 }
 
 type Instructions =
-  | { kind: "String"; value: string }
-  | { kind: "Parsed"; value: Instruction[] };
+  | { kind: 'String'; value: string }
+  | { kind: 'Parsed'; value: Instruction[] }
 
 interface Intent {
-  header: TransactionHeader;
-  manifest: TransactionManifest;
-  message: Message;
+  header: TransactionHeader
+  manifest: TransactionManifest
+  message: Message
 }
 
 interface SignedIntent {
-  intent: Intent;
-  intentSignatures: SignatureWithPublicKey[];
+  intent: Intent
+  intentSignatures: SignatureWithPublicKey[]
 }
 
 interface NotarizedTransaction {
-  signedIntent: SignedIntent;
-  notarySignature: Signature;
+  signedIntent: SignedIntent
+  notarySignature: Signature
 }
 
 interface TransactionHash {
-  hash: Uint8Array;
-  id: string;
+  hash: Uint8Array
+  id: string
 }
 ```
 
@@ -377,80 +384,82 @@ interface TransactionHash {
 
 ```ts
 type Message =
-  | { kind: "None" }
-  | { kind: "PlainText"; value: PlainTextMessage }
-  | { kind: "Encrypted"; value: EncryptedMessage };
+  | { kind: 'None' }
+  | { kind: 'PlainText'; value: PlainTextMessage }
+  | { kind: 'Encrypted'; value: EncryptedMessage }
 
 interface PlainTextMessage {
-  mimeType: string;
-  message: MessageContent;
+  mimeType: string
+  message: MessageContent
 }
 
 type MessageContent =
-  | { kind: "String"; value: string }
-  | { kind: "Bytes"; value: Uint8Array };
+  | { kind: 'String'; value: string }
+  | { kind: 'Bytes'; value: Uint8Array }
 ```
 
 ### V2 Transaction Types
 
 ```ts
 interface TransactionHeaderV2 {
-  notaryPublicKey: PublicKey;
-  notaryIsSignatory: boolean;
-  tipBasisPoints: number;       // NOTE: basis points, not percentage
+  notaryPublicKey: PublicKey
+  notaryIsSignatory: boolean
+  tipBasisPoints: number // NOTE: basis points, not percentage
 }
 
 interface IntentHeaderV2 {
-  networkId: number;
-  startEpochInclusive: number;
-  endEpochExclusive: number;
-  minProposerTimestampInclusive?: number;
-  maxProposerTimestampExclusive?: number;
-  intentDiscriminator: number;
+  networkId: number
+  startEpochInclusive: number
+  endEpochExclusive: number
+  minProposerTimestampInclusive?: number
+  maxProposerTimestampExclusive?: number
+  intentDiscriminator: number
 }
 
 interface IntentCoreV2 {
-  header: IntentHeaderV2;
-  instructions: string;         // string format only (not Parsed)
-  blobs: Uint8Array[];
-  message: MessageV2;
-  children: Uint8Array[];       // subintent hashes
+  header: IntentHeaderV2
+  instructions: string // string format only (not Parsed)
+  blobs: Uint8Array[]
+  message: MessageV2
+  children: Uint8Array[] // subintent hashes
 }
 
-interface SubintentV2 { intentCore: IntentCoreV2 }
+interface SubintentV2 {
+  intentCore: IntentCoreV2
+}
 
 interface TransactionIntentV2 {
-  transactionHeader: TransactionHeaderV2;
-  rootIntentCore: IntentCoreV2;
-  nonRootSubintents: SubintentV2[];
+  transactionHeader: TransactionHeaderV2
+  rootIntentCore: IntentCoreV2
+  nonRootSubintents: SubintentV2[]
 }
 
 interface SignedTransactionIntentV2 {
-  transactionIntent: TransactionIntentV2;
-  transactionIntentSignatures: SignatureWithPublicKey[];
-  nonRootSubintentSignatures: SignatureWithPublicKey[][];
+  transactionIntent: TransactionIntentV2
+  transactionIntentSignatures: SignatureWithPublicKey[]
+  nonRootSubintentSignatures: SignatureWithPublicKey[][]
 }
 
 interface NotarizedTransactionV2 {
-  signedTransactionIntent: SignedTransactionIntentV2;
-  notarySignature: Signature;
+  signedTransactionIntent: SignedTransactionIntentV2
+  notarySignature: Signature
 }
 
 interface PartialTransactionV2 {
-  rootSubintent: SubintentV2;
-  nonRootSubintents: SubintentV2[];
+  rootSubintent: SubintentV2
+  nonRootSubintents: SubintentV2[]
 }
 
 interface SignedPartialTransactionV2 {
-  partialTransaction: PartialTransactionV2;
-  rootSubintentSignatures: SignatureWithPublicKey[];
-  nonRootSubintentSignatures: SignatureWithPublicKey[][];
+  partialTransaction: PartialTransactionV2
+  rootSubintentSignatures: SignatureWithPublicKey[]
+  nonRootSubintentSignatures: SignatureWithPublicKey[][]
 }
 
 interface PreviewTransactionV2 {
-  transactionIntent: TransactionIntentV2;
-  rootSignerPublicKeys: PublicKey[];
-  nonRootSubintentSignerPublicKeys: PublicKey[][];
+  transactionIntent: TransactionIntentV2
+  rootSignerPublicKeys: PublicKey[]
+  nonRootSubintentSignerPublicKeys: PublicKey[][]
 }
 ```
 
@@ -458,20 +467,32 @@ interface PreviewTransactionV2 {
 
 ```ts
 type ManifestAddress =
-  | { kind: "Static"; value: string }
-  | { kind: "Named"; value: number };
+  | { kind: 'Static'; value: string }
+  | { kind: 'Named'; value: number }
 
 enum EntityType {
-  GlobalPackage, GlobalConsensusManager, GlobalValidator,
-  GlobalTransactionTracker, GlobalGenericComponent, GlobalAccount,
-  GlobalIdentity, GlobalAccessController,
-  GlobalOneResourcePool, GlobalTwoResourcePool, GlobalMultiResourcePool,
+  GlobalPackage,
+  GlobalConsensusManager,
+  GlobalValidator,
+  GlobalTransactionTracker,
+  GlobalGenericComponent,
+  GlobalAccount,
+  GlobalIdentity,
+  GlobalAccessController,
+  GlobalOneResourcePool,
+  GlobalTwoResourcePool,
+  GlobalMultiResourcePool,
   GlobalAccountLocker,
-  GlobalPreallocatedSecp256k1Account, GlobalPreallocatedSecp256k1Identity,
-  GlobalPreallocatedEd25519Account, GlobalPreallocatedEd25519Identity,
-  GlobalFungibleResourceManager, InternalFungibleVault,
-  GlobalNonFungibleResourceManager, InternalNonFungibleVault,
-  InternalGenericComponent, InternalKeyValueStore
+  GlobalPreallocatedSecp256k1Account,
+  GlobalPreallocatedSecp256k1Identity,
+  GlobalPreallocatedEd25519Account,
+  GlobalPreallocatedEd25519Identity,
+  GlobalFungibleResourceManager,
+  InternalFungibleVault,
+  GlobalNonFungibleResourceManager,
+  InternalNonFungibleVault,
+  InternalGenericComponent,
+  InternalKeyValueStore
 }
 ```
 
@@ -479,12 +500,31 @@ enum EntityType {
 
 ```ts
 enum ValueKind {
-  Bool, I8, I16, I32, I64, I128,
-  U8, U16, U32, U64, U128,
-  String, Enum, Array, Tuple, Map,
-  Address, Bucket, Proof, Expression,
-  Blob, Decimal, PreciseDecimal,
-  NonFungibleLocalId, AddressReservation
+  Bool,
+  I8,
+  I16,
+  I32,
+  I64,
+  I128,
+  U8,
+  U16,
+  U32,
+  U64,
+  U128,
+  String,
+  Enum,
+  Array,
+  Tuple,
+  Map,
+  Address,
+  Bucket,
+  Proof,
+  Expression,
+  Blob,
+  Decimal,
+  PreciseDecimal,
+  NonFungibleLocalId,
+  AddressReservation
 }
 
 type Value =
@@ -503,7 +543,12 @@ type Value =
   | { kind: ValueKind.Enum; discriminator: number; fields: Value[] }
   | { kind: ValueKind.Array; elementValueKind: ValueKind; elements: Value[] }
   | { kind: ValueKind.Tuple; fields: Value[] }
-  | { kind: ValueKind.Map; keyValueKind: ValueKind; valueValueKind: ValueKind; entries: MapEntry[] }
+  | {
+      kind: ValueKind.Map
+      keyValueKind: ValueKind
+      valueValueKind: ValueKind
+      entries: MapEntry[]
+    }
   | { kind: ValueKind.Address; value: ManifestAddress }
   | { kind: ValueKind.Bucket; value: number }
   | { kind: ValueKind.Proof; value: number }
@@ -512,31 +557,37 @@ type Value =
   | { kind: ValueKind.Decimal; value: Decimal }
   | { kind: ValueKind.PreciseDecimal; value: Decimal }
   | { kind: ValueKind.NonFungibleLocalId; value: string }
-  | { kind: ValueKind.AddressReservation; value: number };
+  | { kind: ValueKind.AddressReservation; value: number }
 
-interface MapEntry { key: Value; value: Value }
-enum Expression { EntireWorktop = "EntireWorktop", EntireAuthZone = "EntireAuthZone" }
+interface MapEntry {
+  key: Value
+  value: Value
+}
+enum Expression {
+  EntireWorktop = 'EntireWorktop',
+  EntireAuthZone = 'EntireAuthZone'
+}
 ```
 
 ### Static Analysis Types
 
 ```ts
 type StaticValidationResult =
-  | { kind: "Valid" }
-  | { kind: "Invalid"; error: string };
+  | { kind: 'Valid' }
+  | { kind: 'Invalid'; error: string }
 
 interface StaticManifestAnalysisResult {
-  encountered_entities: string[];
-  accounts_requiring_auth: string[];
-  accounts_withdrawn_from: string[];
-  accounts_deposited_into: string[];
-  classification: string[];
-  reserved_instructions: string[];
+  encountered_entities: string[]
+  accounts_requiring_auth: string[]
+  accounts_withdrawn_from: string[]
+  accounts_deposited_into: string[]
+  classification: string[]
+  reserved_instructions: string[]
 }
 
 interface StaticTransactionIntentV2AnalysisResult {
-  root_intent: StaticManifestAnalysisResult;
-  non_root_subintents: StaticManifestAnalysisResult[];
+  root_intent: StaticManifestAnalysisResult
+  non_root_subintents: StaticManifestAnalysisResult[]
 }
 ```
 
@@ -545,29 +596,54 @@ interface StaticTransactionIntentV2AnalysisResult {
 ```ts
 interface KnownAddresses {
   resourceAddresses: {
-    xrd, secp256k1SignatureResource, ed25519SignatureResource,
-    packageOfDirectCallerResource, globalCallerResource,
-    systemExecutionResource, packageOwnerBadge, validatorOwnerBadge,
-    accountOwnerBadge, identityOwnerBadge: string
-  };
+    xrd
+    secp256k1SignatureResource
+    ed25519SignatureResource
+    packageOfDirectCallerResource
+    globalCallerResource
+    systemExecutionResource
+    packageOwnerBadge
+    validatorOwnerBadge
+    accountOwnerBadge
+    identityOwnerBadge: string
+  }
   packageAddresses: {
-    packagePackage, resourcePackage, accountPackage, identityPackage,
-    consensusManagerPackage, accessControllerPackage, poolPackage,
-    transactionProcessorPackage, metadataModulePackage,
-    royaltyModulePackage, roleAssignmentModulePackage,
-    genesisHelperPackage, faucetPackage: string
-  };
+    packagePackage
+    resourcePackage
+    accountPackage
+    identityPackage
+    consensusManagerPackage
+    accessControllerPackage
+    poolPackage
+    transactionProcessorPackage
+    metadataModulePackage
+    royaltyModulePackage
+    roleAssignmentModulePackage
+    genesisHelperPackage
+    faucetPackage: string
+  }
   componentAddresses: {
-    consensusManager, genesisHelper, faucet: string
-  };
+    consensusManager
+    genesisHelper
+    faucet: string
+  }
 }
 ```
 
 ### SBOR Modes
 
 ```ts
-enum SerializationMode { Programmatic, Model, Natural }
-enum ManifestSborStringRepresentation { ManifestString, ProgrammaticJson, ModelJson, NaturalJson }
+enum SerializationMode {
+  Programmatic,
+  Model,
+  Natural
+}
+enum ManifestSborStringRepresentation {
+  ManifestString,
+  ProgrammaticJson,
+  ModelJson,
+  NaturalJson
+}
 ```
 
 ---
@@ -575,26 +651,26 @@ enum ManifestSborStringRepresentation { ManifestString, ProgrammaticJson, ModelJ
 ## Signing Patterns — 4 Methods
 
 ```ts
-type SignatureSource<T> = Signer | T | SignatureFunction<T>;
-type SignatureFunction<T> = (messageHash: Uint8Array) => T;
+type SignatureSource<T> = Signer | T | SignatureFunction<T>
+type SignatureFunction<T> = (messageHash: Uint8Array) => T
 
 interface Signer {
-  produceSignature: (messageHash: Uint8Array) => SignerResponse;
+  produceSignature: (messageHash: Uint8Array) => SignerResponse
 }
 
 interface SignerResponse {
-  curve: Curve;
-  signature: Uint8Array;
-  publicKey: Uint8Array;
+  curve: Curve
+  signature: Uint8Array
+  publicKey: Uint8Array
 }
 ```
 
-| # | Method | How | Example |
-|---|--------|-----|---------|
-| 1 | Direct Signer | Pass `PrivateKey` instance (implements `Signer`) | `.sign(privateKey)` |
-| 2 | Pre-computed signature | Pass `Signature` / `SignatureWithPublicKey` directly | `.sign(Signature.Ed25519(bytes))` |
-| 3 | Sync function | `(hash: Uint8Array) => T` | `.sign((hash) => key.signToSignatureWithPublicKey(hash))` |
-| 4 | Async function | Via `.signAsync` / `.notarizeAsync` | `.signAsync(async (hash) => await remoteSign(hash))` |
+| #   | Method                 | How                                                  | Example                                                   |
+| --- | ---------------------- | ---------------------------------------------------- | --------------------------------------------------------- |
+| 1   | Direct Signer          | Pass `PrivateKey` instance (implements `Signer`)     | `.sign(privateKey)`                                       |
+| 2   | Pre-computed signature | Pass `Signature` / `SignatureWithPublicKey` directly | `.sign(Signature.Ed25519(bytes))`                         |
+| 3   | Sync function          | `(hash: Uint8Array) => T`                            | `.sign((hash) => key.signToSignatureWithPublicKey(hash))` |
+| 4   | Async function         | Via `.signAsync` / `.notarizeAsync`                  | `.signAsync(async (hash) => await remoteSign(hash))`      |
 
 ---
 
@@ -604,46 +680,46 @@ Simplified API for common transaction workflows.
 
 ### LTSRadixEngineToolkit.Transaction
 
-| Method | Signature |
-|--------|-----------|
-| `compile` | `(intent: CompilableIntent) → Promise<Uint8Array>` |
-| `compileTransactionIntent` | `(intent: LTSTransactionIntent) → Promise<Uint8Array>` |
-| `compileSignedTransactionIntent` | `(signed: LTSSignedTransactionIntent) → Promise<Uint8Array>` |
-| `compileNotarizedTransactionIntent` | `(notarized: LTSNotarizedTransaction) → Promise<Uint8Array>` |
-| `summarizeTransaction` | `(tx: HasCompiledIntent \| Uint8Array) → Promise<TransactionSummary>` |
+| Method                              | Signature                                                             |
+| ----------------------------------- | --------------------------------------------------------------------- |
+| `compile`                           | `(intent: CompilableIntent) → Promise<Uint8Array>`                    |
+| `compileTransactionIntent`          | `(intent: LTSTransactionIntent) → Promise<Uint8Array>`                |
+| `compileSignedTransactionIntent`    | `(signed: LTSSignedTransactionIntent) → Promise<Uint8Array>`          |
+| `compileNotarizedTransactionIntent` | `(notarized: LTSNotarizedTransaction) → Promise<Uint8Array>`          |
+| `summarizeTransaction`              | `(tx: HasCompiledIntent \| Uint8Array) → Promise<TransactionSummary>` |
 
 ### LTSRadixEngineToolkit.Derive
 
-| Method | Signature |
-|--------|-----------|
-| `virtualAccountAddress` | `(publicKey, networkId) → Promise<string>` |
-| `babylonAccountAddressFromOlympiaAccountAddress` | `(olympiaAddr, networkId) → Promise<OlympiaToBabylonAddressMapping>` |
-| `babylonResourceAddressFromOlympiaResourceAddress` | `(olympiaAddr, networkId) → Promise<string>` |
-| `knownAddresses` | `(networkId) → Promise<AddressBook>` |
-| `bech32mTransactionIdentifierFromIntentHash` | `(hash: Uint8Array, networkId) → Promise<string>` |
+| Method                                             | Signature                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------- |
+| `virtualAccountAddress`                            | `(publicKey, networkId) → Promise<string>`                           |
+| `babylonAccountAddressFromOlympiaAccountAddress`   | `(olympiaAddr, networkId) → Promise<OlympiaToBabylonAddressMapping>` |
+| `babylonResourceAddressFromOlympiaResourceAddress` | `(olympiaAddr, networkId) → Promise<string>`                         |
+| `knownAddresses`                                   | `(networkId) → Promise<AddressBook>`                                 |
+| `bech32mTransactionIdentifierFromIntentHash`       | `(hash: Uint8Array, networkId) → Promise<string>`                    |
 
 ### LTSRadixEngineToolkit.Address
 
-| Method | Signature |
-|--------|-----------|
-| `isGlobalAccount` | `(address: string) → Promise<boolean>` |
-| `isFungibleResource` | `(address: string) → Promise<boolean>` |
+| Method                  | Signature                              |
+| ----------------------- | -------------------------------------- |
+| `isGlobalAccount`       | `(address: string) → Promise<boolean>` |
+| `isFungibleResource`    | `(address: string) → Promise<boolean>` |
 | `isNonFungibleResource` | `(address: string) → Promise<boolean>` |
 
 ### LTSRadixEngineToolkit.Utils / TestUtils
 
-| Method | Signature |
-|--------|-----------|
-| `hash` | `(data: Uint8Array) → Uint8Array` (synchronous) |
+| Method                              | Signature                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `hash`                              | `(data: Uint8Array) → Uint8Array` (synchronous)                                         |
 | `createAccountWithDisabledDeposits` | `(currentEpoch, networkId) → Promise<{ accountAddress, compiledNotarizedTransaction }>` |
 
 ### LTS Transaction Summary
 
 ```ts
 interface TransactionSummary {
-  feesLocked: { account: string; amount: Decimal };
-  withdraws: Record<string, Record<string, Decimal>>;  // account → resource → amount
-  deposits: Record<string, Record<string, Decimal>>;   // account → resource → amount
+  feesLocked: { account: string; amount: Decimal }
+  withdraws: Record<string, Record<string, Decimal>> // account → resource → amount
+  deposits: Record<string, Record<string, Decimal>> // account → resource → amount
 }
 ```
 
@@ -656,14 +732,18 @@ const builder = await SimpleTransactionBuilder.new({
   networkId: NetworkId.Mainnet,
   validFromEpoch: currentEpoch,
   fromAccount: accountAddress,
-  signerPublicKey: publicKey,
-});
+  signerPublicKey: publicKey
+})
 
 const compiled = builder
-  .lockedFee("10")
-  .transferFungible({ toAccount: recipient, resourceAddress: xrd, amount: "100" })
+  .lockedFee('10')
+  .transferFungible({
+    toAccount: recipient,
+    resourceAddress: xrd,
+    amount: '100'
+  })
   .compileIntent()
-  .compileNotarized(notaryKey);
+  .compileNotarized(notaryKey)
 ```
 
 Methods: `nonce(n)`, `feePayer(addr)`, `permanentlyRejectAfterEpochs(1–100)`, `tipPercentage(n)`, `lockedFee(amount)`, `transferFungible({ toAccount, resourceAddress, amount })`, `compileIntent()`, `compileIntentWithSignatures(sources[])`.
@@ -673,8 +753,12 @@ Static: `SimpleTransactionBuilder.freeXrdFromFaucet(settings) → Promise<Compil
 ### LTS Wrapper Classes
 
 ```ts
-interface CompilableIntent { compile(): Promise<Uint8Array> }
-interface HasCompiledIntent { compiledIntent(): Promise<Uint8Array> }
+interface CompilableIntent {
+  compile(): Promise<Uint8Array>
+}
+interface HasCompiledIntent {
+  compiledIntent(): Promise<Uint8Array>
+}
 
 class CompiledSignedTransactionIntent implements HasCompiledIntent {
   intentHash: TransactionHash
@@ -682,7 +766,9 @@ class CompiledSignedTransactionIntent implements HasCompiledIntent {
   signedIntentHash: TransactionHash
   get hashToNotarize(): Uint8Array
   get transactionId(): TransactionHash
-  compileNotarized(source: SignatureSource<Signature>): CompiledNotarizedTransaction
+  compileNotarized(
+    source: SignatureSource<Signature>
+  ): CompiledNotarizedTransaction
   compileNotarizedAsync(source): Promise<CompiledNotarizedTransaction>
 }
 
@@ -729,24 +815,24 @@ generateRandomNonce(): number                // Math.random() * 0xffffffff
 
 ```ts
 namespace NetworkId {
-  Mainnet    = 0x01  // 1
-  Stokenet   = 0x02  // 2
-  Alphanet   = 0x0a  // 10
-  Betanet    = 0x0b  // 11
-  Kisharnet  = 0x0c  // 12
-  Ansharnet  = 0x0d  // 13
-  Zabanet    = 0x0e  // 14
-  RCNetV1    = Kisharnet
-  RCNetV2    = Ansharnet
-  RCNetV3    = Zabanet
-  Gilganet   = 0x20  // 32
-  Enkinet    = 0x21  // 33
-  Hammunet   = 0x22  // 34
-  Nergalnet  = 0x23  // 35
-  Mardunet   = 0x24  // 36
-  LocalNet   = 0xf0  // 240
-  InternalTestNet = 0xf1  // 241
-  Simulator  = 0xf2  // 242
+  Mainnet = 0x01 // 1
+  Stokenet = 0x02 // 2
+  Alphanet = 0x0a // 10
+  Betanet = 0x0b // 11
+  Kisharnet = 0x0c // 12
+  Ansharnet = 0x0d // 13
+  Zabanet = 0x0e // 14
+  RCNetV1 = Kisharnet
+  RCNetV2 = Ansharnet
+  RCNetV3 = Zabanet
+  Gilganet = 0x20 // 32
+  Enkinet = 0x21 // 33
+  Hammunet = 0x22 // 34
+  Nergalnet = 0x23 // 35
+  Mardunet = 0x24 // 36
+  LocalNet = 0xf0 // 240
+  InternalTestNet = 0xf1 // 241
+  Simulator = 0xf2 // 242
 }
 ```
 
@@ -758,25 +844,34 @@ namespace NetworkId {
 
 ```ts
 import {
-  ManifestBuilder, TransactionBuilder, RadixEngineToolkit,
-  NetworkId, generateRandomNonce, PrivateKey,
-  decimal, address, bucket, enumeration,
-} from "@steleaio/radix-engine-toolkit";
+  ManifestBuilder,
+  TransactionBuilder,
+  RadixEngineToolkit,
+  NetworkId,
+  generateRandomNonce,
+  PrivateKey,
+  decimal,
+  address,
+  bucket,
+  enumeration
+} from '@steleaio/radix-engine-toolkit'
 
 // 1. Build manifest
 const manifest = new ManifestBuilder()
-  .callMethod(account, "lock_fee", [decimal("10")])
-  .callMethod(account, "withdraw", [address(xrd), decimal("100")])
-  .takeFromWorktop(xrd, new Decimal("100"), (builder, bucketId) =>
-    builder.callMethod(recipient, "try_deposit_or_abort", [
+  .callMethod(account, 'lock_fee', [decimal('10')])
+  .callMethod(account, 'withdraw', [address(xrd), decimal('100')])
+  .takeFromWorktop(xrd, new Decimal('100'), (builder, bucketId) =>
+    builder.callMethod(recipient, 'try_deposit_or_abort', [
       bucket(bucketId),
-      enumeration(0),
+      enumeration(0)
     ])
   )
-  .build();
+  .build()
 
 // 2. Build, sign, notarize
-const notarized = await (await TransactionBuilder.new())
+const notarized = await (
+  await TransactionBuilder.new()
+)
   .header({
     networkId: NetworkId.Mainnet,
     startEpochInclusive: currentEpoch,
@@ -784,14 +879,15 @@ const notarized = await (await TransactionBuilder.new())
     nonce: generateRandomNonce(),
     notaryPublicKey: notaryKey.publicKey(),
     notaryIsSignatory: true,
-    tipPercentage: 0,
+    tipPercentage: 0
   })
   .manifest(manifest)
   .sign(signerPrivateKey)
-  .notarize(notaryKey);
+  .notarize(notaryKey)
 
 // 3. Compile to bytes
-const compiled = await RadixEngineToolkit.NotarizedTransaction.compile(notarized);
+const compiled =
+  await RadixEngineToolkit.NotarizedTransaction.compile(notarized)
 
 // 4. Submit compiled bytes to Gateway API
 ```
@@ -799,27 +895,29 @@ const compiled = await RadixEngineToolkit.NotarizedTransaction.compile(notarized
 ### V2 Transaction with Subintents
 
 ```ts
-const notarizedV2 = await (await TransactionV2Builder.new())
+const notarizedV2 = await (
+  await TransactionV2Builder.new()
+)
   .header({
     notaryPublicKey: notaryKey.publicKey(),
     notaryIsSignatory: true,
-    tipBasisPoints: 0,
+    tipBasisPoints: 0
   })
   .rootIntentCore({
     header: {
       networkId: NetworkId.Mainnet,
       startEpochInclusive: epoch,
       endEpochExclusive: epoch + 10,
-      intentDiscriminator: generateRandomNonce(),
+      intentDiscriminator: generateRandomNonce()
     },
     instructions: manifestString,
     blobs: [],
-    message: { kind: "None" },
-    children: [subintentHash],
+    message: { kind: 'None' },
+    children: [subintentHash]
   })
   .addSignedSubintent(subintent, subintentSignatures)
   .sign(signerKey)
-  .notarize(notaryKey);
+  .notarize(notaryKey)
 ```
 
 ### Async Signing (e.g., Hardware Wallet)
@@ -829,11 +927,11 @@ const notarized = await builder
   .header(header)
   .manifest(manifest)
   .signAsync(async (hash) => {
-    const sig = await hardwareWallet.sign(hash);
-    return SignatureWithPublicKey.Ed25519(sig, publicKey);
+    const sig = await hardwareWallet.sign(hash)
+    return SignatureWithPublicKey.Ed25519(sig, publicKey)
   })
   .notarizeAsync(async (hash) => {
-    const sig = await hardwareWallet.sign(hash);
-    return Signature.Ed25519(sig);
-  });
+    const sig = await hardwareWallet.sign(hash)
+    return Signature.Ed25519(sig)
+  })
 ```

@@ -60,9 +60,9 @@ Creates a layer from an already-existing value. No effects, no cleanup.
 
 ```typescript
 const ConfigLive = Layer.succeed(Config, {
-  apiUrl: "https://...",
-  logLevel: "INFO",
-});
+  apiUrl: 'https://...',
+  logLevel: 'INFO'
+})
 // Layer<Config, never, never> — no deps, no errors
 ```
 
@@ -71,7 +71,7 @@ const ConfigLive = Layer.succeed(Config, {
 Like `succeed` but defers evaluation. Useful when the value depends on runtime state.
 
 ```typescript
-const ConfigLive = Layer.sync(Config, () => ({ apiUrl: process.env.API_URL! }));
+const ConfigLive = Layer.sync(Config, () => ({ apiUrl: process.env.API_URL! }))
 ```
 
 ### `Layer.effect(tag, effect)` — Effectful construction
@@ -82,10 +82,10 @@ Builds a service from an Effect. The Effect can access other services (tracked i
 const DatabaseLive = Layer.effect(
   Database,
   Effect.gen(function* () {
-    const config = yield* Config;
-    return { query: (sql) => Effect.succeed([]) };
+    const config = yield* Config
+    return { query: (sql) => Effect.succeed([]) }
   })
-);
+)
 // Layer<Database, never, Config>
 ```
 
@@ -100,10 +100,10 @@ const ConnectionLive = Layer.scoped(
     const conn = yield* Effect.acquireRelease(
       Effect.sync(() => createConnection()),
       (conn) => Effect.sync(() => conn.close())
-    );
-    return { conn };
+    )
+    return { conn }
   })
-);
+)
 // Layer<Connection, never, never> — Scope is excluded from RIn
 ```
 
@@ -112,7 +112,7 @@ const ConnectionLive = Layer.scoped(
 Creates a layer that requires `R` and outputs `R` unchanged. Used internally by `provide` and `passthrough`.
 
 ```typescript
-const passConfig = Layer.context<Config>();
+const passConfig = Layer.context<Config>()
 // Layer<Config, never, Config> — identity
 ```
 
@@ -123,10 +123,10 @@ When you need to compute which layer to use at runtime. The outer Effect produce
 ```typescript
 const DynamicDb = Layer.unwrapEffect(
   Effect.gen(function* () {
-    const config = yield* Config;
-    return config.usePostgres ? PostgresLive : SqliteLive;
+    const config = yield* Config
+    return config.usePostgres ? PostgresLive : SqliteLive
   })
-);
+)
 ```
 
 ### `Layer.suspend(() => layer)` — Lazy / self-referential
@@ -161,7 +161,7 @@ const ServicesLayer = Layer.mergeAll(
   StartupReconciliation.Default,
   TriggerConsumer.Default,
   TransactionListener.Default
-);
+)
 ```
 
 ### `Layer.provide(self, that)` — Vertical wiring (outputs consumed)
@@ -185,7 +185,7 @@ const BaseServicesLayer = Layer.mergeAll(
 ).pipe(
   Layer.provide(ORM.Default), // ORM consumed internally
   Layer.provide(StokenetGatewayApiClientLayer) // Gateway consumed internally
-);
+)
 // Output: all merged services. ORM and Gateway are NOT in the output.
 ```
 
@@ -212,7 +212,7 @@ const BaseServicesLayer = Layer.mergeAll(
   Layer.provide(ORM.Default),
   Layer.provide(StokenetGatewayApiClientLayer),
   Layer.provideMerge(Config.StokenetLive) // Config IS in the output
-);
+)
 // The main program can also access Config because provideMerge was used
 ```
 
@@ -330,7 +330,7 @@ Recovers from all errors. The recovery function receives the error and returns a
 ```typescript
 const ResilientDb = DatabaseLive.pipe(
   Layer.catchAll((error) => FallbackDatabaseLive)
-);
+)
 ```
 
 ### `Layer.orDie(self)`
@@ -338,7 +338,7 @@ const ResilientDb = DatabaseLive.pipe(
 Converts layer errors into defects (fiber death). Removes `E` from the type — all errors become unchecked.
 
 ```typescript
-const UnsafeDb = DatabaseLive.pipe(Layer.orDie);
+const UnsafeDb = DatabaseLive.pipe(Layer.orDie)
 // Layer<Database, never, Config> — error channel is never
 ```
 
@@ -349,11 +349,11 @@ Retries layer construction according to a schedule. Internally uses `fresh()` on
 ```typescript
 const RetryingDb = DatabaseLive.pipe(
   Layer.retry(
-    Schedule.exponential("1 second").pipe(
-      Schedule.union(Schedule.spaced("30 seconds")) // caps backoff at 30s
+    Schedule.exponential('1 second').pipe(
+      Schedule.union(Schedule.spaced('30 seconds')) // caps backoff at 30s
     )
   )
-);
+)
 ```
 
 ---
@@ -364,7 +364,7 @@ const RetryingDb = DatabaseLive.pipe(
 
 ```typescript
 // Each call creates a separate connection pool
-const FreshPool = Layer.fresh(ConnectionPoolLive);
+const FreshPool = Layer.fresh(ConnectionPoolLive)
 ```
 
 Use `fresh()` when:
@@ -396,7 +396,7 @@ const BaseServicesLayer = Layer.mergeAll(
   Layer.provide(ORM.Default), // ORM consumed internally
   Layer.provide(StokenetGatewayApiClientLayer), // Gateway consumed internally
   Layer.provideMerge(Config.StokenetLive) // Config ALSO available to main program
-);
+)
 ```
 
 Read bottom-to-top for dependency direction: Config feeds into Gateway, which feeds into ORM, which feeds into the merged services.
@@ -408,7 +408,7 @@ Read bottom-to-top for dependency direction: Config feeds into Gateway, which fe
 const TransactionStreamLayer = TransactionStreamService.Default.pipe(
   Layer.provideMerge(TransactionStreamConfigLayer), // Ref exposed for mutation
   Layer.provide(StokenetGatewayApiClientLayer)
-);
+)
 ```
 
 The `TransactionStreamConfig` is a `Ref<Config>` — the transaction listener needs to mutate it (update the cursor position). Using `provideMerge` keeps the Ref in the output so the main program's `TransactionListener` can access it.
@@ -420,18 +420,18 @@ const AppLayer = BaseServicesLayer.pipe(
   Layer.provideMerge(TransactionStreamLayer),
   Layer.provideMerge(PgClientLive),
   Layer.provideMerge(DedupBuffer.Default)
-);
+)
 
 // Usage: Effect.provide(program, AppLayer)
 NodeRuntime.runMain(
   Effect.gen(function* () {
     // All services available: StartupReconciliation, TriggerConsumer,
     // TransactionListener, Config, TransactionStreamConfig, DedupBuffer, etc.
-    const reconcile = yield* StartupReconciliation;
-    const startingStateVersion = yield* reconcile();
+    const reconcile = yield* StartupReconciliation
+    const startingStateVersion = yield* reconcile()
     // ...
   }).pipe(Effect.provide(AppLayer))
-);
+)
 ```
 
 ### Pattern: `Layer.effect` for Ref-backed config
@@ -443,9 +443,9 @@ const TransactionStreamConfigLayer = Layer.effect(
     stateVersion: Option.none(),
     limitPerPage: 100,
     waitTime: Duration.seconds(10),
-    optIns: { affected_global_entities: true, detailed_events: true },
+    optIns: { affected_global_entities: true, detailed_events: true }
   })
-);
+)
 ```
 
 Note the explicit type annotation on `Ref.make<ExplicitType>({...})` — without it, TypeScript infers literal types (e.g., `100` instead of `number`, `true` instead of `boolean`), which makes the `Ref` invariant type mismatch.
@@ -458,13 +458,13 @@ Note the explicit type annotation on `Ref.make<ExplicitType>({...})` — without
 
 ```typescript
 // ❌ Config is consumed — main program can't access it
-const layer = ServicesLayer.pipe(Layer.provide(ConfigLive));
+const layer = ServicesLayer.pipe(Layer.provide(ConfigLive))
 
 // In main program:
-const config = yield * Config; // TypeScript error: Config not in R
+const config = yield * Config // TypeScript error: Config not in R
 
 // ✅ Config flows through to output
-const layer = ServicesLayer.pipe(Layer.provideMerge(ConfigLive));
+const layer = ServicesLayer.pipe(Layer.provideMerge(ConfigLive))
 ```
 
 **Rule of thumb**: If the main effect `yield*`s the service, use `provideMerge`. If only internal layers need it, use `provide`.
@@ -474,13 +474,13 @@ const layer = ServicesLayer.pipe(Layer.provideMerge(ConfigLive));
 ```typescript
 // ❌ Infers Ref<{ stateVersion: Option.None; limitPerPage: 100; ... }>
 //    (literal types — won't match Ref<{ stateVersion: Option.Option<number>; limitPerPage: number; ... }>)
-Layer.effect(Tag, Ref.make({ stateVersion: Option.none(), limitPerPage: 100 }));
+Layer.effect(Tag, Ref.make({ stateVersion: Option.none(), limitPerPage: 100 }))
 
 // ✅ Explicit type parameter forces wider types
 Layer.effect(
   Tag,
   Ref.make<ConfigType>({ stateVersion: Option.none(), limitPerPage: 100 })
-);
+)
 ```
 
 This is because `Ref<A>` is **invariant** in `A` — the inferred literal type `100` doesn't match `number`.
@@ -492,13 +492,13 @@ This is because `Ref<A>` is **invariant** in `A` — the inferred literal type `
 ```typescript
 // ❌ Both packages use 'Config' — they share the same Symbol!
 // In package A:
-class Config extends Context.Tag("Config")<Config, ConfigA>() {}
+class Config extends Context.Tag('Config')<Config, ConfigA>() {}
 // In package B:
-class Config extends Context.Tag("Config")<Config, ConfigB>() {}
+class Config extends Context.Tag('Config')<Config, ConfigB>() {}
 
 // ✅ Use unique, namespaced keys
-class Config extends Context.Tag("GovernanceConfig")<Config, ConfigA>() {}
-class Config extends Context.Tag("TransactionStreamConfig")<
+class Config extends Context.Tag('GovernanceConfig')<Config, ConfigA>() {}
+class Config extends Context.Tag('TransactionStreamConfig')<
   Config,
   ConfigB
 >() {}
@@ -511,7 +511,7 @@ class Config extends Context.Tag("TransactionStreamConfig")<
 // In pipe form: self.pipe(Layer.provide(that)) — "that" feeds into "self"
 
 // ❌ Wrong mental model: "provide" sounds like "self provides to that"
-ServicesLayer.pipe(Layer.provide(ConfigLive));
+ServicesLayer.pipe(Layer.provide(ConfigLive))
 // Actually means: ConfigLive provides TO ServicesLayer
 
 // ✅ Read as: "ServicesLayer, provided by ConfigLive"
@@ -522,13 +522,13 @@ ServicesLayer.pipe(Layer.provide(ConfigLive));
 
 ```typescript
 // ❌ Layer.succeed is synchronous — can't await
-const DbLive = Layer.succeed(Database, await connectToDb());
+const DbLive = Layer.succeed(Database, await connectToDb())
 
 // ✅ Use Layer.effect for async
 const DbLive = Layer.effect(
   Database,
   Effect.promise(() => connectToDb())
-);
+)
 
 // ✅ Or Layer.scoped for resources needing cleanup
 const DbLive = Layer.scoped(
@@ -537,18 +537,18 @@ const DbLive = Layer.scoped(
     Effect.promise(() => connectToDb()),
     (conn) => Effect.sync(() => conn.close())
   )
-);
+)
 ```
 
 ### 6. Expecting `merge` to wire dependencies
 
 ```typescript
 // ❌ merge is horizontal — B's dependencies aren't satisfied by A
-const wrong = Layer.merge(ConfigLive, DatabaseLive);
+const wrong = Layer.merge(ConfigLive, DatabaseLive)
 // DatabaseLive still requires Config — it's not wired!
 
 // ✅ Use provide for vertical wiring
-const correct = DatabaseLive.pipe(Layer.provide(ConfigLive));
+const correct = DatabaseLive.pipe(Layer.provide(ConfigLive))
 ```
 
 `merge` combines independent layers. `provide` wires dependencies.

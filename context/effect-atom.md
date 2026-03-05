@@ -53,13 +53,13 @@ Result.getOrThrow(result)
 ### Reference Identity Matters
 
 ```typescript
-const atom1 = Atom.make(0);
-const atom2 = Atom.make(0);
+const atom1 = Atom.make(0)
+const atom2 = Atom.make(0)
 // atom1 !== atom2 — different atoms!
 
 // Use Atom.family for stable references
-const userAtom = Atom.family((id: string) => Atom.make(fetchUser(id)));
-userAtom("123") === userAtom("123"); // true — same reference
+const userAtom = Atom.family((id: string) => Atom.make(fetchUser(id)))
+userAtom('123') === userAtom('123') // true — same reference
 ```
 
 ---
@@ -71,13 +71,13 @@ userAtom("123") === userAtom("123"); // true — same reference
 ```typescript
 // Create shared atom context with global layers
 export const makeAtomRuntime = Atom.context({
-  memoMap: Atom.defaultMemoMap,
-});
+  memoMap: Atom.defaultMemoMap
+})
 
 // Add global services (logging, config)
 makeAtomRuntime.addGlobalLayer(
   Layer.provideMerge(Logger.pretty, Logger.minimumLogLevel(LogLevel.Debug))
-);
+)
 ```
 
 ### Creating Service-Backed Atoms
@@ -89,15 +89,15 @@ const runtime = makeAtomRuntime(
     Layer.provideMerge(RadixDappToolkit.Live),
     Layer.provide(Config.StokenetLive)
   )
-);
+)
 
 // 2. Create atoms that use those services
 export const temperatureChecksAtom = runtime.atom(
   Effect.gen(function* () {
-    const governance = yield* GovernanceComponent;
-    return yield* governance.getTemperatureChecks();
+    const governance = yield* GovernanceComponent
+    return yield* governance.getTemperatureChecks()
   })
-);
+)
 ```
 
 ### Function Atoms with `runtime.fn`
@@ -108,20 +108,20 @@ For atoms that execute effects with arguments:
 export const voteAtom = runtime.fn(
   Effect.fn(
     function* (input: VoteInput) {
-      const governance = yield* GovernanceComponent;
-      return yield* governance.vote(input);
+      const governance = yield* GovernanceComponent
+      return yield* governance.vote(input)
     },
     withToast({
-      whenLoading: "Submitting vote...",
-      whenSuccess: "Vote submitted",
-      whenFailure: ({ cause }) => Option.some("Failed"),
+      whenLoading: 'Submitting vote...',
+      whenSuccess: 'Vote submitted',
+      whenFailure: ({ cause }) => Option.some('Failed')
     })
   )
-);
+)
 
 // Usage in component
-const vote = useAtomSet(voteAtom);
-vote({ temperatureCheckId, vote: "For" });
+const vote = useAtomSet(voteAtom)
+vote({ temperatureCheckId, vote: 'For' })
 ```
 
 ### Parameterized Atoms with `Atom.family`
@@ -131,14 +131,14 @@ export const getTemperatureCheckByIdAtom = Atom.family(
   (id: TemperatureCheckId) =>
     runtime.atom(
       Effect.gen(function* () {
-        const governance = yield* GovernanceComponent;
-        return yield* governance.getTemperatureCheckById(id);
+        const governance = yield* GovernanceComponent
+        return yield* governance.getTemperatureCheckById(id)
       })
     )
-);
+)
 
 // Usage — same ID returns same atom instance
-const tc = useAtomValue(getTemperatureCheckByIdAtom(id));
+const tc = useAtomValue(getTemperatureCheckByIdAtom(id))
 ```
 
 ### Derived Atoms with Dependencies
@@ -149,13 +149,13 @@ export const votesForConnectedAccountsAtom = Atom.family(
     runtime.atom(
       Effect.fnUntraced(function* (get) {
         // Subscribe to accountsAtom — reruns when accounts change
-        const accounts = yield* get.result(accountsAtom);
+        const accounts = yield* get.result(accountsAtom)
 
-        const governance = yield* GovernanceComponent;
-        return yield* governance.getVotes({ kvsAddress, accounts });
+        const governance = yield* GovernanceComponent
+        return yield* governance.getVotes({ kvsAddress, accounts })
       })
     )
-);
+)
 ```
 
 ---
@@ -166,34 +166,34 @@ export const votesForConnectedAccountsAtom = Atom.family(
 
 ```typescript
 // Basic read
-const checks = useAtomValue(temperatureChecksAtom);
+const checks = useAtomValue(temperatureChecksAtom)
 
 // With selector/transform
 const count = useAtomValue(temperatureChecksAtom, (result) =>
   Result.map(result, (checks) => checks.length)
-);
+)
 
 // Unwrap Result (throws on Initial/Failure)
-const data = useAtomValue(atom, Result.getOrThrow);
+const data = useAtomValue(atom, Result.getOrThrow)
 ```
 
 ### Writing Values
 
 ```typescript
 // Get setter function
-const setCount = useAtomSet(countAtom);
-setCount(10); // direct value
-setCount((c) => c + 1); // updater function
+const setCount = useAtomSet(countAtom)
+setCount(10) // direct value
+setCount((c) => c + 1) // updater function
 
 // For function atoms (runtime.fn)
-const vote = useAtomSet(voteAtom);
-vote({ temperatureCheckId, vote: "For" });
+const vote = useAtomSet(voteAtom)
+vote({ temperatureCheckId, vote: 'For' })
 ```
 
 ### Combined Read/Write
 
 ```typescript
-const [value, setValue] = useAtom(countAtom);
+const [value, setValue] = useAtom(countAtom)
 ```
 
 ### Suspense Support
@@ -213,9 +213,9 @@ function DataComponent() {
 ### Force Refresh
 
 ```typescript
-const refresh = useAtomRefresh(temperatureChecksAtom);
+const refresh = useAtomRefresh(temperatureChecksAtom)
 // Call after mutations to refetch
-refresh();
+refresh()
 ```
 
 ---
@@ -231,20 +231,20 @@ export const myAtom = runtime.fn(
       /* ... */
     },
     withToast({
-      whenLoading: "Processing...",
-      whenSuccess: "Done!",
+      whenLoading: 'Processing...',
+      whenSuccess: 'Done!',
       // or dynamic: ({ result }) => `Created ${result.id}`
       whenFailure: ({ cause }) => {
-        if (cause._tag === "Fail") {
+        if (cause._tag === 'Fail') {
           if (cause.error instanceof MyCustomError) {
-            return Option.some(cause.error.message);
+            return Option.some(cause.error.message)
           }
         }
-        return Option.some("Something went wrong");
-      },
+        return Option.some('Something went wrong')
+      }
     })
   )
-);
+)
 ```
 
 ---
@@ -255,7 +255,7 @@ Use `Data.TaggedError` for typed error handling:
 
 ```typescript
 export class AccountAlreadyVotedError extends Data.TaggedError(
-  "AccountAlreadyVotedError"
+  'AccountAlreadyVotedError'
 )<{ message: string }> {}
 
 // In atom
@@ -263,20 +263,20 @@ if (alreadyVoted) {
   return (
     yield *
     new AccountAlreadyVotedError({
-      message: "Already voted",
+      message: 'Already voted'
     })
-  );
+  )
 }
 
 // In toast handler
 whenFailure: ({ cause }) => {
-  if (cause._tag === "Fail") {
+  if (cause._tag === 'Fail') {
     if (cause.error instanceof AccountAlreadyVotedError) {
-      return Option.some(cause.error.message);
+      return Option.some(cause.error.message)
     }
   }
-  return Option.some("Failed");
-};
+  return Option.some('Failed')
+}
 ```
 
 ---
@@ -288,7 +288,7 @@ whenFailure: ({ cause }) => {
 Atoms are garbage-collected when no subscribers. Use `keepAlive` for persistent state:
 
 ```typescript
-const persistentAtom = Atom.make(0).pipe(Atom.keepAlive);
+const persistentAtom = Atom.make(0).pipe(Atom.keepAlive)
 ```
 
 ### Idle TTL
@@ -296,7 +296,7 @@ const persistentAtom = Atom.make(0).pipe(Atom.keepAlive);
 Control cleanup delay:
 
 ```typescript
-const atomWithDelay = Atom.make(value).pipe(Atom.setIdleTTL(1000));
+const atomWithDelay = Atom.make(value).pipe(Atom.setIdleTTL(1000))
 ```
 
 ### Finalizers
@@ -305,11 +305,11 @@ Cleanup resources when atom is disposed:
 
 ```typescript
 const scrollAtom = Atom.make((get) => {
-  const handler = () => get.setSelf(window.scrollY);
-  window.addEventListener("scroll", handler);
-  get.addFinalizer(() => window.removeEventListener("scroll", handler));
-  return window.scrollY;
-});
+  const handler = () => get.setSelf(window.scrollY)
+  window.addEventListener('scroll', handler)
+  get.addFinalizer(() => window.removeEventListener('scroll', handler))
+  return window.scrollY
+})
 ```
 
 ---
@@ -339,9 +339,9 @@ const allVoted = Result.builder(votesResult)
   )
   .onInitial(() => false)
   .onFailure(() => false)
-  .render();
+  .render()
 
-if (allVoted) return null;
+if (allVoted) return null
 ```
 
 ### Chaining Effects with Dependencies
@@ -350,13 +350,13 @@ if (allVoted) return null;
 runtime.atom(
   Effect.fnUntraced(function* (get) {
     // Wait for auth
-    const user = yield* get.result(userAtom);
+    const user = yield* get.result(userAtom)
 
     // Then fetch user-specific data
-    const service = yield* MyService;
-    return yield* service.getDataForUser(user.id);
+    const service = yield* MyService
+    return yield* service.getDataForUser(user.id)
   })
-);
+)
 ```
 
 ---

@@ -12,11 +12,11 @@ ACCOUNT_BLUEPRINT:   "Account"
 
 Entity types for address derivation:
 
-| Entity Type | Byte | Description |
-|---|---|---|
-| `GlobalAccount` | `0xC1` (193) | Standard account (securified or create_advanced) |
-| `GlobalPreallocatedSecp256k1Account` | `0xD1` (209) | Virtual account from secp256k1 key |
-| `GlobalPreallocatedEd25519Account` | `0x51` (81) | Virtual account from ed25519 key |
+| Entity Type                          | Byte         | Description                                      |
+| ------------------------------------ | ------------ | ------------------------------------------------ |
+| `GlobalAccount`                      | `0xC1` (193) | Standard account (securified or create_advanced) |
+| `GlobalPreallocatedSecp256k1Account` | `0xD1` (209) | Virtual account from secp256k1 key               |
+| `GlobalPreallocatedEd25519Account`   | `0x51` (81)  | Virtual account from ed25519 key                 |
 
 Preallocated address derivation: `ComponentAddress::preallocated_account_from_public_key(pk)` — hashes the public key bytes and prefixes with the entity type byte.
 
@@ -26,9 +26,9 @@ Declared via `declare_native_blueprint_state!` macro in `blueprint.rs:63`.
 
 ### Field
 
-| Field | Type | Kind | Condition |
-|---|---|---|---|
-| `deposit_rule` | `AccountDepositRuleV1` (= `AccountSubstate`) | `StaticSingleVersioned` | Always |
+| Field          | Type                                         | Kind                    | Condition |
+| -------------- | -------------------------------------------- | ----------------------- | --------- |
+| `deposit_rule` | `AccountDepositRuleV1` (= `AccountSubstate`) | `StaticSingleVersioned` | Always    |
 
 ```rust
 pub struct AccountSubstate {
@@ -38,11 +38,11 @@ pub struct AccountSubstate {
 
 ### Key-Value Collections
 
-| Collection | Key Type | Value Type | Ownership | Purpose |
-|---|---|---|---|---|
-| `resource_vaults` | `ResourceAddress` | `Vault` | `true` | Per-resource vaults, created on-demand |
-| `resource_preferences` | `ResourceAddress` | `ResourcePreference` | `false` | Per-resource deposit allow/deny |
-| `authorized_depositors` | `ResourceOrNonFungible` | `()` | `false` | Badges authorized to bypass deposit rules |
+| Collection              | Key Type                | Value Type           | Ownership | Purpose                                   |
+| ----------------------- | ----------------------- | -------------------- | --------- | ----------------------------------------- |
+| `resource_vaults`       | `ResourceAddress`       | `Vault`              | `true`    | Per-resource vaults, created on-demand    |
+| `resource_preferences`  | `ResourceAddress`       | `ResourcePreference` | `false`   | Per-resource deposit allow/deny           |
+| `authorized_depositors` | `ResourceOrNonFungible` | `()`                 | `false`   | Badges authorized to bypass deposit rules |
 
 ### Core Enums
 
@@ -105,89 +105,89 @@ All methods use `ReceiverInfo::normal_ref_mut()` unless noted. Query methods (Cu
 
 ### Creation (Functions — no receiver)
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `create` | `{}` | `(Global<AccountMarker>, Bucket)` | AllowAll |
-| `create_advanced` | `{ owner_role: OwnerRole, address_reservation: Option<GlobalAddressReservation> }` | `Global<AccountMarker>` | AllowAll |
+| Ident             | Input                                                                              | Output                            | Auth     |
+| ----------------- | ---------------------------------------------------------------------------------- | --------------------------------- | -------- |
+| `create`          | `{}`                                                                               | `(Global<AccountMarker>, Bucket)` | AllowAll |
+| `create_advanced` | `{ owner_role: OwnerRole, address_reservation: Option<GlobalAddressReservation> }` | `Global<AccountMarker>`           | AllowAll |
 
 ### Securification
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `securify` | `{}` | `Bucket` | SECURIFY_ROLE |
+| Ident      | Input | Output   | Auth          |
+| ---------- | ----- | -------- | ------------- |
+| `securify` | `{}`  | `Bucket` | SECURIFY_ROLE |
 
 Converts a presecurified (virtual) account into a securified one. Mints an `AccountOwnerBadgeData` NFT and returns the badge bucket. The SECURIFY_ROLE updater is SELF_ROLE, meaning only the component itself can update it (and it does so during securification to disable re-securification).
 
 ### Fee Management
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `lock_fee` | `{ amount: Decimal }` | `()` | OWNER |
-| `lock_contingent_fee` | `{ amount: Decimal }` | `()` | OWNER |
+| Ident                 | Input                 | Output | Auth  |
+| --------------------- | --------------------- | ------ | ----- |
+| `lock_fee`            | `{ amount: Decimal }` | `()`   | OWNER |
+| `lock_contingent_fee` | `{ amount: Decimal }` | `()`   | OWNER |
 
 ### Authenticated Deposit (owner-only)
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `deposit` | `{ bucket: Bucket }` | `()` | OWNER |
-| `deposit_batch` | `{ buckets: Vec<Bucket> }` | `()` | OWNER |
+| Ident           | Input                      | Output | Auth  |
+| --------------- | -------------------------- | ------ | ----- |
+| `deposit`       | `{ bucket: Bucket }`       | `()`   | OWNER |
+| `deposit_batch` | `{ buckets: Vec<Bucket> }` | `()`   | OWNER |
 
 No deposit validation — if auth passes, the deposit succeeds unconditionally. Vaults are created on-demand. Emits `DepositEvent`.
 
 ### Public Deposit (anyone can call)
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `try_deposit_or_refund` | `{ bucket: Bucket, authorized_depositor_badge: Option<ResourceOrNonFungible> }` | `Option<Bucket>` | Public |
+| Ident                         | Input                                                                                 | Output                | Auth   |
+| ----------------------------- | ------------------------------------------------------------------------------------- | --------------------- | ------ |
+| `try_deposit_or_refund`       | `{ bucket: Bucket, authorized_depositor_badge: Option<ResourceOrNonFungible> }`       | `Option<Bucket>`      | Public |
 | `try_deposit_batch_or_refund` | `{ buckets: Vec<Bucket>, authorized_depositor_badge: Option<ResourceOrNonFungible> }` | `Option<Vec<Bucket>>` | Public |
-| `try_deposit_or_abort` | `{ bucket: Bucket, authorized_depositor_badge: Option<ResourceOrNonFungible> }` | `()` | Public |
-| `try_deposit_batch_or_abort` | `{ buckets: Vec<Bucket>, authorized_depositor_badge: Option<ResourceOrNonFungible> }` | `()` | Public |
+| `try_deposit_or_abort`        | `{ bucket: Bucket, authorized_depositor_badge: Option<ResourceOrNonFungible> }`       | `()`                  | Public |
+| `try_deposit_batch_or_abort`  | `{ buckets: Vec<Bucket>, authorized_depositor_badge: Option<ResourceOrNonFungible> }` | `()`                  | Public |
 
 Refund variants: return rejected buckets as `Some(bucket)`, `None` if all deposited.
 Abort variants: panic if any deposit is rejected.
 
 ### Withdrawal
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `withdraw` | `{ resource_address: ResourceAddress, amount: Decimal }` | `Bucket` | OWNER |
-| `withdraw_non_fungibles` | `{ resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }` | `Bucket` | OWNER |
-| `lock_fee_and_withdraw` | `{ amount_to_lock: Decimal, resource_address: ResourceAddress, amount: Decimal }` | `Bucket` | OWNER |
+| Ident                                 | Input                                                                                               | Output   | Auth  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------- | -------- | ----- |
+| `withdraw`                            | `{ resource_address: ResourceAddress, amount: Decimal }`                                            | `Bucket` | OWNER |
+| `withdraw_non_fungibles`              | `{ resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }`                          | `Bucket` | OWNER |
+| `lock_fee_and_withdraw`               | `{ amount_to_lock: Decimal, resource_address: ResourceAddress, amount: Decimal }`                   | `Bucket` | OWNER |
 | `lock_fee_and_withdraw_non_fungibles` | `{ amount_to_lock: Decimal, resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }` | `Bucket` | OWNER |
 
 Emits `WithdrawEvent`. Panics with `AccountError::VaultDoesNotExist` if no vault for the resource.
 
 ### Proof Creation
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `create_proof_of_amount` | `{ resource_address: ResourceAddress, amount: Decimal }` | `Proof` | OWNER |
+| Ident                           | Input                                                                      | Output  | Auth  |
+| ------------------------------- | -------------------------------------------------------------------------- | ------- | ----- |
+| `create_proof_of_amount`        | `{ resource_address: ResourceAddress, amount: Decimal }`                   | `Proof` | OWNER |
 | `create_proof_of_non_fungibles` | `{ resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }` | `Proof` | OWNER |
 
 ### Deposit Rule Management
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `set_default_deposit_rule` | `{ default: DefaultDepositRule }` | `()` | OWNER |
-| `set_resource_preference` | `{ resource_address: ResourceAddress, resource_preference: ResourcePreference }` | `()` | OWNER |
-| `remove_resource_preference` | `{ resource_address: ResourceAddress }` | `()` | OWNER |
-| `add_authorized_depositor` | `{ badge: ResourceOrNonFungible }` | `()` | OWNER |
-| `remove_authorized_depositor` | `{ badge: ResourceOrNonFungible }` | `()` | OWNER |
+| Ident                         | Input                                                                            | Output | Auth  |
+| ----------------------------- | -------------------------------------------------------------------------------- | ------ | ----- |
+| `set_default_deposit_rule`    | `{ default: DefaultDepositRule }`                                                | `()`   | OWNER |
+| `set_resource_preference`     | `{ resource_address: ResourceAddress, resource_preference: ResourcePreference }` | `()`   | OWNER |
+| `remove_resource_preference`  | `{ resource_address: ResourceAddress }`                                          | `()`   | OWNER |
+| `add_authorized_depositor`    | `{ badge: ResourceOrNonFungible }`                                               | `()`   | OWNER |
+| `remove_authorized_depositor` | `{ badge: ResourceOrNonFungible }`                                               | `()`   | OWNER |
 
 ### Burn
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `burn` | `{ resource_address: ResourceAddress, amount: Decimal }` | `()` | OWNER |
-| `burn_non_fungibles` | `{ resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }` | `()` | OWNER |
+| Ident                | Input                                                                      | Output | Auth  |
+| -------------------- | -------------------------------------------------------------------------- | ------ | ----- |
+| `burn`               | `{ resource_address: ResourceAddress, amount: Decimal }`                   | `()`   | OWNER |
+| `burn_non_fungibles` | `{ resource_address: ResourceAddress, ids: IndexSet<NonFungibleLocalId> }` | `()`   | OWNER |
 
 ### Query (Cuttlefish extension — read-only)
 
-| Ident | Input | Output | Auth |
-|---|---|---|---|
-| `balance` | `{ resource_address: ResourceAddress }` | `Decimal` | Public |
-| `non_fungible_local_ids` | `{ resource_address: ResourceAddress, limit: u32 }` | `IndexSet<NonFungibleLocalId>` | Public |
-| `has_non_fungible` | `{ resource_address: ResourceAddress, local_id: NonFungibleLocalId }` | `bool` | Public |
+| Ident                    | Input                                                                 | Output                         | Auth   |
+| ------------------------ | --------------------------------------------------------------------- | ------------------------------ | ------ |
+| `balance`                | `{ resource_address: ResourceAddress }`                               | `Decimal`                      | Public |
+| `non_fungible_local_ids` | `{ resource_address: ResourceAddress, limit: u32 }`                   | `IndexSet<NonFungibleLocalId>` | Public |
+| `has_non_fungible`       | `{ resource_address: ResourceAddress, local_id: NonFungibleLocalId }` | `bool`                         | Public |
 
 ## Deposit Validation Logic
 
@@ -262,6 +262,7 @@ AccountBlueprint::create_advanced(
 ### Modules Attached
 
 Every account gets two attached modules (no royalties):
+
 - `AttachedModuleId::RoleAssignment`
 - `AttachedModuleId::Metadata`
 
@@ -450,10 +451,10 @@ For AccessController-based multi-sig, the account's owner rule points to an Acce
 
 ## Protocol Evolution
 
-| Version | Extension Struct | Changes |
-|---|---|---|
-| Babylon | `AccountBlueprint` | Original 27 methods |
+| Version    | Extension Struct                      | Changes                                                                                                                      |
+| ---------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Babylon    | `AccountBlueprint`                    | Original 27 methods                                                                                                          |
 | Bottlenose | `AccountBlueprintBottlenoseExtension` | `try_deposit_or_refund` / `try_deposit_batch_or_refund` gracefully refund on `NotAnAuthorizedDepositor` instead of panicking |
-| Cuttlefish | `AccountBlueprintCuttlefishExtension` | Added 3 public read-only query methods: `balance`, `non_fungible_local_ids`, `has_non_fungible` |
+| Cuttlefish | `AccountBlueprintCuttlefishExtension` | Added 3 public read-only query methods: `balance`, `non_fungible_local_ids`, `has_non_fungible`                              |
 
 Each extension is dispatched via separate `NativeCodeId` versions in the package export system.

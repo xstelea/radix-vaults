@@ -86,26 +86,26 @@ Comprehensive reference for `@effect/rpc` (v0.73.0) — type-safe, transport-agn
 ### Constructor
 
 ```typescript
-import { Rpc } from "@effect/rpc";
+import { Rpc } from '@effect/rpc'
 
-const GetUser = Rpc.make("GetUser", {
+const GetUser = Rpc.make('GetUser', {
   payload: { id: Schema.Number }, // Schema.Struct.Fields or Schema.Schema
   success: Schema.Struct({ name: Schema.String }),
-  error: Schema.String,
-});
+  error: Schema.String
+})
 
 // Streaming RPC
-const WatchUsers = Rpc.make("WatchUsers", {
+const WatchUsers = Rpc.make('WatchUsers', {
   success: Schema.Struct({ name: Schema.String }),
   error: Schema.String,
-  stream: true, // success becomes Stream, error moves to stream errors
-});
+  stream: true // success becomes Stream, error moves to stream errors
+})
 
 // With primaryKey (for deduplication)
-const GetItem = Rpc.make("GetItem", {
+const GetItem = Rpc.make('GetItem', {
   payload: { id: Schema.String },
-  primaryKey: (payload) => payload.id,
-});
+  primaryKey: (payload) => payload.id
+})
 ```
 
 ### Rpc.make() Options
@@ -121,14 +121,14 @@ const GetItem = Rpc.make("GetItem", {
 ### Fluent Combinators
 
 ```typescript
-const MyRpc = Rpc.make("MyRpc")
+const MyRpc = Rpc.make('MyRpc')
   .setPayload({ id: Schema.Number })
   .setSuccess(Schema.String)
   .setError(MyError)
   .middleware(AuthMiddleware)
-  .prefix("admin.") // tag becomes "admin.MyRpc"
+  .prefix('admin.') // tag becomes "admin.MyRpc"
   .annotate(tag, value)
-  .annotateContext(context);
+  .annotateContext(context)
 ```
 
 ### Type Extractors
@@ -153,14 +153,14 @@ const MyRpc = Rpc.make("MyRpc")
 
 ```typescript
 // Interop with legacy Schema.TaggedRequest
-const rpc = Rpc.fromTaggedRequest(myTaggedRequestSchema);
+const rpc = Rpc.fromTaggedRequest(myTaggedRequestSchema)
 ```
 
 ### exitSchema
 
 ```typescript
 // Get the Exit schema for encoding/decoding exits on the wire
-const schema = Rpc.exitSchema(myRpc);
+const schema = Rpc.exitSchema(myRpc)
 // Schema.Schema<Exit<Success, Error>, ExitEncoded<...>>
 ```
 
@@ -173,9 +173,9 @@ const schema = Rpc.exitSchema(myRpc);
 ### Constructor
 
 ```typescript
-import { RpcGroup } from "@effect/rpc";
+import { RpcGroup } from '@effect/rpc'
 
-const group = RpcGroup.make(GetUser, ListUsers, WatchUsers);
+const group = RpcGroup.make(GetUser, ListUsers, WatchUsers)
 ```
 
 ### Fluent API
@@ -185,9 +185,9 @@ group
   .add(DeleteUser, UpdateUser) // add more procedures
   .merge(otherGroup) // merge another group
   .middleware(AuthMiddleware) // apply middleware to all above
-  .prefix("users.") // prefix all tags: "users.GetUser"
+  .prefix('users.') // prefix all tags: "users.GetUser"
   .annotate(tag, value) // annotate the group
-  .annotateRpcs(tag, value); // annotate all rpcs in group
+  .annotateRpcs(tag, value) // annotate all rpcs in group
 ```
 
 ### Implementing Handlers — toLayer
@@ -196,26 +196,26 @@ group
 // All handlers at once — returns Layer<Rpc.ToHandler<Rpcs>>
 const HandlersLive = group.toLayer({
   GetUser: (payload, { headers, clientId }) =>
-    Effect.succeed({ name: "Alice" }),
-  ListUsers: () => Effect.succeed([{ name: "Alice" }]),
-  WatchUsers: () => Stream.fromIterable([{ name: "Alice" }]),
-});
+    Effect.succeed({ name: 'Alice' }),
+  ListUsers: () => Effect.succeed([{ name: 'Alice' }]),
+  WatchUsers: () => Stream.fromIterable([{ name: 'Alice' }])
+})
 
 // Single handler
-const GetUserLive = group.toLayerHandler("GetUser", (payload, { headers }) =>
-  Effect.succeed({ name: "Alice" })
-);
+const GetUserLive = group.toLayerHandler('GetUser', (payload, { headers }) =>
+  Effect.succeed({ name: 'Alice' })
+)
 
 // Effectful build (access services during construction)
 const HandlersLive = group.toLayer(
   Effect.gen(function* () {
-    const db = yield* Database;
+    const db = yield* Database
     return {
-      GetUser: (payload) => db.findUser(payload.id),
+      GetUser: (payload) => db.findUser(payload.id)
       // ...
-    };
+    }
   })
-);
+)
 ```
 
 ### Handler Function Signature
@@ -237,14 +237,14 @@ For streaming RPCs, handlers can return:
 
 ```typescript
 // Retrieve a handler from context for direct invocation
-const handler = yield * group.accessHandler("GetUser");
-const result = handler(payload, headers);
+const handler = yield * group.accessHandler('GetUser')
+const result = handler(payload, headers)
 ```
 
 ### Rpcs type extractor
 
 ```typescript
-type MyRpcs = RpcGroup.Rpcs<typeof group>;
+type MyRpcs = RpcGroup.Rpcs<typeof group>
 // Union of all Rpc types in the group
 ```
 
@@ -337,8 +337,8 @@ const { handler, dispose } = RpcServer.toWebHandler(group, {
 ### Interruption Fiber IDs
 
 ```typescript
-RpcServer.fiberIdClientInterrupt; // FiberId(-499) — client-initiated interrupt
-RpcServer.fiberIdTransientInterrupt; // FiberId(-503) — transient (shutdown, reconnect)
+RpcServer.fiberIdClientInterrupt // FiberId(-499) — client-initiated interrupt
+RpcServer.fiberIdTransientInterrupt // FiberId(-503) — transient (shutdown, reconnect)
 ```
 
 ---
@@ -351,14 +351,14 @@ RpcServer.fiberIdTransientInterrupt; // FiberId(-503) — transient (shutdown, r
 
 ```typescript
 type RpcClient<Rpcs, E> = {
-  readonly GetUser: (payload, options?) => Effect<User, MyError | E>;
-  readonly WatchUsers: (payload, options?) => Stream<User, MyError | E>;
+  readonly GetUser: (payload, options?) => Effect<User, MyError | E>
+  readonly WatchUsers: (payload, options?) => Stream<User, MyError | E>
 
   // Prefixed RPCs create nested namespaces
   readonly admin: {
-    readonly DeleteUser: (payload, options?) => Effect<void, AdminError | E>;
-  };
-};
+    readonly DeleteUser: (payload, options?) => Effect<void, AdminError | E>
+  }
+}
 ```
 
 ### Client Constructor
@@ -383,7 +383,7 @@ const { client, write } = yield* RpcClient.makeNoSerialization(group, {
 
 ```typescript
 // Effect-based (non-streaming)
-const user = yield * client.GetUser({ id: 1 });
+const user = yield * client.GetUser({ id: 1 })
 
 // With options
 const user =
@@ -391,14 +391,14 @@ const user =
   client.GetUser(
     { id: 1 },
     {
-      headers: { authorization: "Bearer ..." },
+      headers: { authorization: 'Bearer ...' },
       context: Context.empty(),
-      discard: true, // fire-and-forget (returns void)
+      discard: true // fire-and-forget (returns void)
     }
-  );
+  )
 
 // Stream-based
-const users: Stream<User, Error> = client.WatchUsers({});
+const users: Stream<User, Error> = client.WatchUsers({})
 
 // Stream as Mailbox
 const mailbox =
@@ -407,17 +407,17 @@ const mailbox =
     {},
     {
       asMailbox: true,
-      streamBufferSize: 16,
+      streamBufferSize: 16
     }
-  );
+  )
 ```
 
 ### Flat Client
 
 ```typescript
-const client = yield * RpcClient.make(group, { flatten: true });
+const client = yield * RpcClient.make(group, { flatten: true })
 // client: (tag: "GetUser" | ..., payload, options?) => Effect | Stream
-const user = yield * client("GetUser", { id: 1 });
+const user = yield * client('GetUser', { id: 1 })
 ```
 
 ### Protocol Tag (Client)
@@ -443,13 +443,13 @@ class Protocol extends Context.Tag("@effect/rpc/RpcClient/Protocol")<Protocol, {
 
 ```typescript
 // Set headers for all RPCs in scope
-RpcClient.withHeaders({ authorization: "Bearer ..." })(effect);
+RpcClient.withHeaders({ authorization: 'Bearer ...' })(effect)
 
 // Effectful headers
-RpcClient.withHeadersEffect(getTokenEffect)(effect);
+RpcClient.withHeadersEffect(getTokenEffect)(effect)
 
 // FiberRef for current headers
-RpcClient.currentHeaders; // FiberRef<Headers>
+RpcClient.currentHeaders // FiberRef<Headers>
 ```
 
 ### Socket Protocol Options
@@ -459,8 +459,8 @@ RpcClient.layerProtocolSocket({
   retryTransientErrors: true,
   retrySchedule: Schedule.exponential(500, 1.5).pipe(
     Schedule.union(Schedule.spaced(5000))
-  ),
-});
+  )
+})
 ```
 
 ### Worker Protocol Options
@@ -473,8 +473,8 @@ RpcClient.layerProtocolWorker({
   maxSize: 8,
   concurrency: 10,
   targetUtilization: 0.8,
-  timeToLive: "5 minutes",
-});
+  timeToLive: '5 minutes'
+})
 ```
 
 ---
@@ -486,34 +486,34 @@ RpcClient.layerProtocolWorker({
 ### Creating Middleware Tags
 
 ```typescript
-import { RpcMiddleware } from "@effect/rpc";
+import { RpcMiddleware } from '@effect/rpc'
 
 // Basic middleware (runs before handler, can fail with typed error)
 class AuthMiddleware extends RpcMiddleware.Tag<AuthMiddleware>()(
-  "AuthMiddleware",
+  'AuthMiddleware',
   { failure: AuthError }
 ) {}
 
 // Middleware that provides a service to the handler
-class UserContext extends RpcMiddleware.Tag<UserContext>()("UserContext", {
+class UserContext extends RpcMiddleware.Tag<UserContext>()('UserContext', {
   provides: UserService, // Context.Tag to provide
-  failure: AuthError,
+  failure: AuthError
 }) {}
 
 // Optional middleware (handler runs even if middleware fails)
-class Analytics extends RpcMiddleware.Tag<Analytics>()("Analytics", {
-  optional: true,
+class Analytics extends RpcMiddleware.Tag<Analytics>()('Analytics', {
+  optional: true
 }) {}
 
 // Wrap middleware (gets access to `next` — the handler effect)
-class Caching extends RpcMiddleware.Tag<Caching>()("Caching", {
+class Caching extends RpcMiddleware.Tag<Caching>()('Caching', {
   wrap: true,
-  failure: CacheError,
+  failure: CacheError
 }) {}
 
 // Client-required middleware (also runs on client side)
 class RequestSigning extends RpcMiddleware.Tag<RequestSigning>()(
-  "RequestSigning",
+  'RequestSigning',
   { requiredForClient: true }
 ) {}
 ```
@@ -534,20 +534,20 @@ class RequestSigning extends RpcMiddleware.Tag<RequestSigning>()(
 // Standard: (options) => Effect<Provides, Error>
 const AuthLive = Layer.succeed(AuthMiddleware, (options) =>
   Effect.gen(function* () {
-    const token = Headers.get(options.headers, "authorization");
-    if (!token) return yield* Effect.fail(new AuthError());
-    return yield* verifyToken(token);
+    const token = Headers.get(options.headers, 'authorization')
+    if (!token) return yield* Effect.fail(new AuthError())
+    return yield* verifyToken(token)
   })
-);
+)
 
 // Wrap: (options) => Effect<SuccessValue, Error>
 const CachingLive = Layer.succeed(Caching, (options) =>
   Effect.gen(function* () {
-    const cached = yield* checkCache(options.payload);
-    if (cached) return cached as any;
-    return yield* options.next; // call the actual handler
+    const cached = yield* checkCache(options.payload)
+    if (cached) return cached as any
+    return yield* options.next // call the actual handler
   })
-);
+)
 ```
 
 ### Client Middleware
@@ -559,11 +559,11 @@ const SigningLive = RpcMiddleware.layerClient(RequestSigning, (options) =>
     ...options.request,
     headers: Headers.set(
       options.request.headers,
-      "x-sig",
+      'x-sig',
       sign(options.request)
-    ),
+    )
   })
-);
+)
 ```
 
 ### Application Order (Server)
@@ -610,17 +610,17 @@ Same but with `requestId: string`, plus `Pong` and `ClientProtocolError`.
 ### RequestId
 
 ```typescript
-type RequestId = Branded<bigint, RequestIdTypeId>;
-const id = RequestId(42n); // from bigint
-const id = RequestId("42"); // from string
+type RequestId = Branded<bigint, RequestIdTypeId>
+const id = RequestId(42n) // from bigint
+const id = RequestId('42') // from string
 ```
 
 ### Constants
 
 ```typescript
-RpcMessage.constEof; // { _tag: "Eof" }
-RpcMessage.constPing; // { _tag: "Ping" }
-RpcMessage.constPong; // { _tag: "Pong" }
+RpcMessage.constEof // { _tag: "Eof" }
+RpcMessage.constPing // { _tag: "Ping" }
+RpcMessage.constPong // { _tag: "Pong" }
 ```
 
 ---
@@ -643,8 +643,8 @@ class RpcSerialization extends Context.Tag("@effect/rpc/RpcSerialization")<RpcSe
 
 ```typescript
 interface Parser {
-  readonly decode: (data: Uint8Array | string) => ReadonlyArray<unknown>;
-  readonly encode: (response: unknown) => Uint8Array | string | undefined;
+  readonly decode: (data: Uint8Array | string) => ReadonlyArray<unknown>
+  readonly encode: (response: unknown) => Uint8Array | string | undefined
 }
 ```
 
@@ -686,29 +686,29 @@ Supports batch requests (JSON arrays) with response correlation.
 ```typescript
 interface Stream<
   A extends Schema.Any,
-  E extends Schema.All,
+  E extends Schema.All
 > extends Schema.Schema<
-  Stream<A["Type"], E["Type"]>,
-  Stream<A["Encoded"], E["Encoded"]>,
-  A["Context"] | E["Context"]
+  Stream<A['Type'], E['Type']>,
+  Stream<A['Encoded'], E['Encoded']>,
+  A['Context'] | E['Context']
 > {
-  readonly success: A;
-  readonly failure: E;
+  readonly success: A
+  readonly failure: E
 }
 
 // Constructor
 const streamSchema = RpcSchema.Stream({
   success: Schema.String,
-  failure: Schema.String,
-});
+  failure: Schema.String
+})
 ```
 
 ### Utilities
 
 ```typescript
-RpcSchema.isStreamSchema(schema); // type guard
-RpcSchema.isStreamSerializable(schema); // check WithResult schema
-RpcSchema.getStreamSchemas(ast); // Option<{ success, failure }>
+RpcSchema.isStreamSchema(schema) // type guard
+RpcSchema.isStreamSerializable(schema) // check WithResult schema
+RpcSchema.getStreamSchemas(ast) // Option<{ success, failure }>
 ```
 
 The `Stream` schema uses `Schema.declare` internally and annotates the AST with `StreamSchemaId` so the server/client can detect streaming RPCs and handle them differently.
@@ -720,11 +720,11 @@ The `Stream` schema uses `Schema.declare` internally and annotates the AST with 
 **Module**: `RpcTest.ts` — In-memory test client that bypasses serialization.
 
 ```typescript
-import { RpcTest } from "@effect/rpc";
+import { RpcTest } from '@effect/rpc'
 
-const client = yield * RpcTest.makeClient(group);
+const client = yield * RpcTest.makeClient(group)
 // or
-const client = yield * RpcTest.makeClient(group, { flatten: true });
+const client = yield * RpcTest.makeClient(group, { flatten: true })
 ```
 
 Internally wires `RpcClient.makeNoSerialization` directly to `RpcServer.makeNoSerialization` — messages pass in-memory without encoding/decoding. Requirements include `Scope`, handler layers, and middleware layers.
@@ -748,13 +748,13 @@ class InitialMessage extends Context.Tag("@effect/rpc/RpcWorker/InitialMessage")
 
 ```typescript
 // Create initial message with schema encoding + transferable collection
-RpcWorker.makeInitialMessage(schema, effect);
+RpcWorker.makeInitialMessage(schema, effect)
 
 // Layer for initial message
-RpcWorker.layerInitialMessage(schema, build);
+RpcWorker.layerInitialMessage(schema, build)
 
 // Read initial message on server side
-const msg = yield * RpcWorker.initialMessage(schema);
+const msg = yield * RpcWorker.initialMessage(schema)
 // Effect<A, NoSuchElementException | ParseError, Protocol | R>
 ```
 
@@ -784,16 +784,16 @@ All client protocol implementations emit `RpcClientError` for transport failures
 
 ```typescript
 // Fork: bypass server concurrency control, run concurrently regardless
-const handler = (payload) => Rpc.fork(Effect.succeed(result));
+const handler = (payload) => Rpc.fork(Effect.succeed(result))
 
 // Uninterruptible: run in uninterruptible region
-const handler = (payload) => Rpc.uninterruptible(Effect.succeed(result));
+const handler = (payload) => Rpc.uninterruptible(Effect.succeed(result))
 
 // Both: composable
-const handler = (payload) => Rpc.fork(Rpc.uninterruptible(myEffect));
+const handler = (payload) => Rpc.fork(Rpc.uninterruptible(myEffect))
 
 // General form
-Rpc.wrap({ fork: true, uninterruptible: true })(myEffect);
+Rpc.wrap({ fork: true, uninterruptible: true })(myEffect)
 ```
 
 - `Rpc.fork(value)` — ensures the handler runs concurrently even when `RpcServer` has `concurrency: N`
@@ -808,76 +808,76 @@ Rpc.wrap({ fork: true, uninterruptible: true })(myEffect);
 ### 1. Define Procedures
 
 ```typescript
-import { Rpc, RpcGroup, RpcSchema } from "@effect/rpc";
-import * as Schema from "effect/Schema";
+import { Rpc, RpcGroup, RpcSchema } from '@effect/rpc'
+import * as Schema from 'effect/Schema'
 
-const GetUser = Rpc.make("GetUser", {
+const GetUser = Rpc.make('GetUser', {
   payload: { id: Schema.Number },
   success: Schema.Struct({ name: Schema.String, age: Schema.Number }),
-  error: Schema.String,
-});
+  error: Schema.String
+})
 
-const WatchUsers = Rpc.make("WatchUsers", {
+const WatchUsers = Rpc.make('WatchUsers', {
   success: Schema.Struct({ name: Schema.String }),
   error: Schema.String,
-  stream: true,
-});
+  stream: true
+})
 
-const group = RpcGroup.make(GetUser, WatchUsers);
+const group = RpcGroup.make(GetUser, WatchUsers)
 ```
 
 ### 2. Implement Handlers
 
 ```typescript
 const HandlersLive = group.toLayer({
-  GetUser: ({ id }) => Effect.succeed({ name: "Alice", age: 30 }),
-  WatchUsers: () => Stream.fromIterable([{ name: "Alice" }, { name: "Bob" }]),
-});
+  GetUser: ({ id }) => Effect.succeed({ name: 'Alice', age: 30 }),
+  WatchUsers: () => Stream.fromIterable([{ name: 'Alice' }, { name: 'Bob' }])
+})
 ```
 
 ### 3. Serve (WebSocket over HTTP)
 
 ```typescript
-import { RpcServer, RpcSerialization } from "@effect/rpc";
-import { HttpLayerRouter } from "@effect/platform";
-import { NodeHttpServer } from "@effect/platform-node";
+import { RpcServer, RpcSerialization } from '@effect/rpc'
+import { HttpLayerRouter } from '@effect/platform'
+import { NodeHttpServer } from '@effect/platform-node'
 
 const ServerLive = RpcServer.layerHttpRouter({
   group,
-  path: "/rpc",
-  protocol: "websocket",
+  path: '/rpc',
+  protocol: 'websocket'
 }).pipe(
   Layer.provide(HandlersLive),
   Layer.provide(RpcSerialization.layerJson),
   Layer.provide(HttpLayerRouter.layer),
   Layer.provide(NodeHttpServer.layer({ port: 3000 }))
-);
+)
 ```
 
 ### 4. Client
 
 ```typescript
-import { RpcClient } from "@effect/rpc";
-import { Socket } from "@effect/platform";
+import { RpcClient } from '@effect/rpc'
+import { Socket } from '@effect/platform'
 
 const ClientLive = Layer.scoped(MyClient, RpcClient.make(group)).pipe(
   Layer.provide(RpcClient.layerProtocolSocket()),
   Layer.provide(RpcSerialization.layerJson),
   Layer.provide(Socket.layerWebSocketConstructor),
-  Layer.provide(Socket.makeWebSocket("ws://localhost:3000/rpc"))
-);
+  Layer.provide(Socket.makeWebSocket('ws://localhost:3000/rpc'))
+)
 
 // Usage
-const user = yield * client.GetUser({ id: 1 });
-const users = yield * Stream.runCollect(client.WatchUsers({}));
+const user = yield * client.GetUser({ id: 1 })
+const users = yield * Stream.runCollect(client.WatchUsers({}))
 ```
 
 ### 5. Test (In-Memory)
 
 ```typescript
 const testClient =
-  yield * RpcTest.makeClient(group).pipe(Effect.provide(HandlersLive));
-const user = yield * testClient.GetUser({ id: 1 });
+  yield * RpcTest.makeClient(group).pipe(Effect.provide(HandlersLive))
+const user = yield * testClient.GetUser({ id: 1 })
 ```
 
 ---
@@ -967,7 +967,7 @@ Every RPC's payload, success, and error types flow through Schema for:
 ### 4. Prefix-Based Namespacing
 
 ```typescript
-group.prefix("users.");
+group.prefix('users.')
 // "GetUser" → "users.GetUser"
 // Client type: { readonly users: { readonly GetUser: ... } }
 ```
@@ -1021,11 +1021,11 @@ import {
   RpcServer,
   RpcClient,
   RpcMiddleware,
-  RpcSerialization,
-} from "@effect/rpc";
+  RpcSerialization
+} from '@effect/rpc'
 
 // Direct (tree-shakeable)
-import * as RpcServer from "@effect/rpc/RpcServer";
+import * as RpcServer from '@effect/rpc/RpcServer'
 ```
 
 ### Typical Server Stack
@@ -1038,13 +1038,13 @@ Layer.mergeAll(
   Layer.provide(
     RpcServer.layerHttpRouter({
       group,
-      path: "/rpc",
+      path: '/rpc'
     })
   ),
   Layer.provide(RpcSerialization.layerJson),
   Layer.provide(HttpLayerRouter.layer),
   Layer.provide(NodeHttpServer.layer({ port: 3000 }))
-);
+)
 ```
 
 ### Typical Client Stack
@@ -1054,7 +1054,7 @@ RpcClient.make(group).pipe(
   Layer.provide(RpcClient.layerProtocolSocket()),
   Layer.provide(RpcSerialization.layerJson),
   Layer.provide(socketLayer)
-);
+)
 ```
 
 ### Serialization Decision Guide

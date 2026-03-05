@@ -1,19 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { Effect } from "effect"
-import { useEffect, useMemo, useState } from "react"
-import { getServerHealth, type ServerHealth } from "@/lib/rpcClient"
+import { createFileRoute } from '@tanstack/react-router'
+import { Effect } from 'effect'
+import { useEffect, useMemo, useState } from 'react'
+import { getServerHealth, type ServerHealth } from '@/lib/rpcClient'
 
 type RpcState =
-  | { tag: "loading" }
-  | { tag: "success"; data: ServerHealth }
-  | { tag: "error"; message: string }
+  | { tag: 'loading' }
+  | { tag: 'success'; data: ServerHealth }
+  | { tag: 'error'; message: string }
 
-export const Route = createFileRoute("/")({
-  component: HomePage,
+export const Route = createFileRoute('/')({
+  component: HomePage
 })
 
 function HomePage() {
-  const [state, setState] = useState<RpcState>({ tag: "loading" })
+  const [state, setState] = useState<RpcState>({ tag: 'loading' })
 
   useEffect(() => {
     let active = true
@@ -21,12 +21,12 @@ function HomePage() {
     Effect.runPromise(getServerHealth)
       .then((data) => {
         if (!active) return
-        setState({ tag: "success", data })
+        setState({ tag: 'success', data })
       })
       .catch((error) => {
         if (!active) return
         const message = error instanceof Error ? error.message : String(error)
-        setState({ tag: "error", message })
+        setState({ tag: 'error', message })
       })
 
     return () => {
@@ -35,11 +35,11 @@ function HomePage() {
   }, [])
 
   const content = useMemo(() => {
-    if (state.tag === "loading") {
+    if (state.tag === 'loading') {
       return <p>Calling Effect RPC server...</p>
     }
 
-    if (state.tag === "error") {
+    if (state.tag === 'error') {
       return <p>RPC call failed: {state.message}</p>
     }
 
@@ -59,7 +59,7 @@ function HomePage() {
         </div>
         <div className="status-row">
           <strong>RPC Path</strong>
-          <span>{import.meta.env.VITE_RPC_URL ?? "/rpc"}</span>
+          <span>{import.meta.env.VITE_RPC_URL ?? '/rpc'}</span>
         </div>
       </div>
     )

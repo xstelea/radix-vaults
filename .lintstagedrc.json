@@ -1,5 +1,7 @@
 {
   "*.{ts,tsx,js,mjs,cjs}": [
-    "pnpm exec oxlint --fix"
-  ]
+    "pnpm exec oxlint --fix",
+    "pnpm exec oxfmt --write"
+  ],
+  "*.json": ["pnpm exec oxfmt --write"]
 }

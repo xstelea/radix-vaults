@@ -33,6 +33,7 @@ pnpm dev
 ## Quality gates
 
 ```bash
+pnpm fmt:check
 pnpm lint
 pnpm test
 pnpm check-types

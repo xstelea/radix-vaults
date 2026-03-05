@@ -55,53 +55,53 @@ pub struct SubintentManifestV2 {
 
 ### InstructionV1 (28 variants)
 
-| Category | Instruction | Discriminator | Fields |
-|----------|-------------|---------------|--------|
-| **Bucket** | `TakeFromWorktop` | `0x00` | `resource_address`, `amount` |
-| | `TakeNonFungiblesFromWorktop` | `0x01` | `resource_address`, `ids: Vec<NonFungibleLocalId>` |
-| | `TakeAllFromWorktop` | `0x02` | `resource_address` |
-| | `ReturnToWorktop` | `0x03` | `bucket_id: ManifestBucket` |
-| | `BurnResource` | `0x24` | `bucket_id: ManifestBucket` |
-| **Assert** | `AssertWorktopContainsAny` | `0x06` | `resource_address` |
-| | `AssertWorktopContains` | `0x04` | `resource_address`, `amount` |
-| | `AssertWorktopContainsNonFungibles` | `0x05` | `resource_address`, `ids` |
-| **Proof** | `CreateProofFromBucketOfAmount` | `0x21` | `bucket_id`, `amount` |
-| | `CreateProofFromBucketOfNonFungibles` | `0x22` | `bucket_id`, `ids` |
-| | `CreateProofFromBucketOfAll` | `0x23` | `bucket_id` |
-| | `CreateProofFromAuthZoneOfAmount` | `0x14` | `resource_address`, `amount` |
-| | `CreateProofFromAuthZoneOfNonFungibles` | `0x15` | `resource_address`, `ids` |
-| | `CreateProofFromAuthZoneOfAll` | `0x16` | `resource_address` |
-| | `CloneProof` | `0x30` | `proof_id: ManifestProof` |
-| | `DropProof` | `0x31` | `proof_id: ManifestProof` |
-| | `PushToAuthZone` | `0x11` | `proof_id: ManifestProof` |
-| | `PopFromAuthZone` | `0x10` | (none) |
-| | `DropAuthZoneProofs` | `0x12` | (none) |
-| | `DropAuthZoneRegularProofs` | `0x13` | (none) |
-| | `DropAuthZoneSignatureProofs` | `0x17` | (none) |
-| | `DropNamedProofs` | `0x52` | (none) |
-| | `DropAllProofs` | `0x50` | (none) |
-| **Invoke** | `CallFunction` | `0x40` | `package_address: ManifestPackageAddress`, `blueprint_name`, `function_name`, `args: ManifestValue` |
-| | `CallMethod` | `0x41` | `address: ManifestGlobalAddress`, `method_name`, `args: ManifestValue` |
-| | `CallRoyaltyMethod` | `0x42` | `address`, `method_name`, `args` |
-| | `CallMetadataMethod` | `0x43` | `address`, `method_name`, `args` |
-| | `CallRoleAssignmentMethod` | `0x44` | `address`, `method_name`, `args` |
-| | `CallDirectVaultMethod` | `0x45` | `address: InternalAddress`, `method_name`, `args` |
-| **Address** | `AllocateGlobalAddress` | `0x51` | `package_address: PackageAddress`, `blueprint_name` |
+| Category    | Instruction                             | Discriminator | Fields                                                                                              |
+| ----------- | --------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------- |
+| **Bucket**  | `TakeFromWorktop`                       | `0x00`        | `resource_address`, `amount`                                                                        |
+|             | `TakeNonFungiblesFromWorktop`           | `0x01`        | `resource_address`, `ids: Vec<NonFungibleLocalId>`                                                  |
+|             | `TakeAllFromWorktop`                    | `0x02`        | `resource_address`                                                                                  |
+|             | `ReturnToWorktop`                       | `0x03`        | `bucket_id: ManifestBucket`                                                                         |
+|             | `BurnResource`                          | `0x24`        | `bucket_id: ManifestBucket`                                                                         |
+| **Assert**  | `AssertWorktopContainsAny`              | `0x06`        | `resource_address`                                                                                  |
+|             | `AssertWorktopContains`                 | `0x04`        | `resource_address`, `amount`                                                                        |
+|             | `AssertWorktopContainsNonFungibles`     | `0x05`        | `resource_address`, `ids`                                                                           |
+| **Proof**   | `CreateProofFromBucketOfAmount`         | `0x21`        | `bucket_id`, `amount`                                                                               |
+|             | `CreateProofFromBucketOfNonFungibles`   | `0x22`        | `bucket_id`, `ids`                                                                                  |
+|             | `CreateProofFromBucketOfAll`            | `0x23`        | `bucket_id`                                                                                         |
+|             | `CreateProofFromAuthZoneOfAmount`       | `0x14`        | `resource_address`, `amount`                                                                        |
+|             | `CreateProofFromAuthZoneOfNonFungibles` | `0x15`        | `resource_address`, `ids`                                                                           |
+|             | `CreateProofFromAuthZoneOfAll`          | `0x16`        | `resource_address`                                                                                  |
+|             | `CloneProof`                            | `0x30`        | `proof_id: ManifestProof`                                                                           |
+|             | `DropProof`                             | `0x31`        | `proof_id: ManifestProof`                                                                           |
+|             | `PushToAuthZone`                        | `0x11`        | `proof_id: ManifestProof`                                                                           |
+|             | `PopFromAuthZone`                       | `0x10`        | (none)                                                                                              |
+|             | `DropAuthZoneProofs`                    | `0x12`        | (none)                                                                                              |
+|             | `DropAuthZoneRegularProofs`             | `0x13`        | (none)                                                                                              |
+|             | `DropAuthZoneSignatureProofs`           | `0x17`        | (none)                                                                                              |
+|             | `DropNamedProofs`                       | `0x52`        | (none)                                                                                              |
+|             | `DropAllProofs`                         | `0x50`        | (none)                                                                                              |
+| **Invoke**  | `CallFunction`                          | `0x40`        | `package_address: ManifestPackageAddress`, `blueprint_name`, `function_name`, `args: ManifestValue` |
+|             | `CallMethod`                            | `0x41`        | `address: ManifestGlobalAddress`, `method_name`, `args: ManifestValue`                              |
+|             | `CallRoyaltyMethod`                     | `0x42`        | `address`, `method_name`, `args`                                                                    |
+|             | `CallMetadataMethod`                    | `0x43`        | `address`, `method_name`, `args`                                                                    |
+|             | `CallRoleAssignmentMethod`              | `0x44`        | `address`, `method_name`, `args`                                                                    |
+|             | `CallDirectVaultMethod`                 | `0x45`        | `address: InternalAddress`, `method_name`, `args`                                                   |
+| **Address** | `AllocateGlobalAddress`                 | `0x51`        | `package_address: PackageAddress`, `blueprint_name`                                                 |
 
 ### InstructionV2 Additions (+8 = 36 total, but only 31 unique variants)
 
 InstructionV2 includes all 28 V1 variants plus:
 
-| Category | Instruction | Discriminator | Fields |
-|----------|-------------|---------------|--------|
-| **Assert (V2)** | `AssertWorktopResourcesOnly` | `0x08` | `constraints: ManifestResourceConstraints` |
-| | `AssertWorktopResourcesInclude` | `0x09` | `constraints: ManifestResourceConstraints` |
-| | `AssertNextCallReturnsOnly` | `0x0A` | `constraints: ManifestResourceConstraints` |
-| | `AssertNextCallReturnsInclude` | `0x0B` | `constraints: ManifestResourceConstraints` |
-| | `AssertBucketContents` | `0x0C` | `bucket_id: ManifestBucket`, `constraint: ManifestResourceConstraint` |
-| **Intent** | `YieldToParent` | `0x60` | `args: ManifestValue` |
-| | `YieldToChild` | `0x61` | `child_index: ManifestNamedIntentIndex`, `args: ManifestValue` |
-| | `VerifyParent` | `0x62` | `access_rule: AccessRule` |
+| Category        | Instruction                     | Discriminator | Fields                                                                |
+| --------------- | ------------------------------- | ------------- | --------------------------------------------------------------------- |
+| **Assert (V2)** | `AssertWorktopResourcesOnly`    | `0x08`        | `constraints: ManifestResourceConstraints`                            |
+|                 | `AssertWorktopResourcesInclude` | `0x09`        | `constraints: ManifestResourceConstraints`                            |
+|                 | `AssertNextCallReturnsOnly`     | `0x0A`        | `constraints: ManifestResourceConstraints`                            |
+|                 | `AssertNextCallReturnsInclude`  | `0x0B`        | `constraints: ManifestResourceConstraints`                            |
+|                 | `AssertBucketContents`          | `0x0C`        | `bucket_id: ManifestBucket`, `constraint: ManifestResourceConstraint` |
+| **Intent**      | `YieldToParent`                 | `0x60`        | `args: ManifestValue`                                                 |
+|                 | `YieldToChild`                  | `0x61`        | `child_index: ManifestNamedIntentIndex`, `args: ManifestValue`        |
+|                 | `VerifyParent`                  | `0x62`        | `access_rule: AccessRule`                                             |
 
 `AnyInstruction` is a type alias for `InstructionV2`.
 
@@ -120,22 +120,22 @@ pub trait ManifestInstruction: Into<AnyInstruction> {
 
 Certain `CallFunction`/`CallMethod` instructions decompile to named shortcuts based on known package/blueprint/function:
 
-| Decompiled Name | Actual Instruction | Target |
-|---|---|---|
-| `PUBLISH_PACKAGE` | `CallFunction` | PACKAGE_PACKAGE / publish_wasm |
-| `CREATE_ACCOUNT` | `CallFunction` | ACCOUNT_PACKAGE / create |
-| `CREATE_ACCOUNT_ADVANCED` | `CallFunction` | ACCOUNT_PACKAGE / create_advanced |
-| `CREATE_IDENTITY` | `CallFunction` | IDENTITY_PACKAGE / create |
-| `CREATE_ACCESS_CONTROLLER` | `CallFunction` | ACCESS_CONTROLLER_PACKAGE / create |
-| `CREATE_FUNGIBLE_RESOURCE` | `CallFunction` | RESOURCE_PACKAGE / create |
-| `CREATE_NON_FUNGIBLE_RESOURCE` | `CallFunction` | RESOURCE_PACKAGE / create |
-| `MINT_FUNGIBLE` | `CallMethod` | (resource manager) / mint |
-| `CREATE_VALIDATOR` | `CallMethod` | (consensus manager) / create_validator |
-| `SET_METADATA` | `CallMetadataMethod` | set |
-| `SET_OWNER_ROLE` | `CallRoleAssignmentMethod` | set_owner_role |
-| `SET_COMPONENT_ROYALTY` | `CallRoyaltyMethod` | set_royalty |
-| `RECALL_FROM_VAULT` | `CallDirectVaultMethod` | recall |
-| `ASSERT_WORKTOP_IS_EMPTY` | `AssertWorktopResourcesOnly` | (empty constraints) |
+| Decompiled Name                | Actual Instruction           | Target                                 |
+| ------------------------------ | ---------------------------- | -------------------------------------- |
+| `PUBLISH_PACKAGE`              | `CallFunction`               | PACKAGE_PACKAGE / publish_wasm         |
+| `CREATE_ACCOUNT`               | `CallFunction`               | ACCOUNT_PACKAGE / create               |
+| `CREATE_ACCOUNT_ADVANCED`      | `CallFunction`               | ACCOUNT_PACKAGE / create_advanced      |
+| `CREATE_IDENTITY`              | `CallFunction`               | IDENTITY_PACKAGE / create              |
+| `CREATE_ACCESS_CONTROLLER`     | `CallFunction`               | ACCESS_CONTROLLER_PACKAGE / create     |
+| `CREATE_FUNGIBLE_RESOURCE`     | `CallFunction`               | RESOURCE_PACKAGE / create              |
+| `CREATE_NON_FUNGIBLE_RESOURCE` | `CallFunction`               | RESOURCE_PACKAGE / create              |
+| `MINT_FUNGIBLE`                | `CallMethod`                 | (resource manager) / mint              |
+| `CREATE_VALIDATOR`             | `CallMethod`                 | (consensus manager) / create_validator |
+| `SET_METADATA`                 | `CallMetadataMethod`         | set                                    |
+| `SET_OWNER_ROLE`               | `CallRoleAssignmentMethod`   | set_owner_role                         |
+| `SET_COMPONENT_ROYALTY`        | `CallRoyaltyMethod`          | set_royalty                            |
+| `RECALL_FROM_VAULT`            | `CallDirectVaultMethod`      | recall                                 |
+| `ASSERT_WORKTOP_IS_EMPTY`      | `AssertWorktopResourcesOnly` | (empty constraints)                    |
 
 ## Manifest String Syntax
 
@@ -415,25 +415,25 @@ pub type TransactionManifestV2Builder = ManifestBuilder<TransactionManifestV2>;
 pub type SubintentManifestV2Builder   = ManifestBuilder<SubintentManifestV2>;
 ```
 
-| Constructor | Returns |
-|---|---|
-| `ManifestBuilder::new()` | V1 builder (default) |
-| `ManifestBuilder::new_v1()` | V1 builder (explicit) |
-| `ManifestBuilder::new_v2()` | V2 builder |
-| `ManifestBuilder::new_subintent_v2()` | SubintentV2 builder |
-| `ManifestBuilder::new_system_v1()` | SystemV1 builder |
+| Constructor                           | Returns               |
+| ------------------------------------- | --------------------- |
+| `ManifestBuilder::new()`              | V1 builder (default)  |
+| `ManifestBuilder::new_v1()`           | V1 builder (explicit) |
+| `ManifestBuilder::new_v2()`           | V2 builder            |
+| `ManifestBuilder::new_subintent_v2()` | SubintentV2 builder   |
+| `ManifestBuilder::new_system_v1()`    | SystemV1 builder      |
 
 ### Name Resolution
 
-| Method | Returns | Purpose |
-|---|---|---|
-| `bucket(name)` | `ManifestBucket` | Resolve named bucket |
-| `proof(name)` | `ManifestProof` | Resolve named proof |
-| `named_address(name)` | `ManifestNamedAddress` | Resolve named address |
-| `address(name)` | `ManifestAddress::Named(...)` | Resolve as ManifestAddress |
-| `address_reservation(name)` | `ManifestAddressReservation` | Resolve named reservation |
-| `generate_bucket_name(prefix)` | `String` | Collision-free name |
-| `generate_proof_name(prefix)` | `String` | Collision-free name |
+| Method                         | Returns                       | Purpose                    |
+| ------------------------------ | ----------------------------- | -------------------------- |
+| `bucket(name)`                 | `ManifestBucket`              | Resolve named bucket       |
+| `proof(name)`                  | `ManifestProof`               | Resolve named proof        |
+| `named_address(name)`          | `ManifestNamedAddress`        | Resolve named address      |
+| `address(name)`                | `ManifestAddress::Named(...)` | Resolve as ManifestAddress |
+| `address_reservation(name)`    | `ManifestAddressReservation`  | Resolve named reservation  |
+| `generate_bucket_name(prefix)` | `String`                      | Collision-free name        |
+| `generate_proof_name(prefix)`  | `String`                      | Collision-free name        |
 
 ### Usage Patterns
 
@@ -489,12 +489,12 @@ pub fn compile_manifest<M: BuildableManifest>(
 
 ### Entry Points
 
-| Function | Purpose |
-|---|---|
-| `compile_manifest_v1(s, network, blobs)` | V1 shortcut |
-| `compile_manifest::<M>(s, network, blobs)` | Generic (M: BuildableManifest) |
+| Function                                        | Purpose                             |
+| ----------------------------------------------- | ----------------------------------- |
+| `compile_manifest_v1(s, network, blobs)`        | V1 shortcut                         |
+| `compile_manifest::<M>(s, network, blobs)`      | Generic (M: BuildableManifest)      |
 | `compile_any_manifest(s, kind, network, blobs)` | Dynamic dispatch via `ManifestKind` |
-| `compile_manifest_with_pretty_error(...)` | With diagnostics |
+| `compile_manifest_with_pretty_error(...)`       | With diagnostics                    |
 
 ### ManifestKind / AnyManifest
 
@@ -818,13 +818,13 @@ All defined in `radix-common/src/data/manifest/model/`.
 
 ### Core ID Types
 
-| Type | Inner | Encoding | CustomValueKind |
-|---|---|---|---|
-| `ManifestBucket` | `u32` | 4 bytes LE | `Bucket` |
-| `ManifestProof` | `u32` | 4 bytes LE | `Proof` |
-| `ManifestAddressReservation` | `u32` | 4 bytes LE | `AddressReservation` |
-| `ManifestNamedAddress` | `u32` | 4 bytes LE | (part of ManifestAddress) |
-| `ManifestNamedIntentIndex` | `u32` | 4 bytes LE | (used in YieldToChild) |
+| Type                         | Inner | Encoding   | CustomValueKind           |
+| ---------------------------- | ----- | ---------- | ------------------------- |
+| `ManifestBucket`             | `u32` | 4 bytes LE | `Bucket`                  |
+| `ManifestProof`              | `u32` | 4 bytes LE | `Proof`                   |
+| `ManifestAddressReservation` | `u32` | 4 bytes LE | `AddressReservation`      |
+| `ManifestNamedAddress`       | `u32` | 4 bytes LE | (part of ManifestAddress) |
+| `ManifestNamedIntentIndex`   | `u32` | 4 bytes LE | (used in YieldToChild)    |
 
 ### ManifestAddress
 
@@ -860,14 +860,14 @@ pub enum ManifestProofBatch {
 
 ### Additional Value Types
 
-| File | Type | Purpose |
-|---|---|---|
-| `manifest_blob.rs` | `ManifestBlobRef` | Reference to blob by hash |
-| `manifest_decimal.rs` | `ManifestDecimal` | Decimal in manifest encoding |
-| `manifest_non_fungible_local_id.rs` | NFT local ID in manifest encoding |
-| `manifest_precise_decimal.rs` | `ManifestPreciseDecimal` | High-precision decimal |
-| `manifest_resource_assertion.rs` | `ManifestResourceConstraint`, `ManifestResourceConstraints` | V2 assertion data |
-| `manifest_address_kinds.rs` | `ManifestGlobalAddress`, `ManifestPackageAddress`, etc. | Typed address wrappers |
+| File                                | Type                                                        | Purpose                      |
+| ----------------------------------- | ----------------------------------------------------------- | ---------------------------- |
+| `manifest_blob.rs`                  | `ManifestBlobRef`                                           | Reference to blob by hash    |
+| `manifest_decimal.rs`               | `ManifestDecimal`                                           | Decimal in manifest encoding |
+| `manifest_non_fungible_local_id.rs` | NFT local ID in manifest encoding                           |
+| `manifest_precise_decimal.rs`       | `ManifestPreciseDecimal`                                    | High-precision decimal       |
+| `manifest_resource_assertion.rs`    | `ManifestResourceConstraint`, `ManifestResourceConstraints` | V2 assertion data            |
+| `manifest_address_kinds.rs`         | `ManifestGlobalAddress`, `ManifestPackageAddress`, etc.     | Typed address wrappers       |
 
 ## Architectural Notes
 

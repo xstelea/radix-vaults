@@ -110,23 +110,23 @@ TransactionStatusResponse (CommittedSuccess)
 
 ## Service Catalog
 
-| Service | Pattern | Input | Output | Dependencies | Config |
-|---------|---------|-------|--------|--------------|--------|
-| `TransactionHelper` | Effect.Service | `{ manifest, feePayer?, transactionIntent? }` | `{ statusResponse, id }` | CreateTxIntent, CompileTx, SubmitTx, TxStatus, ManifestHelper, IntentHash, Epoch, GetFungibleBalance, GetLedgerState | -- |
-| `CreateTransactionIntent` | Effect.Service | `{ manifest, startEpochInclusive?, endEpochExclusive?, message?, tipPercentage? }` | `TransactionIntent` | StaticallyValidateManifest, TransactionHeader | -- |
-| `TransactionHeader` | Effect.Service | `{ networkId, startEpochInclusive: Option<Epoch>, endEpochExclusive: Option<Epoch>, tipPercentage?, nonce?, notaryIsSignatory? }` | `TransactionHeader` (schema) | GetLedgerState, NotaryKeyPair, EpochService | -- |
-| `CompileTransaction` | Effect.Service | `{ intent: TransactionIntent, signatures: Ed25519Sig[] }` | `Uint8Array` | NotaryKeyPair | -- |
-| `SubmitTransaction` | Effect.Service | `{ compiledTransaction: Uint8Array }` | `TransactionSubmitResponse` | GatewayApiClient | -- |
-| `TransactionStatus` | Effect.Service | `{ id, retryPolicy?, timeout? }` | `TransactionStatusResponse` | GatewayApiClient | 3 keys (see Config) |
-| `PreviewTransaction` | Effect.Service | `{ payload: TransactionPreviewOperationRequest['transactionPreviewRequest'] }` | `TransactionPreviewResponse` | GatewayApiClient | -- |
-| `IntentHashService` | Effect.Service | `TransactionIntent` | `{ id: TransactionId, hash: HexString }` | -- | -- |
-| `EpochService` | Effect.Service | -- | `{ getCurrentEpoch, verifyEpochBounds }` | GetLedgerState | -- |
-| `NotaryKeyPair` | Effect.Service | -- | `{ publicKey, signToSignature }` | Signer | -- |
-| `StaticallyValidateManifest` | Effect.Service | `{ manifest: Manifest, networkId }` | `void` (or error) | -- | -- |
-| `ManifestHelper` | Effect.Service | -- | `{ addFeePayer }` | -- | -- |
-| `Vault` | Effect.Service | `HexString` (hash) | signature + public key | NodeHttpClient, NodeFileSystem | 4 keys (see Config) |
-| `Signer` | Context.Tag | `HexString` (hash) | `Ed25519SignatureWithPublicKey[]` | (provided via Layer) | Vault: 4 keys |
-| `TransactionLifeCycleHook` | Context.Tag | -- | `{ onSubmit?, onSubmitSuccess?, onStatusFailure?, onSuccess? }` | -- | -- |
+| Service                      | Pattern        | Input                                                                                                                             | Output                                                          | Dependencies                                                                                                         | Config              |
+| ---------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `TransactionHelper`          | Effect.Service | `{ manifest, feePayer?, transactionIntent? }`                                                                                     | `{ statusResponse, id }`                                        | CreateTxIntent, CompileTx, SubmitTx, TxStatus, ManifestHelper, IntentHash, Epoch, GetFungibleBalance, GetLedgerState | --                  |
+| `CreateTransactionIntent`    | Effect.Service | `{ manifest, startEpochInclusive?, endEpochExclusive?, message?, tipPercentage? }`                                                | `TransactionIntent`                                             | StaticallyValidateManifest, TransactionHeader                                                                        | --                  |
+| `TransactionHeader`          | Effect.Service | `{ networkId, startEpochInclusive: Option<Epoch>, endEpochExclusive: Option<Epoch>, tipPercentage?, nonce?, notaryIsSignatory? }` | `TransactionHeader` (schema)                                    | GetLedgerState, NotaryKeyPair, EpochService                                                                          | --                  |
+| `CompileTransaction`         | Effect.Service | `{ intent: TransactionIntent, signatures: Ed25519Sig[] }`                                                                         | `Uint8Array`                                                    | NotaryKeyPair                                                                                                        | --                  |
+| `SubmitTransaction`          | Effect.Service | `{ compiledTransaction: Uint8Array }`                                                                                             | `TransactionSubmitResponse`                                     | GatewayApiClient                                                                                                     | --                  |
+| `TransactionStatus`          | Effect.Service | `{ id, retryPolicy?, timeout? }`                                                                                                  | `TransactionStatusResponse`                                     | GatewayApiClient                                                                                                     | 3 keys (see Config) |
+| `PreviewTransaction`         | Effect.Service | `{ payload: TransactionPreviewOperationRequest['transactionPreviewRequest'] }`                                                    | `TransactionPreviewResponse`                                    | GatewayApiClient                                                                                                     | --                  |
+| `IntentHashService`          | Effect.Service | `TransactionIntent`                                                                                                               | `{ id: TransactionId, hash: HexString }`                        | --                                                                                                                   | --                  |
+| `EpochService`               | Effect.Service | --                                                                                                                                | `{ getCurrentEpoch, verifyEpochBounds }`                        | GetLedgerState                                                                                                       | --                  |
+| `NotaryKeyPair`              | Effect.Service | --                                                                                                                                | `{ publicKey, signToSignature }`                                | Signer                                                                                                               | --                  |
+| `StaticallyValidateManifest` | Effect.Service | `{ manifest: Manifest, networkId }`                                                                                               | `void` (or error)                                               | --                                                                                                                   | --                  |
+| `ManifestHelper`             | Effect.Service | --                                                                                                                                | `{ addFeePayer }`                                               | --                                                                                                                   | --                  |
+| `Vault`                      | Effect.Service | `HexString` (hash)                                                                                                                | signature + public key                                          | NodeHttpClient, NodeFileSystem                                                                                       | 4 keys (see Config) |
+| `Signer`                     | Context.Tag    | `HexString` (hash)                                                                                                                | `Ed25519SignatureWithPublicKey[]`                               | (provided via Layer)                                                                                                 | Vault: 4 keys       |
+| `TransactionLifeCycleHook`   | Context.Tag    | --                                                                                                                                | `{ onSubmit?, onSubmitSuccess?, onStatusFailure?, onSuccess? }` | --                                                                                                                   | --                  |
 
 ---
 
@@ -136,9 +136,9 @@ TransactionStatusResponse (CommittedSuccess)
 
 ```typescript
 type TransactionIntent = {
-  header: TransactionHeader;
-  message: TransactionMessage;  // PlainText | None
-  manifest: Manifest;
+  header: TransactionHeader
+  message: TransactionMessage // PlainText | None
+  manifest: Manifest
 }
 ```
 
@@ -146,13 +146,13 @@ type TransactionIntent = {
 
 ```typescript
 type TransactionHeader = {
-  networkId: NetworkId;
-  startEpochInclusive: Epoch;
-  endEpochExclusive: Epoch;
-  notaryPublicKey: PublicKey.Ed25519;
-  nonce: Nonce;
-  notaryIsSignatory: boolean;
-  tipPercentage: number;
+  networkId: NetworkId
+  startEpochInclusive: Epoch
+  endEpochExclusive: Epoch
+  notaryPublicKey: PublicKey.Ed25519
+  nonce: Nonce
+  notaryIsSignatory: boolean
+  tipPercentage: number
 }
 ```
 
@@ -160,8 +160,8 @@ type TransactionHeader = {
 
 ```typescript
 type Manifest = {
-  instructions: { kind: 'String'; value: TransactionManifestString };
-  blobs: Uint8Array[];
+  instructions: { kind: 'String'; value: TransactionManifestString }
+  blobs: Uint8Array[]
 }
 // Encoded form = TransactionManifestString (decoded via ManifestSchema)
 ```
@@ -170,7 +170,13 @@ type Manifest = {
 
 ```typescript
 type TransactionMessage =
-  | { kind: 'PlainText'; value: { message: { kind: 'String'; value: TransactionMessageString }; mimeType: 'text/plain' } }
+  | {
+      kind: 'PlainText'
+      value: {
+        message: { kind: 'String'; value: TransactionMessageString }
+        mimeType: 'text/plain'
+      }
+    }
   | { kind: 'None' }
 // Encoded form = TransactionMessageString | undefined
 ```
@@ -179,7 +185,11 @@ type TransactionMessage =
 
 ```typescript
 // Encoded:
-{ signature: HexString; signerPublicKey: HexString; curve: 'Ed25519' }
+{
+  signature: HexString
+  signerPublicKey: HexString
+  curve: 'Ed25519'
+}
 // Decoded: SignatureWithPublicKey.Ed25519 instance (from RET)
 ```
 
@@ -192,12 +202,12 @@ type TransactionMessage =
 
 ### Conversion Schemas
 
-| Schema | From | To | Purpose |
-|--------|------|----|---------|
-| `Base64FromHexSchema` | `HexString` | `Base64String` | Vault API expects base64 input |
-| `HexFromBase64Schema` | `Base64String` | `HexString` | Vault API returns base64 sigs |
-| `Ed25519PublicKeySchema` | `HexString` | `PublicKey.Ed25519` | RET interop |
-| `Ed25519PrivateKeySchema` | `HexString` | `PrivateKey.Ed25519` | RET interop |
+| Schema                    | From           | To                   | Purpose                        |
+| ------------------------- | -------------- | -------------------- | ------------------------------ |
+| `Base64FromHexSchema`     | `HexString`    | `Base64String`       | Vault API expects base64 input |
+| `HexFromBase64Schema`     | `Base64String` | `HexString`          | Vault API returns base64 sigs  |
+| `Ed25519PublicKeySchema`  | `HexString`    | `PublicKey.Ed25519`  | RET interop                    |
+| `Ed25519PrivateKeySchema` | `HexString`    | `PrivateKey.Ed25519` | RET interop                    |
 
 ### Branded Types (from `@radix-effects/shared`)
 
@@ -239,6 +249,7 @@ class Signer extends Context.Tag('Signer')<Signer, {
 Uses HashiCorp Vault transit API. Reads token from file (`VAULT_TOKEN_FILE`) or env (`VAULT_TOKEN`). Self-signed cert support via `rejectUnauthorized: false`. HTTP retry with exponential backoff (3 retries, 100ms base).
 
 Key operations:
+
 - `GET /v1/transit/keys/{keyName}` -> public key (base64 -> hex)
 - `POST /v1/transit/sign/{keyName}` -> signature (`vault:v1:base64` -> hex)
 
@@ -259,15 +270,16 @@ static makePrivateKeySigner = (privateKey: Redacted.Redacted<HexString>)
 
 ## Manifest Helpers
 
-| Helper | Input | Output | Notes |
-|--------|-------|--------|-------|
-| `faucet(address)` | `AccountAddress` | `TransactionManifestString` | Testnet only (network_id=2 hardcoded via `RadixEngineToolkit.Utils.knownAddresses(2)`) |
-| `createBadge(account, supply?)` | `Account`, `number` (default: 1) | `TransactionManifestString` | Fungible, 0 decimals, DenyAll except withdraw/recall (AllowAll), metadata: name="Badge" |
-| `createFungibleTokenManifest(input)` | `{ name, symbol, initialSupply, account }` | `TransactionManifestString` | 0 decimals, DenyAll except withdraw (AllowAll), deposits to account |
-| `addFeePayer(input)` | `{ account: Account, amount: Amount }` | `TransactionManifestString` | Handles secured + unsecured accounts (pure function) |
-| `ManifestHelper.addFeePayer(input)` | `{ account: Account, amount: Amount }` | `Effect<TransactionManifestString>` | Effect-wrapped version of above |
+| Helper                               | Input                                      | Output                              | Notes                                                                                   |
+| ------------------------------------ | ------------------------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `faucet(address)`                    | `AccountAddress`                           | `TransactionManifestString`         | Testnet only (network_id=2 hardcoded via `RadixEngineToolkit.Utils.knownAddresses(2)`)  |
+| `createBadge(account, supply?)`      | `Account`, `number` (default: 1)           | `TransactionManifestString`         | Fungible, 0 decimals, DenyAll except withdraw/recall (AllowAll), metadata: name="Badge" |
+| `createFungibleTokenManifest(input)` | `{ name, symbol, initialSupply, account }` | `TransactionManifestString`         | 0 decimals, DenyAll except withdraw (AllowAll), deposits to account                     |
+| `addFeePayer(input)`                 | `{ account: Account, amount: Amount }`     | `TransactionManifestString`         | Handles secured + unsecured accounts (pure function)                                    |
+| `ManifestHelper.addFeePayer(input)`  | `{ account: Account, amount: Amount }`     | `Effect<TransactionManifestString>` | Effect-wrapped version of above                                                         |
 
 **Secured vs unsecured fee payer:**
+
 - **Unsecured:** single `CALL_METHOD lock_fee` on account component
 - **Secured:** `create_proof` on `accessControllerAddress`, then `lock_fee`
 
@@ -277,23 +289,23 @@ static makePrivateKeySigner = (privateKey: Redacted.Redacted<HexString>)
 
 All use `Data.TaggedError` from Effect.
 
-| Error | `_tag` | Source | Fields |
-|-------|--------|--------|--------|
-| `InvalidStartEpochError` | `'InvalidStartEpochError'` | `epoch.ts` | `message`, `transactionId` |
-| `InvalidEndEpochError` | `'InvalidEndEpochError'` | `epoch.ts` | `message`, `transactionId` |
-| `InvalidEpochError` | `'InvalidEpochError'` | `transactionHeader.ts` | `message` |
-| `FailedToCreateIntentHashError` | `'FailedToCreateIntentHashError'` | `intentHash.ts` | `error: unknown` |
-| `FailedToNotarizeTransactionError` | `'FailedToNotarizeTransactionError'` | `compileTransaction.ts` | `error: unknown` |
-| `FailedToCompileTransactionError` | `'FailedToCompileTransactionError'` | `compileTransaction.ts` | `error: unknown` |
-| `TransactionPreviewError` | `'TransactionPreviewError'` | `previewTransaction.ts` | `message?: string` |
-| `TransactionFailedError` | `'TransactionFailedError'` | `transactionStatus.ts` | `status`, `statusDescription`, `message`, `transactionId` |
-| `TransactionNotResolvedError` | `'TransactionNotResolvedError'` | `transactionStatus.ts` | `status`, `statusDescription`, `message`, `transactionId` |
-| `TimeoutError` | `'TimeoutError'` | `transactionStatus.ts` | `transactionId` |
-| `FailedToSignTransactionError` | `'FailedToSignTransactionError'` | `signer.ts` | `error: unknown` |
-| `InvalidManifestError` | `'InvalidManifestError'` | `staticallyValidateManifest.ts` | `message` |
-| `FailedToStaticallyValidateManifestError` | `'FailedToStaticallyValidateManifestError'` | `staticallyValidateManifest.ts` | `error: unknown` |
-| `InsufficientXrdBalanceError` | `'InsufficientXrdBalanceError'` | `transactionHelper.ts` | `message` |
-| `FaucetNotAvailableError` | `'FaucetNotAvailableError'` | `transactionHelper.ts` | `message` |
+| Error                                     | `_tag`                                      | Source                          | Fields                                                    |
+| ----------------------------------------- | ------------------------------------------- | ------------------------------- | --------------------------------------------------------- |
+| `InvalidStartEpochError`                  | `'InvalidStartEpochError'`                  | `epoch.ts`                      | `message`, `transactionId`                                |
+| `InvalidEndEpochError`                    | `'InvalidEndEpochError'`                    | `epoch.ts`                      | `message`, `transactionId`                                |
+| `InvalidEpochError`                       | `'InvalidEpochError'`                       | `transactionHeader.ts`          | `message`                                                 |
+| `FailedToCreateIntentHashError`           | `'FailedToCreateIntentHashError'`           | `intentHash.ts`                 | `error: unknown`                                          |
+| `FailedToNotarizeTransactionError`        | `'FailedToNotarizeTransactionError'`        | `compileTransaction.ts`         | `error: unknown`                                          |
+| `FailedToCompileTransactionError`         | `'FailedToCompileTransactionError'`         | `compileTransaction.ts`         | `error: unknown`                                          |
+| `TransactionPreviewError`                 | `'TransactionPreviewError'`                 | `previewTransaction.ts`         | `message?: string`                                        |
+| `TransactionFailedError`                  | `'TransactionFailedError'`                  | `transactionStatus.ts`          | `status`, `statusDescription`, `message`, `transactionId` |
+| `TransactionNotResolvedError`             | `'TransactionNotResolvedError'`             | `transactionStatus.ts`          | `status`, `statusDescription`, `message`, `transactionId` |
+| `TimeoutError`                            | `'TimeoutError'`                            | `transactionStatus.ts`          | `transactionId`                                           |
+| `FailedToSignTransactionError`            | `'FailedToSignTransactionError'`            | `signer.ts`                     | `error: unknown`                                          |
+| `InvalidManifestError`                    | `'InvalidManifestError'`                    | `staticallyValidateManifest.ts` | `message`                                                 |
+| `FailedToStaticallyValidateManifestError` | `'FailedToStaticallyValidateManifestError'` | `staticallyValidateManifest.ts` | `error: unknown`                                          |
+| `InsufficientXrdBalanceError`             | `'InsufficientXrdBalanceError'`             | `transactionHelper.ts`          | `message`                                                 |
+| `FaucetNotAvailableError`                 | `'FaucetNotAvailableError'`                 | `transactionHelper.ts`          | `message`                                                 |
 
 ---
 
@@ -301,17 +313,18 @@ All use `Data.TaggedError` from Effect.
 
 All config is read via `Effect.Config` — never directly from `process.env`.
 
-| Config Key | Default | Used By |
-|------------|---------|---------|
-| `TRANSACTION_STATUS_POLL_TIMEOUT` | `Duration.minutes(1)` | TransactionStatus |
-| `TRANSACTION_STATUS_MAX_POLL_ATTEMPTS_COUNT` | `10` | TransactionStatus |
-| `TRANSACTION_STATUS_POLL_DELAY` | `Duration.millis(100)` | TransactionStatus |
-| `VAULT_BASE_URL` | `'http://localhost:8200'` | Vault |
-| `VAULT_KEY_NAME` | `'xrd-distribution'` | Vault |
-| `VAULT_TOKEN_FILE` | -- (optional, priority over VAULT_TOKEN) | Vault |
-| `VAULT_TOKEN` | -- (required if no file) | Vault |
+| Config Key                                   | Default                                  | Used By           |
+| -------------------------------------------- | ---------------------------------------- | ----------------- |
+| `TRANSACTION_STATUS_POLL_TIMEOUT`            | `Duration.minutes(1)`                    | TransactionStatus |
+| `TRANSACTION_STATUS_MAX_POLL_ATTEMPTS_COUNT` | `10`                                     | TransactionStatus |
+| `TRANSACTION_STATUS_POLL_DELAY`              | `Duration.millis(100)`                   | TransactionStatus |
+| `VAULT_BASE_URL`                             | `'http://localhost:8200'`                | Vault             |
+| `VAULT_KEY_NAME`                             | `'xrd-distribution'`                     | Vault             |
+| `VAULT_TOKEN_FILE`                           | -- (optional, priority over VAULT_TOKEN) | Vault             |
+| `VAULT_TOKEN`                                | -- (required if no file)                 | Vault             |
 
 TransactionStatus uses exponential backoff:
+
 ```typescript
 Schedule.exponential(pollDelay).pipe(
   Schedule.compose(Schedule.recurs(maxPollAttempts))
@@ -382,15 +395,15 @@ NotarizedTransactionV2
 
 ### TransactionHeaderV2 vs V1
 
-| Field | V1 | V2 |
-|-------|----|----|
-| `notary_public_key` | `PublicKey` | `PublicKey` |
-| `notary_is_signatory` | `bool` | `bool` |
-| `tip` | `tip_percentage: u16` (0-65535%) | `tip_basis_points: u32` (0-1,000,000) |
-| `network_id` | in header | moved to `IntentHeaderV2` |
-| `epochs` | in header | moved to `IntentHeaderV2` |
-| `nonce` | `u32` in header | replaced by `intent_discriminator: u64` per intent |
-| `timestamps` | not supported | `min_proposer_timestamp_inclusive`, `max_proposer_timestamp_exclusive` |
+| Field                 | V1                               | V2                                                                     |
+| --------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| `notary_public_key`   | `PublicKey`                      | `PublicKey`                                                            |
+| `notary_is_signatory` | `bool`                           | `bool`                                                                 |
+| `tip`                 | `tip_percentage: u16` (0-65535%) | `tip_basis_points: u32` (0-1,000,000)                                  |
+| `network_id`          | in header                        | moved to `IntentHeaderV2`                                              |
+| `epochs`              | in header                        | moved to `IntentHeaderV2`                                              |
+| `nonce`               | `u32` in header                  | replaced by `intent_discriminator: u64` per intent                     |
+| `timestamps`          | not supported                    | `min_proposer_timestamp_inclusive`, `max_proposer_timestamp_exclusive` |
 
 ### IntentHeaderV2 (per-intent)
 
@@ -408,6 +421,7 @@ pub struct IntentHeaderV2 {
 ### SubintentV2
 
 Simply wraps an `IntentCoreV2`:
+
 ```rust
 pub struct IntentCoreV2 {
     pub header: IntentHeaderV2,
@@ -431,16 +445,16 @@ SignedPartialTransactionV2
 
 ### V2-Exclusive Instructions
 
-| Instruction | ID | Purpose |
-|-------------|---:|---------|
-| `YieldToParent` | 0x60 | Return control to parent intent |
-| `YieldToChild` | 0x61 | Invoke child subintent |
-| `VerifyParent` | 0x62 | Assert parent matches access rule |
-| `AssertWorktopResourcesOnly` | 0x09 | Assert worktop contains only specified resources |
-| `AssertWorktopResourcesInclude` | 0x0A | Assert worktop includes specified resources |
-| `AssertNextCallReturnsOnly` | 0x0B | Assert next call returns only specified resources |
-| `AssertNextCallReturnsInclude` | 0x0C | Assert next call includes specified resources |
-| `AssertBucketContents` | 0x0D | Assert bucket contains specific resources |
+| Instruction                     |   ID | Purpose                                           |
+| ------------------------------- | ---: | ------------------------------------------------- |
+| `YieldToParent`                 | 0x60 | Return control to parent intent                   |
+| `YieldToChild`                  | 0x61 | Invoke child subintent                            |
+| `VerifyParent`                  | 0x62 | Assert parent matches access rule                 |
+| `AssertWorktopResourcesOnly`    | 0x09 | Assert worktop contains only specified resources  |
+| `AssertWorktopResourcesInclude` | 0x0A | Assert worktop includes specified resources       |
+| `AssertNextCallReturnsOnly`     | 0x0B | Assert next call returns only specified resources |
+| `AssertNextCallReturnsInclude`  | 0x0C | Assert next call includes specified resources     |
+| `AssertBucketContents`          | 0x0D | Assert bucket contains specific resources         |
 
 ### Builder Patterns (Rust)
 
@@ -507,34 +521,36 @@ This handles the wallet RPC for signing subintents but NOT the transaction build
 
 ```typescript
 const program = Effect.gen(function* () {
-  const helper = yield* TransactionHelper;
+  const helper = yield* TransactionHelper
   const result = yield* helper.submitTransaction({
     manifest: TransactionManifestString.make(`...`),
-    feePayer: { account: myAccount, amount: Amount.make('10') },
-  });
-  return result.id;
-});
+    feePayer: { account: myAccount, amount: Amount.make('10') }
+  })
+  return result.id
+})
 
 program.pipe(
   Effect.provide(TransactionHelper.Default),
   Effect.provide(Signer.makePrivateKeySigner(key)),
-  Effect.runPromise,
-);
+  Effect.runPromise
+)
 ```
 
 ### Pre-built Transaction Intent
 
 ```typescript
-const result = yield* helper.submitTransaction({
-  manifest: TransactionManifestString.make(`...`),
-  transactionIntent: prebuiltIntent, // skips header creation, validates epoch
-});
+const result =
+  yield *
+  helper.submitTransaction({
+    manifest: TransactionManifestString.make(`...`),
+    transactionIntent: prebuiltIntent // skips header creation, validates epoch
+  })
 ```
 
 ### Faucet (Testnet Only)
 
 ```typescript
-yield* helper.faucet({ account: myAccount });
+yield * helper.faucet({ account: myAccount })
 // Dies with FaucetNotAvailableError on mainnet (networkId === 1)
 ```
 
@@ -545,12 +561,10 @@ const hooks = TransactionLifeCycleHook.of({
   onSubmit: ({ id }) => Effect.log(`Submitting ${id}`),
   onSuccess: ({ id }) => Effect.log(`Confirmed ${id}`),
   onStatusFailure: ({ id, permanent }) =>
-    Effect.log(`Failed ${id}, permanent=${permanent}`),
-});
+    Effect.log(`Failed ${id}, permanent=${permanent}`)
+})
 
-program.pipe(
-  Effect.provideService(TransactionLifeCycleHook, hooks),
-);
+program.pipe(Effect.provideService(TransactionLifeCycleHook, hooks))
 ```
 
 ---

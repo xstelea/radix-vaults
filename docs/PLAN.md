@@ -47,19 +47,20 @@ No server-side polling loop. Server submits to Gateway, returns `{ txId, status:
 
 ## Workspace Packages
 
-| Package | Description |
-|---------|-------------|
-| `apps/server` | Effect RPC server (`@effect/platform` NodeHttpServer) |
-| `apps/client` | TanStack Start SPA (no SSR) |
-| `apps/cli` | Bootstrap CLI (create team account, member badge resource, mint initial badges) |
-| `packages/shared` | Effect Schemas + RPC definitions (raw .ts exports, pnpm/turbo pattern) |
-| `packages/database` | Drizzle schema + migrations (raw .ts exports) |
+| Package             | Description                                                                     |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `apps/server`       | Effect RPC server (`@effect/platform` NodeHttpServer)                           |
+| `apps/client`       | TanStack Start SPA (no SSR)                                                     |
+| `apps/cli`          | Bootstrap CLI (create team account, member badge resource, mint initial badges) |
+| `packages/shared`   | Effect Schemas + RPC definitions (raw .ts exports, pnpm/turbo pattern)          |
+| `packages/database` | Drizzle schema + migrations (raw .ts exports)                                   |
 
 ---
 
 ## Database Schema (7 tables)
 
 ### `vaults`
+
 ```sql
 name            varchar(255) NOT NULL
 account_address varchar(255) PRIMARY KEY
@@ -67,6 +68,7 @@ created_at      timestamp NOT NULL DEFAULT now()
 ```
 
 ### `proposals`
+
 ```sql
 id                          serial PRIMARY KEY
 vault_address               varchar(255) NOT NULL REFERENCES vaults(account_address) ON DELETE CASCADE
@@ -87,6 +89,7 @@ invalid_reason              text
 ```
 
 ### `signatures`
+
 ```sql
 id                             serial PRIMARY KEY
 proposal_id                    integer NOT NULL REFERENCES proposals(id) ON DELETE CASCADE
@@ -100,6 +103,7 @@ UNIQUE(proposal_id, signer_key_type, signer_key_hash)
 ```
 
 ### `submission_attempts`
+
 ```sql
 id                serial PRIMARY KEY
 proposal_id       integer NOT NULL REFERENCES proposals(id) ON DELETE CASCADE
@@ -111,6 +115,7 @@ created_at        timestamp NOT NULL DEFAULT now()
 ```
 
 ### `sessions`
+
 ```sql
 id              serial PRIMARY KEY
 session_id      varchar(255) NOT NULL UNIQUE
@@ -120,6 +125,7 @@ expires_at      timestamp NOT NULL
 ```
 
 ### `challenges`
+
 ```sql
 id          serial PRIMARY KEY
 challenge   varchar(255) NOT NULL UNIQUE
@@ -127,6 +133,7 @@ expires_at  timestamp NOT NULL
 ```
 
 ### `member_signer_sources`
+
 ```sql
 id                    serial PRIMARY KEY
 member_wallet_address varchar(255) NOT NULL UNIQUE
@@ -143,12 +150,14 @@ updated_at            timestamp NOT NULL DEFAULT now()
 Per-group typed error unions.
 
 ### AuthRpc
+
 - `GetChallenge` → returns server-generated challenge (stored in DB, single-use)
 - `VerifyRola` → verify signature + badge check, create session, set cookie
 - `GetSession` → return current session from cookie
 - `Logout` → delete session
 
 ### VaultsRpc
+
 - `ImportVault` → create DB record (name + account address), read and verify supported access rule (CountOf/AllOf)
 - `CreateVault` → payload: `{ name, threshold, signers }`, build manifest to create new account with owner role `require_n_of(threshold, signers)`, sign with fee payer, submit to Gateway, store DB record with new address
 - `ListVaults` → all vault records except `TEAM_ACCOUNT_ADDRESS`
@@ -157,6 +166,7 @@ Per-group typed error unions.
 - `ResyncVault` → refresh on-chain state for a vault
 
 ### ProposalsRpc
+
 - `CreateProposal` → compile + normalize manifest, build unsigned partial, run preview, store proposal
 - `ListProposals` → query by `vaultAddress`, optional status filter (no pagination for MVP)
 - `GetProposal` → pure fetch by id (no mutation)
@@ -166,6 +176,7 @@ Per-group typed error unions.
 - `RefreshSubmissionStatus` → manual refresh by txId (no polling loop)
 
 ### TeamRpc
+
 - `GetTeamSigners` → fetch team account owner rule from Gateway, return signer list + threshold
 - `ListMemberSignerSources` → list self-registered member Ed25519 signer sources
 - `GetMySignerSource` → return current member's signer source (if set)
@@ -179,7 +190,7 @@ export const AppRpc = RpcGroup.make(
   ...AuthRpc.requests,
   ...VaultsRpc.requests,
   ...ProposalsRpc.requests,
-  ...TeamRpc.requests,
+  ...TeamRpc.requests
 )
 ```
 
@@ -187,52 +198,52 @@ export const AppRpc = RpcGroup.make(
 
 ## Key Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Auth model | Independent per-vault owner-role multisig; no delegated central control |
-| Read access | Public read endpoints; auth required for writes |
-| Write authorization | Any authenticated member badge holder |
-| Groups | Removed — flat vault list |
-| Member signer source records | DB table (`member_signer_sources`) populated by self-service member entry |
-| HTTP server | `@effect/platform` NodeHttpServer (not Hono) |
-| RPC transport | `@effect/rpc` + `@effect/platform` |
-| Rendering | SPA only (TanStack Start, no SSR, no Nitro) |
-| Tx submission | No background polling — return tx hash + 'submitted' + manual refresh |
-| Error model | Per-RPC-group typed error unions |
-| Access rules | CountOf + AllOf (flat, no nested) |
-| Key types | Access-rule/signature handling supports Ed25519 + Secp256k1; member signer source registration is Ed25519-only |
-| Badge type | Fungible, soul-bound, recallable; transfer blocked by withdraw/deposit restrictions |
-| Badge minting | Team-authorized mint on member badge resource |
-| Vault auth rule changes | Vault-local proposals call `SET_OWNER_ROLE` to change signer set and/or threshold |
-| Create vs sign | Separate operations |
-| Signing flow | Server returns metadata, client builds SubintentRequestBuilder |
-| Submission concurrency | Idempotent (Gateway deduplicates) |
-| Fee payer | Small XRD balance, manual top-up |
-| Network | Fully configurable (stokenet + mainnet) |
-| Manifest builders | Client-side helpers |
-| State management | `@effect-atom/atom-react` for everything |
-| Pagination | Not for MVP |
-| Team UI | Separate section from vault list |
-| Team in DB | Team account is a regular vault row matched by `TEAM_ACCOUNT_ADDRESS` |
-| Team in list API | Excluded from `ListVaults` response |
-| Vault add | Import existing (DB record + verify supported access rule) or create new on-chain with threshold (fee payer signs creation tx, stores DB record) |
-| Sessions | DB table, HTTP-only session cookie |
-| Session policy | 7-day TTL, sliding refresh only below 50% remaining, single active session per device |
-| Badge revocation check | Evaluated at refresh boundary (accepted delay) |
-| Signer source requirement | Member must set Ed25519 signer source before signing proposals |
-| DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
-| Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
-| Column naming | camelCase JS props, explicit snake_case DB names in Drizzle builders |
-| Timestamp overrides | Override with `S.DateFromString` in derived schemas (RPC wire format is ISO string) |
-| Raw .ts exports | Standard pnpm/turbo monorepo pattern |
-| TS Radix Engine Toolkit | Supports V2 (SubintentManifestV2, PartialTransactionV2) |
-| `@radix-effects/gateway` | User's own published library on npm |
-| Re-sync | Manual button to refresh vault/team on-chain state |
-| Proposal expiry input | `maxProposerTimestampMs` (unix ms), server sets `minProposerTimestamp=now` |
-| Proposal preview | Required before create and submit; server runs RET + Gateway preview |
-| Preview timeout | Retry once then fail closed |
-| Signature duplicates | Idempotent success |
-| Submission refresh | Manual `RefreshSubmissionStatus` write RPC (no polling loop) |
+| Decision                     | Choice                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Auth model                   | Independent per-vault owner-role multisig; no delegated central control                                                                          |
+| Read access                  | Public read endpoints; auth required for writes                                                                                                  |
+| Write authorization          | Any authenticated member badge holder                                                                                                            |
+| Groups                       | Removed — flat vault list                                                                                                                        |
+| Member signer source records | DB table (`member_signer_sources`) populated by self-service member entry                                                                        |
+| HTTP server                  | `@effect/platform` NodeHttpServer (not Hono)                                                                                                     |
+| RPC transport                | `@effect/rpc` + `@effect/platform`                                                                                                               |
+| Rendering                    | SPA only (TanStack Start, no SSR, no Nitro)                                                                                                      |
+| Tx submission                | No background polling — return tx hash + 'submitted' + manual refresh                                                                            |
+| Error model                  | Per-RPC-group typed error unions                                                                                                                 |
+| Access rules                 | CountOf + AllOf (flat, no nested)                                                                                                                |
+| Key types                    | Access-rule/signature handling supports Ed25519 + Secp256k1; member signer source registration is Ed25519-only                                   |
+| Badge type                   | Fungible, soul-bound, recallable; transfer blocked by withdraw/deposit restrictions                                                              |
+| Badge minting                | Team-authorized mint on member badge resource                                                                                                    |
+| Vault auth rule changes      | Vault-local proposals call `SET_OWNER_ROLE` to change signer set and/or threshold                                                                |
+| Create vs sign               | Separate operations                                                                                                                              |
+| Signing flow                 | Server returns metadata, client builds SubintentRequestBuilder                                                                                   |
+| Submission concurrency       | Idempotent (Gateway deduplicates)                                                                                                                |
+| Fee payer                    | Small XRD balance, manual top-up                                                                                                                 |
+| Network                      | Fully configurable (stokenet + mainnet)                                                                                                          |
+| Manifest builders            | Client-side helpers                                                                                                                              |
+| State management             | `@effect-atom/atom-react` for everything                                                                                                         |
+| Pagination                   | Not for MVP                                                                                                                                      |
+| Team UI                      | Separate section from vault list                                                                                                                 |
+| Team in DB                   | Team account is a regular vault row matched by `TEAM_ACCOUNT_ADDRESS`                                                                            |
+| Team in list API             | Excluded from `ListVaults` response                                                                                                              |
+| Vault add                    | Import existing (DB record + verify supported access rule) or create new on-chain with threshold (fee payer signs creation tx, stores DB record) |
+| Sessions                     | DB table, HTTP-only session cookie                                                                                                               |
+| Session policy               | 7-day TTL, sliding refresh only below 50% remaining, single active session per device                                                            |
+| Badge revocation check       | Evaluated at refresh boundary (accepted delay)                                                                                                   |
+| Signer source requirement    | Member must set Ed25519 signer source before signing proposals                                                                                   |
+| DB schema derivation         | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables                                                                         |
+| Schema class preservation    | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat                                                                                   |
+| Column naming                | camelCase JS props, explicit snake_case DB names in Drizzle builders                                                                             |
+| Timestamp overrides          | Override with `S.DateFromString` in derived schemas (RPC wire format is ISO string)                                                              |
+| Raw .ts exports              | Standard pnpm/turbo monorepo pattern                                                                                                             |
+| TS Radix Engine Toolkit      | Supports V2 (SubintentManifestV2, PartialTransactionV2)                                                                                          |
+| `@radix-effects/gateway`     | User's own published library on npm                                                                                                              |
+| Re-sync                      | Manual button to refresh vault/team on-chain state                                                                                               |
+| Proposal expiry input        | `maxProposerTimestampMs` (unix ms), server sets `minProposerTimestamp=now`                                                                       |
+| Proposal preview             | Required before create and submit; server runs RET + Gateway preview                                                                             |
+| Preview timeout              | Retry once then fail closed                                                                                                                      |
+| Signature duplicates         | Idempotent success                                                                                                                               |
+| Submission refresh           | Manual `RefreshSubmissionStatus` write RPC (no polling loop)                                                                                     |
 
 ---
 
@@ -241,6 +252,7 @@ export const AppRpc = RpcGroup.make(
 ### Step 1.1: Root Configuration
 
 **`package.json`**
+
 ```jsonc
 {
   "name": "radix-vaults",
@@ -273,9 +285,10 @@ export const AppRpc = RpcGroup.make(
 
 **`pnpm-workspace.yaml`** with catalog pinning all Effect/Radix/TanStack deps (match consultation_v2 versions).
 
-**`turbo.json`** — same as consultation_v2 (build/lint/check-types cached; dev/test/db:* persistent+uncached).
+**`turbo.json`** — same as consultation_v2 (build/lint/check-types cached; dev/test/db:\* persistent+uncached).
 
 **`.oxlintrc.json`**:
+
 ```json
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
@@ -289,6 +302,7 @@ export const AppRpc = RpcGroup.make(
 ```
 
 **`.oxfmtrc.json`**:
+
 ```json
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
@@ -305,6 +319,7 @@ export const AppRpc = RpcGroup.make(
 ```
 
 **`.lintstagedrc`**:
+
 ```json
 {
   "*.{js,jsx,ts,tsx,mjs,cjs}": ["oxlint", "oxfmt --write"],
@@ -313,6 +328,7 @@ export const AppRpc = RpcGroup.make(
 ```
 
 **`.husky/pre-commit`**:
+
 ```sh
 pnpm exec lint-staged
 pnpm run check-types
@@ -325,6 +341,7 @@ pnpm run build
 ### Step 1.2: Workspace Packages
 
 Create five workspaces:
+
 - `apps/server/package.json` — name: `server`
 - `apps/client/package.json` — name: `client`
 - `apps/cli/package.json` — name: `cli`
@@ -349,7 +366,7 @@ Each with `"type": "module"` and appropriate deps from catalog.
 services:
   postgres:
     image: postgres:17
-    ports: ["5432:5432"]
+    ports: ['5432:5432']
     environment:
       POSTGRES_DB: radix_vaults
       POSTGRES_USER: postgres
@@ -362,6 +379,7 @@ volumes:
 ### Step 1.5: Environment
 
 **`.env.example`**:
+
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/radix_vaults
 NETWORK_ID=2
@@ -372,6 +390,7 @@ DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 ```
 
 **Files to create:**
+
 - `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `.oxlintrc.json`, `.oxfmtrc.json`, `.lintstagedrc`, `.husky/pre-commit`, `.gitignore`
 - `apps/server/package.json`, `apps/server/tsconfig.json`
 - `apps/client/package.json`, `apps/client/tsconfig.json`
@@ -387,6 +406,7 @@ DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 ### Step 2.1: Database Package
 
 **`packages/database/package.json`**:
+
 ```jsonc
 {
   "name": "db",
@@ -407,11 +427,12 @@ DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 export const vaults = pgTable('vaults', {
   name: varchar('name', { length: 255 }).notNull(),
   accountAddress: varchar('account_address', { length: 255 }).primaryKey(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at').notNull().defaultNow()
 })
 ```
 
 Same pattern for all 7 tables:
+
 - `vaults` (PK is `accountAddress`; team row is identified by address match)
 - `proposals` (references `vaults.accountAddress`, fields: `vaultAddress`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
 - `signatures` (UNIQUE on `proposalId, signerKeyType, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyType`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `createdAt`)
@@ -427,11 +448,13 @@ Run `pnpm drizzle-kit generate` → creates `packages/database/drizzle/0000_*.sq
 ### Step 2.4: ORM Service + PgClient + Migrations
 
 In `apps/server/src/db/`:
+
 - `orm.ts` — `ORM extends Effect.Service` wrapping `Pg.make({ schema: DbSchema })` (copy consultation_v2 pattern)
 - `pgClient.ts` — `PgClientLive` Layer from `DATABASE_URL` config
 - `migrate.ts` — `DatabaseMigrations` service
 
 **Files to create:**
+
 - `packages/database/package.json`, `packages/database/drizzle.config.ts`, `packages/database/src/schema.ts`
 - `apps/server/src/db/orm.ts`, `apps/server/src/db/pgClient.ts`, `apps/server/src/db/migrate.ts`
 
@@ -445,25 +468,33 @@ In `apps/server/src/db/`:
 
 ```typescript
 import { Schema as S } from 'effect'
-import { createSelectSchema, createInsertSchema } from 'drizzle-orm/effect-schema'
+import {
+  createSelectSchema,
+  createInsertSchema
+} from 'drizzle-orm/effect-schema'
 import { vaults, proposals, signatures } from 'db/schema'
 
 // --- Hand-written (non-DB) ---
 
 export const ProposalStatus = S.Literal(
-  'created', 'signing', 'ready',
-  'committed', 'failed', 'expired', 'invalid'
+  'created',
+  'signing',
+  'ready',
+  'committed',
+  'failed',
+  'expired',
+  'invalid'
 )
 
 export class Signer extends S.Class<Signer>('Signer')({
   signerPublicKey: S.String,
   signerKeyHash: S.String,
-  keyType: S.String,
+  keyType: S.String
 }) {}
 
 export class AccessRuleInfo extends S.Class<AccessRuleInfo>('AccessRuleInfo')({
   signers: S.Array(Signer),
-  threshold: S.Number,
+  threshold: S.Number
 }) {}
 
 // --- Derived from Drizzle tables ---
@@ -476,15 +507,19 @@ export class Proposal extends S.Class<Proposal>('Proposal')(
   createSelectSchema(proposals, {
     status: ProposalStatus,
     createdAt: S.DateFromString,
-    submittedAt: S.NullOr(S.DateFromString),
+    submittedAt: S.NullOr(S.DateFromString)
   }).fields
 ) {}
 
 export class Signature extends S.Class<Signature>('Signature')(
   // Omit internal fields not sent to clients
-  S.omit(createSelectSchema(signatures, {
-    createdAt: S.DateFromString,
-  }), 'signatureBytes', 'signedPartialTransactionHex').fields
+  S.omit(
+    createSelectSchema(signatures, {
+      createdAt: S.DateFromString
+    }),
+    'signatureBytes',
+    'signedPartialTransactionHex'
+  ).fields
 ) {}
 
 // Insert schemas for server-side validation
@@ -493,12 +528,14 @@ export const ProposalInsert = createInsertSchema(proposals)
 
 // --- Hand-written (composite, uses derived Signature) ---
 
-export class SignatureStatus extends S.Class<SignatureStatus>('SignatureStatus')({
+export class SignatureStatus extends S.Class<SignatureStatus>(
+  'SignatureStatus'
+)({
   proposalId: S.Number,
   signatures: S.Array(Signature),
   threshold: S.Number,
   collected: S.Number,
-  remaining: S.Number,
+  remaining: S.Number
 }) {}
 ```
 
@@ -514,13 +551,13 @@ import * as Schemas from './schemas'
 // --- Auth ---
 export class GetChallenge extends Rpc.make('GetChallenge')({
   success: S.Struct({ challenge: S.String }),
-  error: S.Union(/* AuthError */),
+  error: S.Union(/* AuthError */)
 }) {}
 
 export class VerifyRola extends Rpc.make('VerifyRola')({
   payload: { proof: S.String, accountAddress: S.String },
   success: S.Struct({ sessionId: S.String, walletAddress: S.String }),
-  error: S.Union(/* AuthError, NoBadgeError */),
+  error: S.Union(/* AuthError, NoBadgeError */)
 }) {}
 
 // ... GetSession, Logout
@@ -529,13 +566,17 @@ export class VerifyRola extends Rpc.make('VerifyRola')({
 export class ImportVault extends Rpc.make('ImportVault')({
   payload: { name: S.String, accountAddress: S.String },
   success: Schemas.Vault,
-  error: S.Union(/* NotFoundError, UnsupportedAccessRuleError */),
+  error: S.Union(/* NotFoundError, UnsupportedAccessRuleError */)
 }) {}
 
 export class CreateVault extends Rpc.make('CreateVault')({
-  payload: { name: S.String, threshold: S.Number, signers: S.Array(Schemas.Signer) },
+  payload: {
+    name: S.String,
+    threshold: S.Number,
+    signers: S.Array(Schemas.Signer)
+  },
   success: Schemas.Vault,
-  error: S.Union(/* GatewayError, ManifestCompileError */),
+  error: S.Union(/* GatewayError, ManifestCompileError */)
 }) {}
 
 // ... ListVaults, GetVault, GetVaultSigners, ResyncVault
@@ -543,14 +584,18 @@ export class CreateVault extends Rpc.make('CreateVault')({
 export class GetVaultSigners extends Rpc.make('GetVaultSigners')({
   payload: { vaultAddress: S.String },
   success: Schemas.AccessRuleInfo,
-  error: S.Union(/* VaultNotFound, GatewayError */),
+  error: S.Union(/* VaultNotFound, GatewayError */)
 }) {}
 
 // --- Proposals ---
 export class CreateProposal extends Rpc.make('CreateProposal')({
-  payload: { vaultAddress: S.String, manifestText: S.String, maxProposerTimestampMs: S.Number },
+  payload: {
+    vaultAddress: S.String,
+    manifestText: S.String,
+    maxProposerTimestampMs: S.Number
+  },
   success: Schemas.Proposal,
-  error: S.Union(/* VaultNotFound, ManifestCompileError */),
+  error: S.Union(/* VaultNotFound, ManifestCompileError */)
 }) {}
 
 // ... ListProposals, GetProposal, SignProposal, GetSignatureStatus, SubmitProposal
@@ -558,56 +603,77 @@ export class CreateProposal extends Rpc.make('CreateProposal')({
 // --- Team ---
 export class GetTeamSigners extends Rpc.make('GetTeamSigners')({
   success: Schemas.AccessRuleInfo,
-  error: S.Union(/* GatewayError */),
+  error: S.Union(/* GatewayError */)
 }) {}
 
-export class ListMemberSignerSources extends Rpc.make('ListMemberSignerSources')({
+export class ListMemberSignerSources extends Rpc.make(
+  'ListMemberSignerSources'
+)({
   success: S.Array(Schemas.Signer),
-  error: S.Union(/* UnauthorizedError */),
+  error: S.Union(/* UnauthorizedError */)
 }) {}
 
 export class GetMySignerSource extends Rpc.make('GetMySignerSource')({
   success: S.NullOr(Schemas.Signer),
-  error: S.Union(/* UnauthorizedError */),
+  error: S.Union(/* UnauthorizedError */)
 }) {}
 
 export class SetMySignerSource extends Rpc.make('SetMySignerSource')({
   payload: { signerPublicKey: S.String },
   success: Schemas.Signer,
-  error: S.Union(/* UnauthorizedError, ValidationError */),
+  error: S.Union(/* UnauthorizedError, ValidationError */)
 }) {}
 
 export class ClearMySignerSource extends Rpc.make('ClearMySignerSource')({
   success: S.Struct({ ok: S.Boolean }),
-  error: S.Union(/* UnauthorizedError */),
+  error: S.Union(/* UnauthorizedError */)
 }) {}
 
 export class GetTeamStatus extends Rpc.make('GetTeamStatus')({
   success: S.Struct({
     ownerRuleSigners: S.Array(Schemas.Signer),
     derivedMemberSigners: S.Array(Schemas.Signer),
-    signerSetMismatch: S.Boolean,
+    signerSetMismatch: S.Boolean
   }),
-  error: S.Union(/* GatewayError */),
+  error: S.Union(/* GatewayError */)
 }) {}
 
 export class GetBadgeResource extends Rpc.make('GetBadgeResource')({
   success: S.Struct({ resourceAddress: S.String }),
-  error: S.Union(/* ConfigError */),
+  error: S.Union(/* ConfigError */)
 }) {}
 
-export class RefreshSubmissionStatus extends Rpc.make('RefreshSubmissionStatus')({
+export class RefreshSubmissionStatus extends Rpc.make(
+  'RefreshSubmissionStatus'
+)({
   payload: { proposalId: S.Number },
   success: S.Struct({ status: Schemas.ProposalStatus, txId: S.String }),
-  error: S.Union(/* ProposalNotFound, GatewayError */),
+  error: S.Union(/* ProposalNotFound, GatewayError */)
 }) {}
 
 // --- Groups ---
-export const AuthRpc = RpcGroup.make(GetChallenge, VerifyRola, GetSession, Logout).prefix('auth')
-export const VaultsRpc = RpcGroup.make(ImportVault, CreateVault, ListVaults, GetVault, GetVaultSigners, ResyncVault).prefix('vaults')
+export const AuthRpc = RpcGroup.make(
+  GetChallenge,
+  VerifyRola,
+  GetSession,
+  Logout
+).prefix('auth')
+export const VaultsRpc = RpcGroup.make(
+  ImportVault,
+  CreateVault,
+  ListVaults,
+  GetVault,
+  GetVaultSigners,
+  ResyncVault
+).prefix('vaults')
 export const ProposalsRpc = RpcGroup.make(
-  CreateProposal, ListProposals, GetProposal,
-  SignProposal, GetSignatureStatus, SubmitProposal, RefreshSubmissionStatus
+  CreateProposal,
+  ListProposals,
+  GetProposal,
+  SignProposal,
+  GetSignatureStatus,
+  SubmitProposal,
+  RefreshSubmissionStatus
 ).prefix('proposals')
 export const TeamRpc = RpcGroup.make(
   GetTeamSigners,
@@ -616,24 +682,26 @@ export const TeamRpc = RpcGroup.make(
   SetMySignerSource,
   ClearMySignerSource,
   GetTeamStatus,
-  GetBadgeResource,
+  GetBadgeResource
 ).prefix('team')
 
 export const AppRpc = RpcGroup.make(
   ...AuthRpc.requests,
   ...VaultsRpc.requests,
   ...ProposalsRpc.requests,
-  ...TeamRpc.requests,
+  ...TeamRpc.requests
 )
 ```
 
 ### Step 3.3: Validation Helpers
 
 **`packages/shared/src/validation.ts`**:
+
 - `validateManifestText(text)` — non-empty, valid UTF-8
 - Address format validators (Radix bech32 patterns)
 
 **Files to create:**
+
 - `packages/shared/src/schemas.ts`
 - `packages/shared/src/rpc.ts`
 - `packages/shared/src/validation.ts`
@@ -645,12 +713,14 @@ export const AppRpc = RpcGroup.make(
 ### Step 4.1: Server Entry Point + Layers
 
 **`apps/server/src/main.ts`** — Effect RPC server startup using `@effect/platform` NodeHttpServer:
+
 - Mount Effect RPC HTTP handler at `/rpc`
 - CORS via Effect HttpMiddleware
 - Run migrations on startup
 - Listen on configurable port
 
 **`apps/server/src/layers.ts`** — Layer composition:
+
 ```
 ServerLayer = Layer.mergeAll(
   VaultsHandler.Default,
@@ -671,11 +741,13 @@ ServerLayer = Layer.mergeAll(
 ### Step 4.2: Auth Service (ROLA)
 
 **`apps/server/src/auth/rola.ts`**:
+
 - ROLA verification service (Effect Service)
 - `GetChallenge`: generate random challenge, store in `challenges` table with expiry
 - `VerifyRola`: look up challenge (verify exists and not expired), delete after use, verify signed challenge proves wallet ownership, check badge balance > 0 via Gateway, create/rotate per-device session in DB, return session cookie
 
 **`apps/server/src/auth/middleware.ts`**:
+
 - RPC middleware that extracts session cookie
 - Looks up session in DB → provides `CurrentUser` context tag (wallet address)
 - Applied to write RPCs (reads remain public)
@@ -683,12 +755,14 @@ ServerLayer = Layer.mergeAll(
 ### Step 4.3: Gateway Client Service
 
 **`apps/server/src/gateway/client.ts`**:
+
 - Effect Service wrapping Radix Gateway API calls via `@radix-effects/gateway`
 - Methods: `getAccessRule(accountAddress)`, `getCurrentEpoch()`, `submitTransaction(hex)`, `getEntityDetails(address)`, `getAccountBalances(address)`
 
 ### Step 4.4: Fee Payer Service
 
 **`apps/server/src/feePayer/service.ts`**:
+
 - Reads `FEE_PAYER_PRIVATE_KEY_HEX` from config
 - Derives Ed25519 public key + account address
 - Composes NotarizedTransactionV2: main intent (`lock_fee` + `yield_to_child`) wrapping signed child subintent
@@ -697,11 +771,13 @@ ServerLayer = Layer.mergeAll(
 ### Step 4.5: Manifest Compiler Service
 
 **`apps/server/src/manifest/compiler.ts`**:
+
 - Validates incoming manifest text by compiling to SubintentManifestV2
 - Appends `YIELD_TO_PARENT;` if missing
 - Extracts accounts requiring auth from compiled manifest effects
 
 **Files to create:**
+
 - `apps/server/src/main.ts`
 - `apps/server/src/layers.ts`
 - `apps/server/src/auth/rola.ts`, `apps/server/src/auth/middleware.ts`
@@ -716,6 +792,7 @@ ServerLayer = Layer.mergeAll(
 ### Step 5.1: Vaults Handler
 
 **`apps/server/src/handlers/vaults.ts`**:
+
 - `ImportVault` — insert vault record (name + account address), read access rule from Gateway, verify parseable (CountOf/AllOf), store
 - `CreateVault` — accept user-selected signers (from discovered members), build manifest (create account + set owner role to CountOf(threshold, signers)), compile, sign with fee payer key, submit to Gateway, extract new account address from transaction receipt, store vault DB record
 - `ListVaults` — query all vault rows except the row matching `TEAM_ACCOUNT_ADDRESS`
@@ -726,6 +803,7 @@ ServerLayer = Layer.mergeAll(
 ### Step 5.2: Proposals Handler
 
 **`apps/server/src/handlers/proposals.ts`**:
+
 - `CreateProposal`:
   1. Verify vault exists
   2. Compile manifest (validate + append YIELD_TO_PARENT)
@@ -766,6 +844,7 @@ ServerLayer = Layer.mergeAll(
 ### Step 5.3: Auth Handler
 
 **`apps/server/src/handlers/auth.ts`**:
+
 - `GetChallenge` → generate + store challenge
 - `VerifyRola` → verify ROLA proof, check badge, create session
 - `GetSession` → return current session from cookie
@@ -774,6 +853,7 @@ ServerLayer = Layer.mergeAll(
 ### Step 5.4: Team Handler
 
 **`apps/server/src/handlers/team.ts`**:
+
 - `GetTeamSigners` → fetch team owner-rule access rule from Gateway, parse, return signer list + threshold
 - `ListMemberSignerSources` → list DB rows from `member_signer_sources`
 - `GetMySignerSource` → fetch current member's signer source row
@@ -789,6 +869,7 @@ ServerLayer = Layer.mergeAll(
 - `RefreshSubmissionStatus` is explicit write action for submitted tx status reconciliation.
 
 **Files to create:**
+
 - `apps/server/src/handlers/vaults.ts`
 - `apps/server/src/handlers/proposals.ts`
 - `apps/server/src/handlers/auth.ts`
@@ -801,6 +882,7 @@ ServerLayer = Layer.mergeAll(
 ### Step 6.1: Client Scaffold
 
 **`apps/client/vite.config.ts`** — TanStack Start + Vite React + Tailwind (SPA mode, no SSR, no Nitro):
+
 ```typescript
 import { defineConfig } from 'vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
@@ -818,16 +900,19 @@ import tailwindcss from '@tailwindcss/vite'
 ### Step 6.2: Radix Dapp Toolkit Integration
 
 **`apps/client/src/lib/dappToolkit.ts`**:
+
 - `RadixDappToolkit` class with `Layer.scoped` (browser-only guard)
 - Configures with NETWORK_ID + DAPP_DEFINITION_ADDRESS from env vars
 - Cleanup via `Effect.addFinalizer`
 
 **`apps/client/src/lib/envVars.ts`** — Client env var schema:
+
 - `VITE_PUBLIC_SERVER_URL`, `VITE_PUBLIC_NETWORK_ID`, `VITE_PUBLIC_DAPP_DEFINITION_ADDRESS`
 
 ### Step 6.3: RPC Client Setup
 
 **`apps/client/src/lib/rpcClient.ts`**:
+
 - Effect RPC client from shared `AppRpc` group
 - HTTP transport pointing at server `/rpc` endpoint
 - Auth cookie sent automatically (credentials: include)
@@ -837,17 +922,20 @@ import tailwindcss from '@tailwindcss/vite'
 **`apps/client/src/atom/runtime.ts`** — `makeRuntimeAtom` for Effect-atom integration.
 
 **`apps/client/src/atom/auth.ts`**:
+
 - `walletAddressAtom` — connected wallet address
 - `isAuthenticatedAtom` — session active state
 - `loginAtom` — triggers ROLA challenge-response flow (GetChallenge → wallet sign → VerifyRola)
 
 **`apps/client/src/atom/vaults.ts`**:
+
 - `vaultsListAtom` — fetches all vaults (flat list)
 - `importVaultAtom`
 - `createVaultAtom`
 - `vaultDetailAtom(vaultAddress)`
 
 **`apps/client/src/atom/proposals.ts`**:
+
 - `proposalsListAtom(vaultAddress, status?)` — fetches proposals
 - `proposalDetailAtom(id)` — fetches proposal (read-only)
 - `createProposalAtom` — creates proposal via RPC
@@ -855,6 +943,7 @@ import tailwindcss from '@tailwindcss/vite'
 - `refreshSubmissionStatusAtom(proposalId)` — manual tx status refresh via RPC
 
 **`apps/client/src/atom/signing.ts`**:
+
 - `handleSignAtom(proposalDetailAtom, sigStatusAtom)`:
   1. Get RDT instance
   2. Require member signer source is set (`GetMySignerSource`) — block if missing
@@ -865,12 +954,15 @@ import tailwindcss from '@tailwindcss/vite'
   7. Refresh atoms
 
 **`apps/client/src/atom/submit.ts`**:
+
 - `submitProposalAtom(proposalId)` — calls `SubmitProposal` RPC
 
 **`apps/client/src/atom/vaultSigners.ts`**:
+
 - `vaultSignersAtom(vaultAddress)` — fetches vault's access rule (signers + threshold) via `GetVaultSigners` RPC
 
 **`apps/client/src/atom/team.ts`**:
+
 - `teamSignersAtom` — fetches team owner-rule signers via `GetTeamSigners` RPC
 - `memberSignerSourcesAtom` — fetches registered member signer sources via `ListMemberSignerSources` RPC
 - `mySignerSourceAtom` — fetches current member signer source via `GetMySignerSource`
@@ -882,6 +974,7 @@ import tailwindcss from '@tailwindcss/vite'
 ### Step 6.5: Manifest Builders (Client-Side)
 
 **`apps/client/src/lib/manifest.ts`**:
+
 - `buildSetOwnerRoleManifest({ vaultAddress, signers, threshold })` — used by `/vaults/$vaultAddress/auth-rules`, sets vault owner role with `SET_OWNER_ROLE` to CountOf(threshold, signers)
 - `buildMintBadgeManifest({ badgeResource, recipientAddress })` — mint 1 badge + deposit
 - `buildRecallBadgeManifest({ targetAccount, badgeResource })` — recall + burn membership badge
@@ -891,6 +984,7 @@ import tailwindcss from '@tailwindcss/vite'
 ### Step 6.6: shadcn/ui Setup
 
 Run `npx shadcn@latest init` in `apps/client/`. Install components as needed:
+
 - Button, Card, Input, Label, Select, Dialog, Badge, Table, Tabs, Separator, Sonner (toast)
 
 ### Step 6.7: Routes & Pages
@@ -934,6 +1028,7 @@ File-based routing under `apps/client/src/routes/`:
 **`src/components/vaults/BalanceDisplay.tsx`** — Shows vault token balances.
 
 **Files to create:**
+
 - `apps/client/vite.config.ts`, `apps/client/src/app.css`, `apps/client/src/router.tsx`
 - `apps/client/src/entry-client.tsx`
 - `apps/client/src/lib/dappToolkit.ts`, `apps/client/src/lib/envVars.ts`
@@ -952,6 +1047,7 @@ File-based routing under `apps/client/src/routes/`:
 ### Step 7.1: Subintent Builder
 
 **`apps/server/src/manifest/subintentBuilder.ts`**:
+
 - Uses `@radixdlt/radix-engine-toolkit` (TypeScript WASM, supports V2)
 - Builds unsigned PartialTransactionV2 from:
   - Compiled manifest instructions
@@ -961,6 +1057,7 @@ File-based routing under `apps/client/src/routes/`:
 ### Step 7.2: Transaction Composer
 
 **`apps/server/src/manifest/transactionComposer.ts`**:
+
 - Combines signed child subintent + fee payer main intent
 - Main intent manifest: `lock_fee(fee_payer_account, 10) + yield_to_child("withdrawal")`
 - Signs as notary with fee payer key (notary_is_signatory: true)
@@ -969,6 +1066,7 @@ File-based routing under `apps/client/src/routes/`:
 ### Step 7.3: Signature Extractor
 
 **`apps/server/src/manifest/signatureExtractor.ts`**:
+
 - Deserializes SignedPartialTransactionV2 hex
 - Extracts Ed25519 or Secp256k1 signature + public key from root_subintent_signatures
 - Computes key_hash (blake2b of public key) and key_type
@@ -977,6 +1075,7 @@ File-based routing under `apps/client/src/routes/`:
 ### Step 7.4: Access Rule Parser
 
 **`apps/server/src/gateway/accessRuleParser.ts`**:
+
 - Parses Gateway entity/details response
 - Extracts owner role access rule
 - Supports **CountOf** (n-of-m) and **AllOf** (all must sign, treated as n-of-n)
@@ -984,6 +1083,7 @@ File-based routing under `apps/client/src/routes/`:
 - Resolves signers (NonFungibleGlobalId → public key hash, key type)
 
 **Files to create:**
+
 - `apps/server/src/manifest/subintentBuilder.ts`
 - `apps/server/src/manifest/transactionComposer.ts`
 - `apps/server/src/manifest/signatureExtractor.ts`
@@ -996,6 +1096,7 @@ File-based routing under `apps/client/src/routes/`:
 ### Step 8.1: CLI Package
 
 **`apps/cli/package.json`**:
+
 ```jsonc
 {
   "name": "cli",
@@ -1014,6 +1115,7 @@ File-based routing under `apps/client/src/routes/`:
 **`apps/cli/src/bootstrap.ts`**:
 
 Input: `bootstrap.json` + env var `FEE_PAYER_PRIVATE_KEY_HEX`
+
 ```json
 {
   "networkId": 2,
@@ -1023,14 +1125,12 @@ Input: `bootstrap.json` + env var `FEE_PAYER_PRIVATE_KEY_HEX`
     { "publicKeyHex": "...", "keyType": "EddsaEd25519" }
   ],
   "threshold": 2,
-  "initialBadgeRecipients": [
-    "account_tdx_2_1...",
-    "account_tdx_2_1..."
-  ]
+  "initialBadgeRecipients": ["account_tdx_2_1...", "account_tdx_2_1..."]
 }
 ```
 
 Steps:
+
 1. Read config + `FEE_PAYER_PRIVATE_KEY_HEX` from env, derive fee payer account from private key
 2. Create team multisig account on-chain (CountOf threshold + signer virtual badges)
 3. Create recallable soul-bound fungible badge resource with mint+recall authority on team account and transfer-preventing withdraw/deposit restrictions
@@ -1044,6 +1144,7 @@ Steps:
 All transactions signed with fee payer key.
 
 **Files to create:**
+
 - `apps/cli/package.json`, `apps/cli/tsconfig.json`
 - `apps/cli/src/main.ts` (CLI entry point)
 - `apps/cli/src/bootstrap.ts` (bootstrap logic)
@@ -1055,6 +1156,7 @@ All transactions signed with fee payer key.
 ### Step 9.1: Shared Schema Tests
 
 **`packages/shared/src/schemas.test.ts`**:
+
 - Encode/decode roundtrips for all domain types (including derived schemas)
 - Roundtrip tests for derived schemas: verify Vault, Proposal, Signature survive encode → decode
 - Verify `S.Class` `instanceof` works on derived schemas (e.g. `decoded instanceof Vault`)
@@ -1067,6 +1169,7 @@ All transactions signed with fee payer key.
 Use `@testcontainers/postgresql` for real Postgres.
 
 **`apps/server/src/__tests__/vaults.test.ts`**:
+
 - Import vault → reads access rule, stores record
 - Create vault with threshold → creates on-chain account with CountOf(threshold, signers) + stores record
 - List vaults → excludes the team row (`TEAM_ACCOUNT_ADDRESS`)
@@ -1075,6 +1178,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 - Different vaults can have different thresholds
 
 **`apps/server/src/__tests__/proposals.test.ts`**:
+
 - Full lifecycle: create → sign → threshold met → submit
 - Duplicate signature idempotent success (UNIQUE constraint)
 - Invalid signer rejection (not in vault's access rule)
@@ -1084,6 +1188,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 - Create/submit require successful preview
 
 **`apps/server/src/__tests__/team.test.ts`**:
+
 - `GetTeamSigners` returns team owner-rule signer set
 - `SetMySignerSource` upserts exactly one Ed25519 signer source per member
 - `SignProposal` is blocked when member signer source is missing
@@ -1092,6 +1197,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 - Team recall + burn succeeds for membership removal
 
 **`apps/server/src/__tests__/auth.test.ts`**:
+
 - Valid ROLA proof → session created
 - Missing badge → rejected
 - Expired/invalid challenge → rejected
@@ -1100,6 +1206,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 ### Step 9.3: Manifest Tests
 
 **`apps/server/src/__tests__/manifest.test.ts`**:
+
 - Compile valid manifest → success
 - Invalid manifest → error
 - YIELD_TO_PARENT auto-append
@@ -1108,12 +1215,14 @@ Use `@testcontainers/postgresql` for real Postgres.
 ### Step 9.4: Access Rule Parser Tests
 
 **`apps/server/src/__tests__/accessRuleParser.test.ts`**:
+
 - Parse CountOf rule → signers + threshold
 - Parse AllOf rule → signers + threshold = count
 - Reject AnyOf → error
 - Reject nested rules → error
 
 **Files to create:**
+
 - `packages/shared/src/schemas.test.ts`
 - `apps/server/src/__tests__/vaults.test.ts`
 - `apps/server/src/__tests__/proposals.test.ts`
@@ -1144,29 +1253,29 @@ Within phases, steps can often be parallelized. Phase 7 can be started alongside
 
 ## Key Dependencies (from pnpm catalog)
 
-| Package | Version | Where |
-|---------|---------|-------|
-| `effect` | 3.19.11 | all |
-| `@effect/platform` | ^0.93.6 | server, client, shared |
-| `@effect/platform-node` | ^0.103.0 | server |
-| `@effect/platform-browser` | ^0.73.0 | client |
-| `@effect/rpc` | ^0.72.2 | server, client, shared |
-| `@effect/sql` | ^0.48.6 | server |
-| `@effect/sql-drizzle` | ^0.47.0 | server |
-| `@effect/sql-pg` | ^0.49.7 | server |
-| `@effect/vitest` | ^0.27.0 | server, shared (dev) |
-| `drizzle-orm` | 0.45.1 | database, shared (subpath `drizzle-orm/effect-schema` for schema derivation) |
-| `drizzle-kit` | ^0.31.8 | database (dev) |
-| `pg` | ^8.16.0 | server, database |
-| `@tanstack/react-start` | ^1.132.0 | client |
-| `@tanstack/react-router` | ^1.132.0 | client |
-| `@tanstack/router-plugin` | ^1.132.0 | client |
-| `@radixdlt/radix-dapp-toolkit` | ^2.2.1 | client |
-| `@radixdlt/radix-engine-toolkit` | latest | server, cli |
-| `@radix-effects/gateway` | ^0.5.0 | server, cli, shared |
-| `@effect-atom/atom-react` | ^0.4.4 | client |
-| `tailwindcss` | ^4.0.6 | client |
-| `@testcontainers/postgresql` | ^11.10.0 | server (dev) |
-| `vitest` | 3.2.4 | all (dev) |
-| `tsx` | ^4.21.0 | server, cli (dev) |
-| `tsdown` | ^0.17.2 | server, cli |
+| Package                          | Version  | Where                                                                        |
+| -------------------------------- | -------- | ---------------------------------------------------------------------------- |
+| `effect`                         | 3.19.11  | all                                                                          |
+| `@effect/platform`               | ^0.93.6  | server, client, shared                                                       |
+| `@effect/platform-node`          | ^0.103.0 | server                                                                       |
+| `@effect/platform-browser`       | ^0.73.0  | client                                                                       |
+| `@effect/rpc`                    | ^0.72.2  | server, client, shared                                                       |
+| `@effect/sql`                    | ^0.48.6  | server                                                                       |
+| `@effect/sql-drizzle`            | ^0.47.0  | server                                                                       |
+| `@effect/sql-pg`                 | ^0.49.7  | server                                                                       |
+| `@effect/vitest`                 | ^0.27.0  | server, shared (dev)                                                         |
+| `drizzle-orm`                    | 0.45.1   | database, shared (subpath `drizzle-orm/effect-schema` for schema derivation) |
+| `drizzle-kit`                    | ^0.31.8  | database (dev)                                                               |
+| `pg`                             | ^8.16.0  | server, database                                                             |
+| `@tanstack/react-start`          | ^1.132.0 | client                                                                       |
+| `@tanstack/react-router`         | ^1.132.0 | client                                                                       |
+| `@tanstack/router-plugin`        | ^1.132.0 | client                                                                       |
+| `@radixdlt/radix-dapp-toolkit`   | ^2.2.1   | client                                                                       |
+| `@radixdlt/radix-engine-toolkit` | latest   | server, cli                                                                  |
+| `@radix-effects/gateway`         | ^0.5.0   | server, cli, shared                                                          |
+| `@effect-atom/atom-react`        | ^0.4.4   | client                                                                       |
+| `tailwindcss`                    | ^4.0.6   | client                                                                       |
+| `@testcontainers/postgresql`     | ^11.10.0 | server (dev)                                                                 |
+| `vitest`                         | 3.2.4    | all (dev)                                                                    |
+| `tsx`                            | ^4.21.0  | server, cli (dev)                                                            |
+| `tsdown`                         | ^0.17.2  | server, cli                                                                  |

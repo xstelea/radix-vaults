@@ -26,9 +26,9 @@ Without pipe, composing multiple transformations means deeply nested function ca
 ```typescript
 // Nested calls — read inside-out ❌
 const result = Effect.flatMap(
-  Effect.map(Effect.catchTag(myEffect, "NotFound", handleNotFound), transform),
+  Effect.map(Effect.catchTag(myEffect, 'NotFound', handleNotFound), transform),
   validate
-);
+)
 ```
 
 Pipe restores **top-to-bottom reading order** — each step flows into the next:
@@ -36,10 +36,10 @@ Pipe restores **top-to-bottom reading order** — each step flows into the next:
 ```typescript
 // Pipe — read top-to-bottom ✅
 const result = myEffect.pipe(
-  Effect.catchTag("NotFound", handleNotFound),
+  Effect.catchTag('NotFound', handleNotFound),
   Effect.map(transform),
   Effect.flatMap(validate)
-);
+)
 ```
 
 This is especially important in Effect where chains of 5-10 operators are common. Pipe turns unreadable nesting into a linear pipeline where data flows downward.
@@ -55,15 +55,15 @@ Effect provides **two forms** of pipe with identical behavior but different ergo
 Imported from `effect` or `effect/Function`. Takes an initial value as the first argument:
 
 ```typescript
-import { pipe } from "effect";
+import { pipe } from 'effect'
 
 // pipe(initialValue, fn1, fn2, fn3, ...)
 const result = pipe(
   someArray, // initial value (any type)
   A.map((x) => x.name), // Array → Array
-  A.filter((name) => name !== ""), // Array → Array
+  A.filter((name) => name !== ''), // Array → Array
   A.head // Array → Option
-);
+)
 ```
 
 ### Method .pipe()
@@ -75,8 +75,8 @@ Called on any value implementing the `Pipeable` interface (Effect, Option, Layer
 const result = myEffect.pipe(
   Effect.map(transform),
   Effect.flatMap(validate),
-  Effect.catchTag("NotFound", handleNotFound)
-);
+  Effect.catchTag('NotFound', handleNotFound)
+)
 ```
 
 ### When to Use Each
@@ -118,9 +118,9 @@ Any type implementing `Pipeable` gets the `.pipe()` method. The interface is min
 
 ```typescript
 interface Pipeable {
-  pipe<A>(this: A): A;
-  pipe<A, B>(this: A, ab: (a: A) => B): B;
-  pipe<A, B, C>(this: A, ab: (a: A) => B, bc: (b: B) => C): C;
+  pipe<A>(this: A): A
+  pipe<A, B>(this: A, ab: (a: A) => B): B
+  pipe<A, B, C>(this: A, ab: (a: A) => B, bc: (b: B) => C): C
   // ... up to ~20 overloads
 }
 ```
@@ -151,8 +151,8 @@ The most common pattern — chaining Effect operators:
 const stateVersion =
   yield *
   ledgerState({
-    at_ledger_state: { timestamp: new Date() },
-  }).pipe(Effect.map((result) => StateVersion.make(result.state_version)));
+    at_ledger_state: { timestamp: new Date() }
+  }).pipe(Effect.map((result) => StateVersion.make(result.state_version)))
 ```
 
 Longer chains with error recovery:
@@ -165,12 +165,12 @@ keyValueStore({ at_ledger_state: { state_version }, address }).pipe(
       result.entries,
       A.map((entry) =>
         Effect.all([parseKey(entry), parseValue(entry)], {
-          concurrency: 2,
+          concurrency: 2
         }).pipe(
           Effect.flatMap(([key, value]) =>
             Schema.decodeUnknownEither(TemperatureCheckSchema)({
               id: key,
-              ...value,
+              ...value
             })
           )
         )
@@ -178,7 +178,7 @@ keyValueStore({ at_ledger_state: { state_version }, address }).pipe(
     )
   ),
   Effect.flatMap(Effect.all) // Effect<Effect<T>[]> → Effect<T[]>
-);
+)
 ```
 
 ### Schema Branding & Validation
@@ -188,10 +188,10 @@ Schema uses `.pipe()` to compose schema transformers:
 ```typescript
 // From schemas.ts — brand a string type
 export const KeyValueStoreAddress = Schema.String.pipe(
-  Schema.brand("KeyValueStoreAddress")
-);
+  Schema.brand('KeyValueStoreAddress')
+)
 
-export type KeyValueStoreAddress = typeof KeyValueStoreAddress.Type;
+export type KeyValueStoreAddress = typeof KeyValueStoreAddress.Type
 ```
 
 ### Layer Composition
@@ -210,7 +210,7 @@ const runtime = makeAtomRuntime(
     Layer.provideMerge(StokenetGatewayApiClientLayer),
     Layer.provide(Config.StokenetLive) // provide config last
   )
-);
+)
 ```
 
 The order matters: `Layer.provide` feeds dependencies **into** the layer above it. Read bottom-to-top for dependency direction: Config feeds into Gateway which feeds into the merged services.
@@ -226,14 +226,14 @@ const temperatureCheckCreatedEvent =
   pipe(
     events, // Option<Event[]>
     Option.flatMap((events) =>
-      A.findFirst(events, (e) => e.name === "TemperatureCheckCreatedEvent")
+      A.findFirst(events, (e) => e.name === 'TemperatureCheckCreatedEvent')
     ), // Option<Event>
     Option.map((event) => event.data), // Option<SborData>
     Option.match({
       onSome: (sbor) => parseSbor(sbor, TemperatureCheckCreatedEvent),
-      onNone: () => new EventNotFoundError({ message: "Event not found" }),
+      onNone: () => new EventNotFoundError({ message: 'Event not found' })
     }) // Effect<T, E>
-  );
+  )
 ```
 
 Notice how `pipe` bridges Option into Effect at the last step — `Option.match` returns an Effect on both branches.
@@ -246,9 +246,7 @@ Config values are Pipeable — use `.pipe()` with `Config.withDefault`:
 // From snapshot.ts
 const concurrency =
   yield *
-  Config.number("GET_ACCOUNT_BALANCES_CONCURRENCY").pipe(
-    Config.withDefault(10)
-  );
+  Config.number('GET_ACCOUNT_BALANCES_CONCURRENCY').pipe(Config.withDefault(10))
 ```
 
 ### Array + flow
@@ -264,7 +262,7 @@ Effect.map(
       (acc, position) => R.union(acc, position, (a, b) => ({ ...a, ...b }))
     )
   )
-);
+)
 ```
 
 ### Pure Value Pipelines (Either Chain)
@@ -278,19 +276,19 @@ export const envVars = pipe(
     onTrue: constant(vitestMockEnvVars),
     onFalse: constant({
       /* real env vars */
-    }),
+    })
   }), // EnvVars.Encoded
   Schema.decodeUnknownEither(EnvVars), // Either<EnvVars, ParseError>
   Either.map((envVars) => ({
     ...envVars,
-    EFFECTIVE_ENV: envVars.ENV === "local" ? "dev" : envVars.ENV,
+    EFFECTIVE_ENV: envVars.ENV === 'local' ? 'dev' : envVars.ENV
   })), // Either<ExtendedEnvVars, ParseError>
   Either.getOrElse((parseIssue) => {
     throw new Error(
       `Invalid environment variables: ${TreeFormatter.formatErrorSync(parseIssue)}`
-    );
+    )
   }) // ExtendedEnvVars (throws on Left)
-);
+)
 ```
 
 This is a module-level constant — it runs once at import time, outside any Effect runtime.
@@ -307,17 +305,17 @@ const getUser = (id: string) =>
   fetchUser(id).pipe(
     Effect.map(normalize),
     Effect.flatMap(validate),
-    Effect.catchTag("NotFound", () => Effect.succeed(defaultUser))
-  );
+    Effect.catchTag('NotFound', () => Effect.succeed(defaultUser))
+  )
 
 // Effect.gen — need intermediate variables, branching logic, loops
 const getUser = (id: string) =>
   Effect.gen(function* () {
-    const raw = yield* fetchUser(id);
-    const normalized = normalize(raw);
-    if (!normalized.active) return defaultUser; // branching
-    return yield* validate(normalized);
-  });
+    const raw = yield* fetchUser(id)
+    const normalized = normalize(raw)
+    if (!normalized.active) return defaultUser // branching
+    return yield* validate(normalized)
+  })
 ```
 
 ### Decision Table
@@ -365,14 +363,14 @@ const getTemperatureCheckById = (id: TemperatureCheckId) =>
 Both compose functions left-to-right. The difference: **pipe applies immediately**, **flow returns a function**.
 
 ```typescript
-import { flow, pipe } from "effect";
+import { flow, pipe } from 'effect'
 
 // pipe: apply NOW — returns a value
-const result = pipe(5, double, addOne); // 11
+const result = pipe(5, double, addOne) // 11
 
 // flow: create function — returns (x) => addOne(double(x))
-const transform = flow(double, addOne);
-transform(5); // 11
+const transform = flow(double, addOne)
+transform(5) // 11
 ```
 
 **Use `flow`** when you need a reusable transformation or a callback:
@@ -383,7 +381,7 @@ Effect.map(
   flow(
     A.reduce(R.empty<AccountAddress, Record<string, Amount>>(), mergePositions)
   )
-);
+)
 
 // Equivalent without flow (more verbose):
 Effect.map((positions) =>
@@ -391,7 +389,7 @@ Effect.map((positions) =>
     positions,
     A.reduce(R.empty<AccountAddress, Record<string, Amount>>(), mergePositions)
   )
-);
+)
 ```
 
 `flow` saves you from naming the intermediate parameter when the function is used as a callback.
@@ -408,15 +406,15 @@ const result = pipe(
   myArray,
   A.head,
   Option.getOrElse(() => fallback)
-);
+)
 
 // ✅ Import pipe from "effect" or "effect/Function"
-import { pipe } from "effect";
+import { pipe } from 'effect'
 const result = pipe(
   myArray,
   A.head,
   Option.getOrElse(() => fallback)
-);
+)
 ```
 
 The standalone `pipe` function is a named export — it doesn't come from any module's namespace. If you're using `import { Effect } from "effect"`, you still need to add `pipe` to the import list.
@@ -425,11 +423,11 @@ The standalone `pipe` function is a named export — it doesn't come from any mo
 
 ```typescript
 // ❌ Works but unnecessarily verbose
-import { pipe } from "effect";
-const result = pipe(myEffect, Effect.map(transform), Effect.flatMap(validate));
+import { pipe } from 'effect'
+const result = pipe(myEffect, Effect.map(transform), Effect.flatMap(validate))
 
 // ✅ Use method .pipe() — cleaner, no import needed
-const result = myEffect.pipe(Effect.map(transform), Effect.flatMap(validate));
+const result = myEffect.pipe(Effect.map(transform), Effect.flatMap(validate))
 ```
 
 If the starting value already has `.pipe()` (Effect, Option, Layer, etc.), prefer the method form. Reserve standalone `pipe` for plain values.
@@ -441,16 +439,16 @@ If the starting value already has `.pipe()` (Effect, Option, Layer, etc.), prefe
 myEffect.pipe(
   Effect.map(transform(x)), // ← transform(x) is called NOW, result passed to map
   Effect.flatMap(validate()) // ← validate() called NOW
-);
+)
 
 // ✅ Pass function references — they get called by map/flatMap
 myEffect.pipe(
   Effect.map(transform), // ← map will call transform(value)
   Effect.flatMap(validate) // ← flatMap will call validate(value)
-);
+)
 
 // ✅ Or use arrow functions for multi-arg transforms
-myEffect.pipe(Effect.map((value) => transform(value, extraArg)));
+myEffect.pipe(Effect.map((value) => transform(value, extraArg)))
 ```
 
 This is subtle: `Effect.map(fn)` expects a function `A → B`. If you write `Effect.map(fn(x))`, you're passing the **return value** of `fn(x)` which is a value, not a function.
@@ -459,16 +457,16 @@ This is subtle: `Effect.map(fn)` expects a function `A → B`. If you write `Eff
 
 ```typescript
 // ❌ TypeScript may widen or lose type inference at each variable
-const step1 = myEffect.pipe(Effect.map(transform));
-const step2 = step1.pipe(Effect.flatMap(validate));
-const step3 = step2.pipe(Effect.catchTag("NotFound", handleNotFound));
+const step1 = myEffect.pipe(Effect.map(transform))
+const step2 = step1.pipe(Effect.flatMap(validate))
+const step3 = step2.pipe(Effect.catchTag('NotFound', handleNotFound))
 
 // ✅ Single chain — TypeScript infers the full pipeline type
 const result = myEffect.pipe(
   Effect.map(transform),
   Effect.flatMap(validate),
-  Effect.catchTag("NotFound", handleNotFound)
-);
+  Effect.catchTag('NotFound', handleNotFound)
+)
 ```
 
 Effect's type inference works best with a single continuous chain. Breaking into variables can cause the error channel to widen or requirements to get lost. If you need intermediate variables, use `Effect.gen` with `yield*` instead.
@@ -479,13 +477,13 @@ Effect's type inference works best with a single continuous chain. Breaking into
 // ❌ Overkill — generator for a simple map
 const getName = (id: string) =>
   Effect.gen(function* () {
-    const user = yield* fetchUser(id);
-    return user.name;
-  });
+    const user = yield* fetchUser(id)
+    return user.name
+  })
 
 // ✅ pipe is more concise for linear transforms
 const getName = (id: string) =>
-  fetchUser(id).pipe(Effect.map((user) => user.name));
+  fetchUser(id).pipe(Effect.map((user) => user.name))
 ```
 
 If the body is just `yield* X` followed by `return transform(result)` with no branching, `.pipe(Effect.map(...))` is simpler.

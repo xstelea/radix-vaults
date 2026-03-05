@@ -34,11 +34,11 @@ The full read-write queue. Combines `Enqueue` and `Dequeue`.
 ```typescript
 interface Queue<in out A> extends Enqueue<A>, Dequeue<A> {
   // Internal fields (not part of public API):
-  readonly queue: BackingQueue<A>; // ring buffer / linked list
-  readonly takers: MutableQueue<Deferred<A>>; // suspended consumers
-  readonly shutdownHook: Deferred<void>; // one-shot shutdown signal
-  readonly shutdownFlag: MutableRef<boolean>; // mutable shutdown flag
-  readonly strategy: Strategy<A>; // overflow behavior
+  readonly queue: BackingQueue<A> // ring buffer / linked list
+  readonly takers: MutableQueue<Deferred<A>> // suspended consumers
+  readonly shutdownHook: Deferred<void> // one-shot shutdown signal
+  readonly shutdownFlag: MutableRef<boolean> // mutable shutdown flag
+  readonly strategy: Strategy<A> // overflow behavior
 }
 ```
 
@@ -46,9 +46,9 @@ interface Queue<in out A> extends Enqueue<A>, Dequeue<A> {
 
 ```typescript
 interface Enqueue<in A> extends BaseQueue, Pipeable {
-  offer(value: A): Effect<boolean>;
-  unsafeOffer(value: A): boolean;
-  offerAll(iterable: Iterable<A>): Effect<boolean>;
+  offer(value: A): Effect<boolean>
+  unsafeOffer(value: A): boolean
+  offerAll(iterable: Iterable<A>): Effect<boolean>
 }
 ```
 
@@ -58,10 +58,10 @@ Variance: **contravariant** in `A` (you can widen the accepted type).
 
 ```typescript
 interface Dequeue<out A> extends Effect<A>, BaseQueue {
-  readonly take: Effect<A>;
-  readonly takeAll: Effect<Chunk<A>>;
-  takeUpTo(max: number): Effect<Chunk<A>>;
-  takeBetween(min: number, max: number): Effect<Chunk<A>>;
+  readonly take: Effect<A>
+  readonly takeAll: Effect<Chunk<A>>
+  takeUpTo(max: number): Effect<Chunk<A>>
+  takeBetween(min: number, max: number): Effect<Chunk<A>>
 }
 ```
 
@@ -71,26 +71,26 @@ Variance: **covariant** in `A` (you can narrow the output type).
 
 ```typescript
 const program = Effect.gen(function* () {
-  const queue = yield* Queue.bounded<number>(10);
-  yield* queue.offer(42);
-  const value = yield* queue; // Dequeue IS an Effect — takes oldest item
+  const queue = yield* Queue.bounded<number>(10)
+  yield* queue.offer(42)
+  const value = yield* queue // Dequeue IS an Effect — takes oldest item
   //    value === 42
-});
+})
 ```
 
 ### BaseQueue — Shared Interface
 
 ```typescript
 interface BaseQueue {
-  capacity(): number;
-  isActive(): boolean;
-  readonly size: Effect<number>; // may be negative (see Size Semantics)
-  unsafeSize(): Option<number>; // None if shutdown
-  readonly isFull: Effect<boolean>;
-  readonly isEmpty: Effect<boolean>;
-  readonly shutdown: Effect<void>;
-  readonly isShutdown: Effect<boolean>;
-  readonly awaitShutdown: Effect<void>;
+  capacity(): number
+  isActive(): boolean
+  readonly size: Effect<number> // may be negative (see Size Semantics)
+  unsafeSize(): Option<number> // None if shutdown
+  readonly isFull: Effect<boolean>
+  readonly isEmpty: Effect<boolean>
+  readonly shutdown: Effect<void>
+  readonly isShutdown: Effect<boolean>
+  readonly awaitShutdown: Effect<void>
 }
 ```
 
@@ -111,10 +111,10 @@ _\*Unbounded uses `DroppingStrategy` internally, but since capacity is `Infinity
 
 ```typescript
 // Creating queues
-const bounded = yield * Queue.bounded<string>(64); // backpressure at 64
-const unbounded = yield * Queue.unbounded<string>(); // no limit
-const dropping = yield * Queue.dropping<number>(100); // drop new when full
-const sliding = yield * Queue.sliding<number>(100); // drop oldest when full
+const bounded = yield * Queue.bounded<string>(64) // backpressure at 64
+const unbounded = yield * Queue.unbounded<string>() // no limit
+const dropping = yield * Queue.dropping<number>(100) // drop new when full
+const sliding = yield * Queue.sliding<number>(100) // drop oldest when full
 ```
 
 ---
@@ -125,19 +125,19 @@ The `Strategy<A>` interface controls what happens when `offer` exceeds queue cap
 
 ```typescript
 interface Strategy<in out A> {
-  surplusSize(): number;
-  readonly shutdown: Effect<void>;
+  surplusSize(): number
+  readonly shutdown: Effect<void>
   handleSurplus(
     iterable: Iterable<A>,
     queue: BackingQueue<A>,
     takers: MutableQueue<Deferred<A>>,
     isShutdown: MutableRef<boolean>
-  ): Effect<boolean>;
-  onCompleteTakersWithEmptyQueue(takers: MutableQueue<Deferred<A>>): void;
+  ): Effect<boolean>
+  onCompleteTakersWithEmptyQueue(takers: MutableQueue<Deferred<A>>): void
   unsafeOnQueueEmptySpace(
     queue: BackingQueue<A>,
     takers: MutableQueue<Deferred<A>>
-  ): void;
+  ): void
 }
 ```
 
@@ -355,26 +355,26 @@ Waits for the queue to shut down. If already shut down, resumes immediately. Use
 
 ```typescript
 const pipeline = Effect.gen(function* () {
-  const queue = yield* Queue.bounded<Job>(100);
+  const queue = yield* Queue.bounded<Job>(100)
 
   // Consumer
   yield* Effect.fork(
     Effect.gen(function* () {
       while (true) {
-        const job = yield* queue.take;
-        yield* processJob(job);
+        const job = yield* queue.take
+        yield* processJob(job)
       }
     })
-  );
+  )
 
   // Shutdown listener
   yield* Effect.fork(
     Effect.gen(function* () {
-      yield* queue.awaitShutdown;
-      yield* Effect.log("Queue shut down, cleaning up...");
+      yield* queue.awaitShutdown
+      yield* Effect.log('Queue shut down, cleaning up...')
     })
-  );
-});
+  )
+})
 ```
 
 ---
@@ -384,7 +384,7 @@ const pipeline = Effect.gen(function* () {
 The `size` property has unusual semantics — it can be **negative**.
 
 ```typescript
-size = queue.length - takers.length + strategy.surplusSize;
+size = queue.length - takers.length + strategy.surplusSize
 //     ^              ^                ^
 //     items stored   waiting          waiting putters
 //     in buffer      consumers        (backpressure only)
@@ -397,22 +397,22 @@ size = queue.length - takers.length + strategy.surplusSize;
 | `size < 0`   | `                                   | size | ` fibers are suspended waiting to take |
 
 ```typescript
-const queue = yield * Queue.bounded<number>(10);
+const queue = yield * Queue.bounded<number>(10)
 
 // Nothing happening
-yield * queue.size; // 0
+yield * queue.size // 0
 
 // Add some items
-yield * queue.offer(1);
-yield * queue.offer(2);
-yield * queue.size; // 2
+yield * queue.offer(1)
+yield * queue.offer(2)
+yield * queue.size // 2
 
 // Fork consumers that wait
-yield * Effect.fork(queue.take);
-yield * Effect.fork(queue.take);
-yield * Effect.fork(queue.take);
+yield * Effect.fork(queue.take)
+yield * Effect.fork(queue.take)
+yield * Effect.fork(queue.take)
 // After items consumed, one fiber still waiting:
-yield * queue.size; // -1  (one suspended taker)
+yield * queue.size // -1  (one suspended taker)
 ```
 
 ### unsafeSize
@@ -430,39 +430,39 @@ Returns `Option<number>`:
 
 ```typescript
 const producerConsumer = Effect.gen(function* () {
-  const queue = yield* Queue.bounded<string>(100);
+  const queue = yield* Queue.bounded<string>(100)
 
   // Producer
   const producer = yield* Effect.fork(
     Effect.gen(function* () {
       for (const item of items) {
-        yield* queue.offer(item);
+        yield* queue.offer(item)
       }
-      yield* queue.shutdown;
+      yield* queue.shutdown
     })
-  );
+  )
 
   // Consumer
   const consumer = yield* Effect.fork(
     Effect.gen(function* () {
-      const results: string[] = [];
+      const results: string[] = []
       while (true) {
-        const item = yield* queue.take; // suspends until available
-        results.push(item);
+        const item = yield* queue.take // suspends until available
+        results.push(item)
       }
     }).pipe(Effect.catchAllCause(() => Effect.void)) // handle shutdown interrupt
-  );
+  )
 
-  yield* Fiber.join(producer);
-  yield* Fiber.join(consumer);
-});
+  yield* Fiber.join(producer)
+  yield* Fiber.join(consumer)
+})
 ```
 
 ### Bounded Work Queue (Rate Limiting)
 
 ```typescript
 const workQueue = Effect.gen(function* () {
-  const queue = yield* Queue.bounded<Job>(10); // max 10 pending jobs
+  const queue = yield* Queue.bounded<Job>(10) // max 10 pending jobs
 
   // N workers
   yield* Effect.forEach(
@@ -471,38 +471,38 @@ const workQueue = Effect.gen(function* () {
       Effect.fork(
         Effect.forever(
           Effect.gen(function* () {
-            const job = yield* queue.take;
-            yield* processJob(job);
+            const job = yield* queue.take
+            yield* processJob(job)
           })
         )
       ),
     { discard: true }
-  );
+  )
 
-  return queue; // return Enqueue side to producers
-});
+  return queue // return Enqueue side to producers
+})
 ```
 
 ### Sliding Window (Latest N)
 
 ```typescript
 // Keep only the latest 5 readings
-const sensorQueue = yield * Queue.sliding<SensorReading>(5);
+const sensorQueue = yield * Queue.sliding<SensorReading>(5)
 
 // Producer sends continuously — old readings auto-dropped
 yield *
   Effect.fork(
     Effect.forever(
       Effect.gen(function* () {
-        const reading = yield* readSensor();
-        yield* sensorQueue.offer(reading);
-        yield* Effect.sleep("100 millis");
+        const reading = yield* readSensor()
+        yield* sensorQueue.offer(reading)
+        yield* Effect.sleep('100 millis')
       })
     )
-  );
+  )
 
 // Consumer gets latest batch
-const latest = yield * sensorQueue.takeAll; // up to 5 most recent
+const latest = yield * sensorQueue.takeAll // up to 5 most recent
 ```
 
 ### Fan-Out (Multiple Consumers)
@@ -510,22 +510,22 @@ const latest = yield * sensorQueue.takeAll; // up to 5 most recent
 ```typescript
 // Distribute work across consumers — each item goes to exactly one
 const fanOut = Effect.gen(function* () {
-  const queue = yield* Queue.bounded<Task>(256);
+  const queue = yield* Queue.bounded<Task>(256)
 
   // 8 consumer fibers all taking from same queue
   const workers = yield* Effect.forEach(Array.from({ length: 8 }), () =>
     Effect.fork(
       Effect.forever(
         Effect.gen(function* () {
-          const task = yield* queue.take;
-          yield* handleTask(task);
+          const task = yield* queue.take
+          yield* handleTask(task)
         })
       )
     )
-  );
+  )
 
-  return queue;
-});
+  return queue
+})
 ```
 
 ---
@@ -542,22 +542,22 @@ yield *
   Effect.fork(
     Effect.forever(
       Effect.gen(function* () {
-        const item = yield* queue.take;
-        yield* process(item);
+        const item = yield* queue.take
+        yield* process(item)
       })
     )
-  );
+  )
 
 // Correct — catch the interrupt from shutdown
 yield *
   Effect.fork(
     Effect.forever(
       Effect.gen(function* () {
-        const item = yield* queue.take;
-        yield* process(item);
+        const item = yield* queue.take
+        yield* process(item)
       })
     ).pipe(Effect.catchAllCause(() => Effect.void))
-  );
+  )
 ```
 
 ### 2. Unbounded Queue Memory Growth
@@ -566,13 +566,13 @@ yield *
 
 ```typescript
 // Dangerous — no backpressure
-const queue = yield * Queue.unbounded<Event>();
+const queue = yield * Queue.unbounded<Event>()
 
 // Safe — bounded with backpressure slows producers
-const queue = yield * Queue.bounded<Event>(1000);
+const queue = yield * Queue.bounded<Event>(1000)
 
 // Also safe — sliding drops oldest if overwhelmed
-const queue = yield * Queue.sliding<Event>(1000);
+const queue = yield * Queue.sliding<Event>(1000)
 ```
 
 ### 3. Ignoring the offer Return Value
@@ -581,12 +581,12 @@ With `dropping` queues, `offer` returns `false` when the item was dropped. Ignor
 
 ```typescript
 // Bug — silently drops items
-yield * queue.offer(item);
+yield * queue.offer(item)
 
 // Correct — check return value
-const accepted = yield * queue.offer(item);
+const accepted = yield * queue.offer(item)
 if (!accepted) {
-  yield * Effect.log("Item dropped — queue full");
+  yield * Effect.log('Item dropped — queue full')
 }
 ```
 
@@ -596,10 +596,10 @@ if (!accepted) {
 
 ```typescript
 // Ambiguous
-const ok = queue.unsafeOffer(value); // false = full? or shutdown?
+const ok = queue.unsafeOffer(value) // false = full? or shutdown?
 
 // Better — use the effectful offer which interrupts on shutdown
-yield * queue.offer(value);
+yield * queue.offer(value)
 ```
 
 ### 5. takeAll on Empty Queue Doesn't Suspend
@@ -611,19 +611,19 @@ Unlike `take`, `takeAll` returns immediately with an empty chunk if the queue is
 yield *
   Effect.forever(
     Effect.gen(function* () {
-      const items = yield* queue.takeAll; // returns Chunk.empty() immediately
-      yield* processBatch(items);
+      const items = yield* queue.takeAll // returns Chunk.empty() immediately
+      yield* processBatch(items)
     })
-  );
+  )
 
 // Correct — use take (suspends) or takeBetween (suspends until min met)
 yield *
   Effect.forever(
     Effect.gen(function* () {
-      const items = yield* queue.takeBetween(1, 100); // waits for at least 1
-      yield* processBatch(items);
+      const items = yield* queue.takeBetween(1, 100) // waits for at least 1
+      yield* processBatch(items)
     })
-  );
+  )
 ```
 
 ---

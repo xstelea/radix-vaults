@@ -8,6 +8,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel --filter=@radix-vaults/server --filter=@radix-vaults/client",
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "check-types": "turbo run check-types",
@@ -22,6 +24,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
     "oxlint": "catalog:",
+    "oxfmt": "catalog:",
     "turbo": "^2.6.3",
     "typescript": "^5.9.3"
   }
