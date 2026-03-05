@@ -2,7 +2,7 @@
 
 ## Overview
 
-TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. All vaults delegate auth to a single global superadmin multisig account. Badge-gated access — anyone holding a fungible ROLA badge can use the app. Superadmin threshold signing is the real authorization gate.
+TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. Team account controls member badge mint/recall/burn only. Each vault has its own independent signer set and threshold via owner-role multisig. Badge-gated access still controls dapp entry, while each vault threshold is the authorization gate for vault actions.
 
 ## Reference Repos
 
@@ -15,9 +15,13 @@ TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bo
 
 ### Auth Model
 
-All vaults' owner/auth roles delegate to one **global superadmin** multisig account. One signer set, one threshold for the entire system. Signers are fetched from Gateway (on-chain state), not stored per-vault.
+Team account is configured from env (`TEAM_ACCOUNT_ADDRESS`) and only governs badge operations. Each vault uses `OwnerRole::Updatable(require_n_of(vault_threshold, [signer_virtual_badges]))` with signer sets chosen per vault. Signers are discovered from team membership (badge holders -> owner rule parse -> Ed25519 key extraction), but each vault controls its own owner rule and signer updates through vault-local `SET_OWNER_ROLE` proposals.
 
 **ROLA flow**: server generates a challenge (stored in `challenges` table, single-use), client signs with wallet, server verifies signature proves wallet ownership, then checks badge balance > 0 via Gateway. On success, creates a session (DB row + HTTP-only cookie with signed session ID).
+
+**Team consistency warning**: compare team account owner-rule signer set with derived member signer set (Ed25519 only). If sets differ, surface a signer-set mismatch warning in Team UI and TeamRpc responses.
+
+**Team member badge policy (soul-bound fungible)**: use role restrictions to prevent voluntary transfer (withdraw/deposit constraints), while allowing Team-controlled recall and burn. Members can hold/use badge for access, but cannot transfer it to another account.
 
 ### Server Pattern (Effect RPC, not Hono)
 
@@ -47,7 +51,7 @@ No server-side polling. Server submits to Gateway, returns `{ txId, status: 'sub
 |---------|-------------|
 | `apps/server` | Effect RPC server (`@effect/platform` NodeHttpServer) |
 | `apps/client` | TanStack Start SPA (no SSR) |
-| `apps/cli` | Bootstrap CLI (create superadmin, badge resource, mint initial badges) |
+| `apps/cli` | Bootstrap CLI (create team account, member badge resource, mint initial badges) |
 | `packages/shared` | Effect Schemas + RPC definitions (raw .ts exports, pnpm/turbo pattern) |
 | `packages/database` | Drizzle schema + migrations (raw .ts exports) |
 
@@ -57,17 +61,15 @@ No server-side polling. Server submits to Gateway, returns `{ txId, status: 'sub
 
 ### `vaults`
 ```sql
-id              serial PRIMARY KEY
 name            varchar(255) NOT NULL
-account_address varchar(255) NOT NULL
-is_superadmin   boolean NOT NULL DEFAULT false
+account_address varchar(255) PRIMARY KEY
 created_at      timestamp NOT NULL DEFAULT now()
 ```
 
 ### `proposals`
 ```sql
 id                          serial PRIMARY KEY
-vault_id                    integer NOT NULL REFERENCES vaults(id) ON DELETE CASCADE
+vault_address               varchar(255) NOT NULL REFERENCES vaults(account_address) ON DELETE CASCADE
 manifest_text               text NOT NULL
 status                      varchar(20) NOT NULL DEFAULT 'created'
 epoch_min                   integer
@@ -138,22 +140,25 @@ Per-group typed error unions (no `S.Never`).
 - `Logout` → delete session
 
 ### VaultsRpc
-- `ImportVault` → create DB record (name + account address), optionally verify auth delegates to superadmin
-- `CreateVault` → build manifest to create new account + set owner to superadmin, sign with fee payer, submit to Gateway, store DB record with new address
-- `ListVaults` → all vaults where `is_superadmin = false`
-- `GetVault` → fetch by id
+- `ImportVault` → create DB record (name + account address), read and verify supported access rule (CountOf/AllOf)
+- `CreateVault` → payload: `{ name, threshold, signers }`, build manifest to create new account with owner role `require_n_of(threshold, signers)`, sign with fee payer, submit to Gateway, store DB record with new address
+- `ListVaults` → all vault records
+- `GetVault` → fetch by `vaultAddress`
+- `GetVaultSigners` → fetch vault's access rule (signers + threshold) from Gateway
 - `ResyncVault` → refresh on-chain state for a vault
 
 ### ProposalsRpc
 - `CreateProposal` → compile manifest, build unsigned partial, store proposal
-- `ListProposals` → query by vault_id, optional status filter (no pagination for MVP)
+- `ListProposals` → query by `vaultAddress`, optional status filter (no pagination for MVP)
 - `GetProposal` → fetch by id + on-demand validity check
-- `SignProposal` → extract signature from signed partial hex, validate signer against superadmin access rule, store
-- `GetSignatureStatus` → count signatures vs threshold
+- `SignProposal` → extract signature from signed partial hex, validate signer against **vault's** access rule, store
+- `GetSignatureStatus` → count signatures vs **vault's** threshold
 - `SubmitProposal` → compose notarized tx with fee payer, submit to Gateway, return tx hash + 'submitted'
 
-### SuperadminRpc
-- `GetSigners` → thin proxy: fetch superadmin access rule from Gateway, return signer list + threshold
+### TeamRpc
+- `GetTeamSigners` → fetch team account owner rule from Gateway, return signer list + threshold
+- `GetMembers` → query badge holders from Gateway, parse each holder account owner rule, return derived Ed25519 member keys
+- `GetTeamStatus` → return owner-rule signer set, derived member signer set, and `signerSetMismatch`
 - `GetBadgeResource` → return badge resource address (from env)
 
 ```typescript
@@ -161,7 +166,7 @@ export const AppRpc = RpcGroup.make(
   ...AuthRpc.requests,
   ...VaultsRpc.requests,
   ...ProposalsRpc.requests,
-  ...SuperadminRpc.requests,
+  ...TeamRpc.requests,
 )
 ```
 
@@ -171,18 +176,19 @@ export const AppRpc = RpcGroup.make(
 
 | Decision | Choice |
 |----------|--------|
-| Auth model | All vaults delegate to one global superadmin |
+| Auth model | Independent per-vault owner-role multisig; no delegated central control |
 | Groups | Removed — flat vault list |
-| Member records | None — badge ownership = membership |
+| Member records | No DB table — discover members on-chain from badge holders + owner-rule parse |
 | HTTP server | `@effect/platform` NodeHttpServer (not Hono) |
 | RPC transport | `@effect/rpc` + `@effect/platform` |
 | Rendering | SPA only (TanStack Start, no SSR, no Nitro) |
 | Tx submission | No server polling — return tx hash + 'submitted' |
 | Error model | Per-RPC-group typed error unions |
 | Access rules | CountOf + AllOf (flat, no nested) |
-| Badge type | Fungible, soul-bound, minter authority on superadmin account |
-| Badge minting | Via superadmin proposal (any badge holder proposes, signers approve) |
-| Signer management | Via superadmin proposal (change access rule manifest) |
+| Badge type | Fungible, soul-bound, recallable; transfer blocked by withdraw/deposit restrictions |
+| Badge minting | Team-authorized mint on member badge resource |
+| Signer management | Vault-local proposals call `SET_OWNER_ROLE` on that vault |
+| Vault threshold management | Vault-local `SET_OWNER_ROLE` only (requires vault threshold) |
 | Create vs sign | Separate operations |
 | Signing flow | Server returns metadata, client builds SubintentRequestBuilder |
 | Submission concurrency | Idempotent (Gateway deduplicates) |
@@ -191,9 +197,9 @@ export const AppRpc = RpcGroup.make(
 | Manifest builders | Client-side helpers |
 | State management | `@effect-atom/atom-react` for everything |
 | Pagination | Not for MVP |
-| Superadmin UI | Separate section from vault list |
-| Superadmin in DB | Vault record with `is_superadmin = true` |
-| Vault add | Import existing (DB record + optional auth verification) or create new on-chain (fee payer signs creation tx, stores DB record) |
+| Team UI | Separate section from vault list |
+| Team in DB | Team account is a regular vault row matched by `TEAM_ACCOUNT_ADDRESS` |
+| Vault add | Import existing (DB record + verify supported access rule) or create new on-chain with threshold (fee payer signs creation tx, stores DB record) |
 | Sessions | DB table, HTTP-only cookie with signed session ID |
 | DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
 | Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
@@ -202,7 +208,7 @@ export const AppRpc = RpcGroup.make(
 | Raw .ts exports | Standard pnpm/turbo monorepo pattern |
 | TS Radix Engine Toolkit | Supports V2 (SubintentManifestV2, PartialTransactionV2) |
 | `@radix-effects/gateway` | User's own published library on npm |
-| Re-sync | Manual button to refresh vault/superadmin on-chain state |
+| Re-sync | Manual button to refresh vault/team on-chain state |
 
 ---
 
@@ -220,13 +226,19 @@ export const AppRpc = RpcGroup.make(
     "dev": "turbo run dev",
     "test": "turbo run test",
     "check-types": "turbo run check-types",
-    "format": "biome format --write",
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
+    "lint": "oxlint",
+    "prepare": "husky",
     "db:migrate": "turbo run db:migrate",
     "db:generate": "turbo run db:generate",
     "db:studio": "turbo run db:studio"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "oxlint": "^1.50.0",
+    "oxfmt": "^0.35.0",
     "turbo": "^2.6.3",
     "typescript": "5.9.3"
   },
@@ -239,7 +251,50 @@ export const AppRpc = RpcGroup.make(
 
 **`turbo.json`** — same as consultation_v2 (build/lint/check-types cached; dev/test/db:* persistent+uncached).
 
-**`biome.json`** — formatter + linter config.
+**`.oxlintrc.json`**:
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "warn", "suspicious": "warn" },
+  "plugins": ["typescript", "react"],
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "require-yield": "off"
+  }
+}
+```
+
+**`.oxfmtrc.json`**:
+```json
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "useTabs": false,
+  "tabWidth": 2,
+  "printWidth": 80,
+  "singleQuote": true,
+  "trailingComma": "none",
+  "semi": false,
+  "arrowParens": "always",
+  "sortPackageJson": false,
+  "ignorePatterns": [".repos", ".output", "*.lock", "*.gen.ts"]
+}
+```
+
+**`.lintstagedrc`**:
+```json
+{
+  "*.{js,jsx,ts,tsx,mjs,cjs}": ["oxlint", "oxfmt --write"],
+  "*.json": "oxfmt --write"
+}
+```
+
+**`.husky/pre-commit`**:
+```sh
+pnpm exec lint-staged
+pnpm run check-types
+pnpm run test
+pnpm run build
+```
 
 **`.gitignore`** — node_modules, dist, .output, .env*, .turbo, drizzle/*.sql (generated).
 
@@ -286,14 +341,14 @@ volumes:
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/radix_vaults
 NETWORK_ID=2
-SUPERADMIN_ADDRESS=account_tdx_2_1...
-ROLA_BADGE_RESOURCE=resource_tdx_2_1...
+TEAM_ACCOUNT_ADDRESS=account_tdx_2_1...
+TEAM_MEMBER_BADGE_ADDRESS=resource_tdx_2_1...
 FEE_PAYER_PRIVATE_KEY_HEX=...
 DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 ```
 
 **Files to create:**
-- `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `biome.json`, `.gitignore`
+- `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `.oxlintrc.json`, `.oxfmtrc.json`, `.lintstagedrc`, `.husky/pre-commit`, `.gitignore`
 - `apps/server/package.json`, `apps/server/tsconfig.json`
 - `apps/client/package.json`, `apps/client/tsconfig.json`
 - `apps/cli/package.json`, `apps/cli/tsconfig.json`
@@ -326,17 +381,15 @@ DAPP_DEFINITION_ADDRESS=account_tdx_2_1...
 
 ```typescript
 export const vaults = pgTable('vaults', {
-  id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  accountAddress: varchar('account_address', { length: 255 }).notNull(),
-  isSuperadmin: boolean('is_superadmin').notNull().default(false),
+  accountAddress: varchar('account_address', { length: 255 }).primaryKey(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 })
 ```
 
 Same pattern for all 6 tables:
-- `vaults` (with `isSuperadmin` flag, no `groupId`)
-- `proposals` (references `vaults.id`, fields: `vaultId`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
+- `vaults` (PK is `accountAddress`; team row is identified by address match)
+- `proposals` (references `vaults.accountAddress`, fields: `vaultAddress`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
 - `signatures` (UNIQUE on `proposalId, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `isValid`, `createdAt`)
 - `submissionAttempts` (`proposalId`, `feePayerAccount`, `txHash`, `status`, `errorMessage`, `createdAt`)
 - `sessions` (`sessionId`, `walletAddress`, `createdAt`, `expiresAt`)
@@ -451,29 +504,49 @@ export class VerifyRola extends Rpc.make('VerifyRola')({
 export class ImportVault extends Rpc.make('ImportVault')({
   payload: { name: S.String, accountAddress: S.String },
   success: Schemas.Vault,
-  error: S.Union(/* NotFoundError, NotDelegatedError */),
+  error: S.Union(/* NotFoundError, UnsupportedAccessRuleError */),
 }) {}
 
 export class CreateVault extends Rpc.make('CreateVault')({
-  payload: { name: S.String },
+  payload: { name: S.String, threshold: S.Number, signers: S.Array(Schemas.Signer) },
   success: Schemas.Vault,
   error: S.Union(/* GatewayError, ManifestCompileError */),
 }) {}
 
-// ... ListVaults, GetVault, ResyncVault
+// ... ListVaults, GetVault, GetVaultSigners, ResyncVault
+
+export class GetVaultSigners extends Rpc.make('GetVaultSigners')({
+  payload: { vaultAddress: S.String },
+  success: Schemas.AccessRuleInfo,
+  error: S.Union(/* VaultNotFound, GatewayError */),
+}) {}
 
 // --- Proposals ---
 export class CreateProposal extends Rpc.make('CreateProposal')({
-  payload: { vaultId: S.Number, manifestText: S.String, expiryEpoch: S.Number },
+  payload: { vaultAddress: S.String, manifestText: S.String, expiryEpoch: S.Number },
   success: Schemas.Proposal,
   error: S.Union(/* VaultNotFound, ManifestCompileError */),
 }) {}
 
 // ... ListProposals, GetProposal, SignProposal, GetSignatureStatus, SubmitProposal
 
-// --- Superadmin ---
-export class GetSigners extends Rpc.make('GetSigners')({
+// --- Team ---
+export class GetTeamSigners extends Rpc.make('GetTeamSigners')({
   success: Schemas.AccessRuleInfo,
+  error: S.Union(/* GatewayError */),
+}) {}
+
+export class GetMembers extends Rpc.make('GetMembers')({
+  success: S.Array(Schemas.Signer),
+  error: S.Union(/* GatewayError, UnsupportedOwnerRuleError */),
+}) {}
+
+export class GetTeamStatus extends Rpc.make('GetTeamStatus')({
+  success: S.Struct({
+    ownerRuleSigners: S.Array(Schemas.Signer),
+    derivedMemberSigners: S.Array(Schemas.Signer),
+    signerSetMismatch: S.Boolean,
+  }),
   error: S.Union(/* GatewayError */),
 }) {}
 
@@ -484,18 +557,18 @@ export class GetBadgeResource extends Rpc.make('GetBadgeResource')({
 
 // --- Groups ---
 export const AuthRpc = RpcGroup.make(GetChallenge, VerifyRola, GetSession, Logout).prefix('auth')
-export const VaultsRpc = RpcGroup.make(ImportVault, CreateVault, ListVaults, GetVault, ResyncVault).prefix('vaults')
+export const VaultsRpc = RpcGroup.make(ImportVault, CreateVault, ListVaults, GetVault, GetVaultSigners, ResyncVault).prefix('vaults')
 export const ProposalsRpc = RpcGroup.make(
   CreateProposal, ListProposals, GetProposal,
   SignProposal, GetSignatureStatus, SubmitProposal
 ).prefix('proposals')
-export const SuperadminRpc = RpcGroup.make(GetSigners, GetBadgeResource).prefix('superadmin')
+export const TeamRpc = RpcGroup.make(GetTeamSigners, GetMembers, GetTeamStatus, GetBadgeResource).prefix('team')
 
 export const AppRpc = RpcGroup.make(
   ...AuthRpc.requests,
   ...VaultsRpc.requests,
   ...ProposalsRpc.requests,
-  ...SuperadminRpc.requests,
+  ...TeamRpc.requests,
 )
 ```
 
@@ -528,7 +601,7 @@ ServerLayer = Layer.mergeAll(
   VaultsHandler.Default,
   ProposalsHandler.Default,
   AuthHandler.Default,
-  SuperadminHandler.Default,
+  TeamHandler.Default,
   DatabaseMigrations.Default,
 ).pipe(
   Layer.provideMerge(AuthMiddleware.Default),
@@ -588,11 +661,12 @@ ServerLayer = Layer.mergeAll(
 ### Step 5.1: Vaults Handler
 
 **`apps/server/src/handlers/vaults.ts`**:
-- `ImportVault` — insert vault record (name + account address), optionally verify auth delegates to superadmin via Gateway
-- `CreateVault` — build manifest (create account + set owner role to superadmin), compile, sign with fee payer key, submit to Gateway, extract new account address from transaction receipt, store vault DB record
-- `ListVaults` — query vaults where `is_superadmin = false`
-- `GetVault` — fetch by id
-- `ResyncVault` — re-fetch on-chain state (balances, verify auth delegation still valid)
+- `ImportVault` — insert vault record (name + account address), read access rule from Gateway, verify parseable (CountOf/AllOf), store
+- `CreateVault` — accept user-selected signers (from discovered members), build manifest (create account + set owner role to CountOf(threshold, signers)), compile, sign with fee payer key, submit to Gateway, extract new account address from transaction receipt, store vault DB record
+- `ListVaults` — query all vault rows
+- `GetVault` — fetch by `vaultAddress`
+- `GetVaultSigners` — fetch vault access rule from Gateway → parse access rule → return signers + threshold
+- `ResyncVault` — re-fetch on-chain state (balances + access rule)
 
 ### Step 5.2: Proposals Handler
 
@@ -609,10 +683,10 @@ ServerLayer = Layer.mergeAll(
 - `SignProposal`:
   1. Deserialize signed partial hex → extract signature + public key
   2. Hash public key → key_hash
-  3. Fetch superadmin access rule from Gateway, verify key_hash is in signer list
+  3. Look up vault for this proposal → fetch **vault's** access rule from Gateway, verify key_hash is in vault's signer list
   4. Validate subintent hash matches proposal's stored hash
   5. Store signature (UNIQUE constraint handles duplicates)
-  6. Count valid signatures → if >= threshold, update status to 'ready'
+  6. Count valid signatures → if >= vault's threshold, update status to 'ready'
   7. If first signature and status was 'created', update to 'signing'
   8. Return SignatureStatus
 
@@ -625,9 +699,9 @@ ServerLayer = Layer.mergeAll(
   6. Update proposal status to 'submitted', store tx_id
   7. Return `{ txId, status: 'submitted' }`
 
-- `ListProposals` — query by vault, optional status filter, no pagination
+- `ListProposals` — query by `vaultAddress`, optional status filter, no pagination
 - `GetProposal` — fetch by id + on-demand validity check (epoch expiry, access rule changes)
-- `GetSignatureStatus` — count signatures, compare to superadmin threshold
+- `GetSignatureStatus` — count signatures, compare to vault's threshold
 
 ### Step 5.3: Auth Handler
 
@@ -637,17 +711,19 @@ ServerLayer = Layer.mergeAll(
 - `GetSession` → return current session from cookie
 - `Logout` → delete session from DB
 
-### Step 5.4: Superadmin Handler
+### Step 5.4: Team Handler
 
-**`apps/server/src/handlers/superadmin.ts`**:
-- `GetSigners` → fetch superadmin access rule from Gateway, parse, return signer list + threshold
-- `GetBadgeResource` → return `ROLA_BADGE_RESOURCE` from env
+**`apps/server/src/handlers/team.ts`**:
+- `GetTeamSigners` → fetch team owner-rule access rule from Gateway, parse, return signer list + threshold
+- `GetMembers` → enumerate badge holders from Gateway, parse each holder owner rule, extract Ed25519 signer key only
+- `GetTeamStatus` → compare owner-rule signer set vs derived member signer set, return `signerSetMismatch`
+- `GetBadgeResource` → return `TEAM_MEMBER_BADGE_ADDRESS` from env
 
 ### Step 5.5: On-Demand Validity Checking
 
 Embedded in `GetProposal` handler:
 1. Check current epoch > epoch_max → mark 'expired'
-2. Fetch current superadmin access rule from Gateway
+2. Fetch current **vault's** access rule from Gateway
 3. Invalidate signatures from removed signers (set `is_valid = false`)
 4. If valid signature count < threshold and was 'ready' → mark 'invalid'
 5. Return updated proposal
@@ -656,7 +732,7 @@ Embedded in `GetProposal` handler:
 - `apps/server/src/handlers/vaults.ts`
 - `apps/server/src/handlers/proposals.ts`
 - `apps/server/src/handlers/auth.ts`
-- `apps/server/src/handlers/superadmin.ts`
+- `apps/server/src/handlers/team.ts`
 
 ---
 
@@ -709,10 +785,10 @@ import tailwindcss from '@tailwindcss/vite'
 - `vaultsListAtom` — fetches all vaults (flat list)
 - `importVaultAtom`
 - `createVaultAtom`
-- `vaultDetailAtom(id)`
+- `vaultDetailAtom(vaultAddress)`
 
 **`apps/client/src/atom/proposals.ts`**:
-- `proposalsListAtom(vaultId, status?)` — fetches proposals
+- `proposalsListAtom(vaultAddress, status?)` — fetches proposals
 - `proposalDetailAtom(id)` — fetches proposal + on-demand validity
 - `createProposalAtom` — creates proposal via RPC
 - `signatureStatusAtom(proposalId)` — fetches signature progress
@@ -729,18 +805,23 @@ import tailwindcss from '@tailwindcss/vite'
 **`apps/client/src/atom/submit.ts`**:
 - `submitProposalAtom(proposalId)` — calls `SubmitProposal` RPC
 
-**`apps/client/src/atom/superadmin.ts`**:
-- `signersAtom` — fetches superadmin signers via `GetSigners` RPC
+**`apps/client/src/atom/vaultSigners.ts`**:
+- `vaultSignersAtom(vaultAddress)` — fetches vault's access rule (signers + threshold) via `GetVaultSigners` RPC
+
+**`apps/client/src/atom/team.ts`**:
+- `teamSignersAtom` — fetches team owner-rule signers via `GetTeamSigners` RPC
+- `membersAtom` — fetches derived members (Ed25519 only) via `GetMembers` RPC
+- `teamStatusAtom` — fetches signer-set mismatch status via `GetTeamStatus` RPC
 - `badgeResourceAtom` — fetches badge resource address
 
 ### Step 6.5: Manifest Builders (Client-Side)
 
 **`apps/client/src/lib/manifest.ts`**:
-- `buildSetAuthDelegationManifest({ accountAddress, superadminAddress })` — sets vault auth to delegate to superadmin
+- `buildSetOwnerRoleManifest({ vaultAddress, signers, threshold })` — sets vault owner role with `SET_OWNER_ROLE` to CountOf(threshold, signers)
 - `buildMintBadgeManifest({ badgeResource, recipientAddress })` — mint 1 badge + deposit
-- `buildBurnBadgeManifest({ badgeResource, targetAddress })` — burn/revoke badge
-- `buildChangeSignersManifest({ superadminAddress, signers, threshold })` — change superadmin access rule
-- `buildTransferManifest({ fromAccount, toAccount, resourceAddress, amount })` — basic transfer
+- `buildRecallBadgeManifest({ targetAccount, badgeResource })` — recall + burn membership badge
+- `buildChangeSignersManifest({ accountAddress, signers, threshold })` — change owner role on the target vault account
+- `buildTransferManifest({ fromAccount, toAccount, resourceAddress, amount })` — basic transfer (non-member resources only)
 
 ### Step 6.6: shadcn/ui Setup
 
@@ -755,25 +836,25 @@ File-based routing under `apps/client/src/routes/`:
 
 **`index.tsx`** — Dashboard: vault list + pending proposal counts.
 
-**`vaults/add.tsx`** — Add vault form with import/create toggle: import mode enters account address + name and verifies auth delegation; create mode enters name only, server creates on-chain account.
+**`vaults/add.tsx`** — Add vault form with import/create toggle: import mode enters account address + name (any parseable access rule accepted); create mode enters name + threshold + signer picker (from discovered members), server creates on-chain account.
 
-**`vaults/$vaultId.tsx`** — Vault detail: balance, proposals list (filterable by status), create proposal button.
+**`vaults/$vaultAddress.tsx`** — Vault detail: balance, current threshold + signers, proposals list (filterable by status), create proposal button, warning badge for signers not in known members.
 
-**`vaults/$vaultId/proposals/new.tsx`** — Create proposal form: manifest text editor, expiry epoch selector.
+**`vaults/$vaultAddress/proposals/new.tsx`** — Create proposal form: manifest text editor, expiry epoch selector.
 
-**`vaults/$vaultId/proposals/$proposalId.tsx`** — Proposal detail: status badge, manifest text, signature progress (collected/threshold), per-signer table, sign button, submit button, tx ID link.
+**`vaults/$vaultAddress/proposals/$proposalId.tsx`** — Proposal detail: status badge, manifest text, signature progress (collected/threshold), per-signer table, sign button, submit button, tx ID link.
 
-**`superadmin/index.tsx`** — Superadmin section: current signers + threshold, badge resource info, re-sync button.
+**`team/index.tsx`** — Team section: owner-rule signers + threshold, derived members, signer-set mismatch warning, badge resource info, re-sync button.
 
-**`superadmin/badges.tsx`** — Badge management: mint (enter account address), badge burn/revoke. Creates proposals on superadmin vault.
+**`team/badges.tsx`** — Badge management: mint (enter account address), recall + burn membership badge.
 
-**`superadmin/signers.tsx`** — Signer management: view current signers, create proposal to change access rule.
+**`team/signers.tsx`** — Team signer management: view current team owner-rule signers (vault signer changes remain vault-local).
 
-**`superadmin/proposals.tsx`** — Superadmin proposals list (badge mints, signer changes).
+**`team/proposals.tsx`** — Team proposals list (badge mint/recall + team owner-role updates).
 
 ### Step 6.8: Key UI Components
 
-**`src/components/layout/Sidebar.tsx`** — Vault nav, superadmin section, user info, wallet connect.
+**`src/components/layout/Sidebar.tsx`** — Vault nav, team section, user info, wallet connect.
 
 **`src/components/layout/WalletConnect.tsx`** — Radix wallet connect button.
 
@@ -793,7 +874,7 @@ File-based routing under `apps/client/src/routes/`:
 - `apps/client/src/atom/runtime.ts`, `apps/client/src/atom/auth.ts`
 - `apps/client/src/atom/vaults.ts`, `apps/client/src/atom/proposals.ts`
 - `apps/client/src/atom/signing.ts`, `apps/client/src/atom/submit.ts`
-- `apps/client/src/atom/superadmin.ts`
+- `apps/client/src/atom/vaultSigners.ts`, `apps/client/src/atom/team.ts`
 - All route files under `apps/client/src/routes/`
 - All component files under `apps/client/src/components/`
 
@@ -884,13 +965,13 @@ Input: `bootstrap.json` + env var `FEE_PAYER_PRIVATE_KEY_HEX`
 
 Steps:
 1. Read config + `FEE_PAYER_PRIVATE_KEY_HEX` from env, derive fee payer account from private key
-2. Create superadmin multisig account on-chain (CountOf threshold + signer virtual badges)
-3. Create soul-bound fungible badge resource with mint authority on superadmin account
+2. Create team multisig account on-chain (CountOf threshold + signer virtual badges)
+3. Create recallable soul-bound fungible badge resource with mint+recall authority on team account and transfer-preventing withdraw/deposit restrictions
 4. Mint initial badges to specified recipient addresses
 5. Output env var values:
    ```
-   SUPERADMIN_ADDRESS=account_tdx_2_1...
-   ROLA_BADGE_RESOURCE=resource_tdx_2_1...
+   TEAM_ACCOUNT_ADDRESS=account_tdx_2_1...
+   TEAM_MEMBER_BADGE_ADDRESS=resource_tdx_2_1...
    ```
 
 All transactions signed with fee payer key.
@@ -910,7 +991,7 @@ All transactions signed with fee payer key.
 - Encode/decode roundtrips for all domain types (including derived schemas)
 - Roundtrip tests for derived schemas: verify Vault, Proposal, Signature survive encode → decode
 - Verify `S.Class` `instanceof` works on derived schemas (e.g. `decoded instanceof Vault`)
-- Verify insert schemas (`VaultInsert`, `ProposalInsert`) reject auto-generated fields (`id`, `createdAt`)
+- Verify insert schemas (`VaultInsert`, `ProposalInsert`) reject auto-generated fields (`createdAt`, plus `id` where applicable)
 - Validation edge cases (empty strings, malformed addresses)
 - ProposalStatus enum validation
 
@@ -919,17 +1000,27 @@ All transactions signed with fee payer key.
 Use `@testcontainers/postgresql` for real Postgres.
 
 **`apps/server/src/__tests__/vaults.test.ts`**:
-- Import vault → stores record
-- Create vault → creates on-chain account + stores record
-- List vaults → excludes superadmin
+- Import vault → reads access rule, stores record
+- Create vault with threshold → creates on-chain account with CountOf(threshold, signers) + stores record
+- List vaults → includes all vault rows (team row present but not special-cased in schema)
+- Get vault signers → returns vault's access rule
 - Re-sync vault
+- Different vaults can have different thresholds
 
 **`apps/server/src/__tests__/proposals.test.ts`**:
 - Full lifecycle: create → sign → threshold met → submit
 - Duplicate signature rejection (UNIQUE constraint)
-- Invalid signer rejection (not in superadmin access rule)
+- Invalid signer rejection (not in vault's access rule)
+- Signer validation against vault's threshold (not team account)
 - Epoch expiry detection
 - Status transitions
+
+**`apps/server/src/__tests__/team.test.ts`**:
+- `GetTeamSigners` returns team owner-rule signer set
+- `GetMembers` derives Ed25519 keys from badge holders only
+- Team status returns `signerSetMismatch` when owner-rule and derived member sets differ
+- Badge transfer attempt fails due to withdraw/deposit restrictions
+- Team recall + burn succeeds for membership removal
 
 **`apps/server/src/__tests__/auth.test.ts`**:
 - Valid ROLA proof → session created
@@ -957,6 +1048,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 - `packages/shared/src/schemas.test.ts`
 - `apps/server/src/__tests__/vaults.test.ts`
 - `apps/server/src/__tests__/proposals.test.ts`
+- `apps/server/src/__tests__/team.test.ts`
 - `apps/server/src/__tests__/auth.test.ts`
 - `apps/server/src/__tests__/manifest.test.ts`
 - `apps/server/src/__tests__/accessRuleParser.test.ts`
@@ -969,7 +1061,7 @@ Use `@testcontainers/postgresql` for real Postgres.
 2. **Phase 2** — Database schema + ORM services
 3. **Phase 3** — Shared schemas + RPC definitions
 4. **Phase 4** — Server core services (auth/ROLA, gateway client, fee payer, manifest compiler)
-5. **Phase 5** — Server RPC handlers (vaults, proposals, auth, superadmin)
+5. **Phase 5** — Server RPC handlers (vaults, proposals, auth, team)
 6. **Phase 6** — Client SPA (scaffold, atoms, routes, components)
 7. **Phase 7** — Server Radix integration (subintent builder, tx composer, sig extractor, access rule parser)
 8. **Phase 8** — CLI bootstrap tool
