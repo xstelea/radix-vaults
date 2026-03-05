@@ -1,0 +1,5 @@
+{
+  "*.{ts,tsx,js,mjs,cjs}": [
+    "pnpm exec oxlint --fix"
+  ]
+}

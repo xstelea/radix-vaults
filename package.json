@@ -1,0 +1,27 @@
+{
+  "name": "radix-vaults",
+  "private": true,
+  "packageManager": "pnpm@10.25.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --parallel --filter=@radix-vaults/server --filter=@radix-vaults/client",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "check-types": "turbo run check-types",
+    "db:generate": "pnpm --filter @radix-vaults/database db:generate",
+    "db:migrate": "pnpm --filter @radix-vaults/database db:migrate",
+    "db:studio": "pnpm --filter @radix-vaults/database db:studio",
+    "dev:db": "docker compose up -d postgres",
+    "prepare": "husky",
+    "lint-staged": "lint-staged"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
+    "turbo": "^2.6.3",
+    "typescript": "^5.9.3"
+  }
+}

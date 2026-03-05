@@ -1,0 +1,36 @@
+{
+  "name": "@radix-vaults/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "start": "node dist/main.js",
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/platform": "catalog:",
+    "@effect/platform-node": "catalog:",
+    "@effect/rpc": "catalog:",
+    "@effect/sql": "catalog:",
+    "@effect/sql-drizzle": "catalog:",
+    "@effect/sql-pg": "catalog:",
+    "@radix-vaults/database": "workspace:*",
+    "@radix-vaults/shared": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "effect": "catalog:",
+    "pg": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@testcontainers/postgresql": "catalog:",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.15.6",
+    "oxlint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@radix-vaults/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./rpc": "./src/rpc/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --emitDeclarationOnly false --noEmit false --outDir dist",
+    "dev": "tsx --watch src/index.ts",
+    "lint": "oxlint .",
+    "test": "vitest run --passWithNoTests",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@effect/rpc": "catalog:",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

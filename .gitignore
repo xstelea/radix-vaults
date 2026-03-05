@@ -1,3 +1,25 @@
-.meetings
+# Workspace
+node_modules/
+.pnpm-store/
+.turbo/
+**/.turbo/
+
+# Build artifacts
+**/dist/
+**/.turbo/
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Local helper folders
+.meetings/
 .repos/
 .claude/
+
+# Husky generated internals
+.husky/_/
