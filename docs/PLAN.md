@@ -2,7 +2,7 @@
 
 ## Overview
 
-TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. Team account controls member badge mint/recall/burn only. Each vault has its own independent signer set and threshold via owner-role multisig. Badge-gated access still controls dapp entry, while each vault threshold is the authorization gate for vault actions.
+TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bootstrap CLI, shared schemas package. Team account controls member badge mint/recall/burn only. Each vault has its own independent signer set and threshold via owner-role multisig. Reads are public; authenticated member badge holders can perform write actions. Each vault threshold remains the authorization gate for vault signatures.
 
 ## Reference Repos
 
@@ -15,11 +15,11 @@ TypeScript Turbo+pnpm monorepo: Effect RPC server, TanStack Start SPA client, bo
 
 ### Auth Model
 
-Team account is configured from env (`TEAM_ACCOUNT_ADDRESS`) and only governs badge operations. Each vault uses `OwnerRole::Updatable(require_n_of(vault_threshold, [signer_virtual_badges]))` with signer sets chosen per vault. Signers are discovered from team membership (badge holders -> owner rule parse -> Ed25519 key extraction), but each vault controls its own owner rule and signer updates through vault-local `SET_OWNER_ROLE` proposals.
+Team account is configured from env (`TEAM_ACCOUNT_ADDRESS`) and only governs badge operations. Each vault uses `OwnerRole::Updatable(require_n_of(vault_threshold, [signer_virtual_badges]))` with signer sets chosen per vault. Signers are discovered from team membership (badge holders -> owner rule parse -> Ed25519/Secp256k1 extraction), but each vault controls its own owner rule and signer updates through vault-local `SET_OWNER_ROLE` proposals.
 
-**ROLA flow**: server generates a challenge (stored in `challenges` table, single-use), client signs with wallet, server verifies signature proves wallet ownership, then checks badge balance > 0 via Gateway. On success, creates a session (DB row + HTTP-only cookie with signed session ID).
+**ROLA flow**: server generates a challenge (stored in `challenges` table, single-use), client signs with wallet, server verifies signature proves wallet ownership, then checks badge balance > 0 via Gateway. On success, creates or rotates a per-device session (DB row + HTTP-only session cookie).
 
-**Team consistency warning**: compare team account owner-rule signer set with derived member signer set (Ed25519 only). If sets differ, surface a signer-set mismatch warning in Team UI and TeamRpc responses.
+**Team consistency warning**: compare team account owner-rule signer set with derived member signer set (Ed25519 + Secp256k1). If sets differ, surface a signer-set mismatch warning in Team UI, vault pages, proposal pages, and TeamRpc responses.
 
 **Team member badge policy (soul-bound fungible)**: use role restrictions to prevent voluntary transfer (withdraw/deposit constraints), while allowing Team-controlled recall and burn. Members can hold/use badge for access, but cannot transfer it to another account.
 
@@ -37,11 +37,11 @@ No Hono. CORS, routing, and middleware are all Effect-native via `@effect/platfo
 
 ### Signing Flow
 
-Server stores partial tx bytes but returns only metadata (epoch range, discriminator, timestamps, subintent hash, manifest). Client reconstructs the wallet request from those fields via `SubintentRequestBuilder`. Wallet independently computes the same subintent hash. Client sends signed partial hex back to server for validation.
+Server stores partial tx bytes but returns metadata (discriminator, proposer timestamps, subintent hash, manifest). Client reconstructs the wallet request from those fields via `SubintentRequestBuilder` using unix timestamp expiration (`atTime`). Wallet independently computes the same subintent hash. Client sends signed partial hex back to server for validation.
 
 ### Submission
 
-No server-side polling. Server submits to Gateway, returns `{ txId, status: 'submitted' }`. Submission is idempotent — Gateway/Radix Engine deduplicates by subintent hash.
+No server-side polling loop. Server submits to Gateway, returns `{ txId, status: 'submitted' }`. Submission is idempotent — Gateway/Radix Engine deduplicates by hash, and server exposes a manual refresh endpoint for submitted tx state.
 
 ---
 
@@ -91,12 +91,12 @@ invalid_reason              text
 id                             serial PRIMARY KEY
 proposal_id                    integer NOT NULL REFERENCES proposals(id) ON DELETE CASCADE
 signer_public_key              varchar(255) NOT NULL
+signer_key_type                varchar(50)  NOT NULL
 signer_key_hash                varchar(255) NOT NULL
 signature_bytes                text NOT NULL
 signed_partial_transaction_hex text NOT NULL
-is_valid                       boolean NOT NULL DEFAULT true
 created_at                     timestamp NOT NULL DEFAULT now()
-UNIQUE(proposal_id, signer_key_hash)
+UNIQUE(proposal_id, signer_key_type, signer_key_hash)
 ```
 
 ### `submission_attempts`
@@ -124,14 +124,13 @@ expires_at      timestamp NOT NULL
 id          serial PRIMARY KEY
 challenge   varchar(255) NOT NULL UNIQUE
 expires_at  timestamp NOT NULL
-used        boolean NOT NULL DEFAULT false
 ```
 
 ---
 
 ## RPC Groups
 
-Per-group typed error unions (no `S.Never`).
+Per-group typed error unions.
 
 ### AuthRpc
 - `GetChallenge` → returns server-generated challenge (stored in DB, single-use)
@@ -142,22 +141,23 @@ Per-group typed error unions (no `S.Never`).
 ### VaultsRpc
 - `ImportVault` → create DB record (name + account address), read and verify supported access rule (CountOf/AllOf)
 - `CreateVault` → payload: `{ name, threshold, signers }`, build manifest to create new account with owner role `require_n_of(threshold, signers)`, sign with fee payer, submit to Gateway, store DB record with new address
-- `ListVaults` → all vault records
+- `ListVaults` → all vault records except `TEAM_ACCOUNT_ADDRESS`
 - `GetVault` → fetch by `vaultAddress`
 - `GetVaultSigners` → fetch vault's access rule (signers + threshold) from Gateway
 - `ResyncVault` → refresh on-chain state for a vault
 
 ### ProposalsRpc
-- `CreateProposal` → compile manifest, build unsigned partial, store proposal
+- `CreateProposal` → compile + normalize manifest, build unsigned partial, run preview, store proposal
 - `ListProposals` → query by `vaultAddress`, optional status filter (no pagination for MVP)
-- `GetProposal` → fetch by id + on-demand validity check
+- `GetProposal` → pure fetch by id (no mutation)
 - `SignProposal` → extract signature from signed partial hex, validate signer against **vault's** access rule, store
 - `GetSignatureStatus` → count signatures vs **vault's** threshold
 - `SubmitProposal` → compose notarized tx with fee payer, submit to Gateway, return tx hash + 'submitted'
+- `RefreshSubmissionStatus` → manual refresh by txId (no polling loop)
 
 ### TeamRpc
 - `GetTeamSigners` → fetch team account owner rule from Gateway, return signer list + threshold
-- `GetMembers` → query badge holders from Gateway, parse each holder account owner rule, return derived Ed25519 member keys
+- `GetMembers` → query badge holders from Gateway, parse each holder account owner rule, return derived Ed25519/Secp256k1 member keys
 - `GetTeamStatus` → return owner-rule signer set, derived member signer set, and `signerSetMismatch`
 - `GetBadgeResource` → return badge resource address (from env)
 
@@ -177,18 +177,20 @@ export const AppRpc = RpcGroup.make(
 | Decision | Choice |
 |----------|--------|
 | Auth model | Independent per-vault owner-role multisig; no delegated central control |
+| Read access | Public read endpoints; auth required for writes |
+| Write authorization | Any authenticated member badge holder |
 | Groups | Removed — flat vault list |
 | Member records | No DB table — discover members on-chain from badge holders + owner-rule parse |
 | HTTP server | `@effect/platform` NodeHttpServer (not Hono) |
 | RPC transport | `@effect/rpc` + `@effect/platform` |
 | Rendering | SPA only (TanStack Start, no SSR, no Nitro) |
-| Tx submission | No server polling — return tx hash + 'submitted' |
+| Tx submission | No background polling — return tx hash + 'submitted' + manual refresh |
 | Error model | Per-RPC-group typed error unions |
 | Access rules | CountOf + AllOf (flat, no nested) |
+| Key types | Ed25519 + Secp256k1 on server/client; CLI bootstrap remains Ed25519-only |
 | Badge type | Fungible, soul-bound, recallable; transfer blocked by withdraw/deposit restrictions |
 | Badge minting | Team-authorized mint on member badge resource |
-| Signer management | Vault-local proposals call `SET_OWNER_ROLE` on that vault |
-| Vault threshold management | Vault-local `SET_OWNER_ROLE` only (requires vault threshold) |
+| Vault auth rule changes | Vault-local proposals call `SET_OWNER_ROLE` to change signer set and/or threshold |
 | Create vs sign | Separate operations |
 | Signing flow | Server returns metadata, client builds SubintentRequestBuilder |
 | Submission concurrency | Idempotent (Gateway deduplicates) |
@@ -199,8 +201,11 @@ export const AppRpc = RpcGroup.make(
 | Pagination | Not for MVP |
 | Team UI | Separate section from vault list |
 | Team in DB | Team account is a regular vault row matched by `TEAM_ACCOUNT_ADDRESS` |
+| Team in list API | Excluded from `ListVaults` response |
 | Vault add | Import existing (DB record + verify supported access rule) or create new on-chain with threshold (fee payer signs creation tx, stores DB record) |
-| Sessions | DB table, HTTP-only cookie with signed session ID |
+| Sessions | DB table, HTTP-only session cookie |
+| Session policy | 7-day TTL, sliding refresh only below 50% remaining, single active session per device |
+| Badge revocation check | Evaluated at refresh boundary (accepted delay) |
 | DB schema derivation | `drizzle-orm/effect-schema` generates Effect schemas from Drizzle tables |
 | Schema class preservation | Wrap `createSelectSchema().fields` in `S.Class` for RPC compat |
 | Column naming | camelCase JS props, explicit snake_case DB names in Drizzle builders |
@@ -209,6 +214,11 @@ export const AppRpc = RpcGroup.make(
 | TS Radix Engine Toolkit | Supports V2 (SubintentManifestV2, PartialTransactionV2) |
 | `@radix-effects/gateway` | User's own published library on npm |
 | Re-sync | Manual button to refresh vault/team on-chain state |
+| Proposal expiry input | `maxProposerTimestampMs` (unix ms), server sets `minProposerTimestamp=now` |
+| Proposal preview | Required before create and submit; server runs RET + Gateway preview |
+| Preview timeout | Retry once then fail closed |
+| Signature duplicates | Idempotent success |
+| Submission refresh | Manual `RefreshSubmissionStatus` write RPC (no polling loop) |
 
 ---
 
@@ -390,10 +400,10 @@ export const vaults = pgTable('vaults', {
 Same pattern for all 6 tables:
 - `vaults` (PK is `accountAddress`; team row is identified by address match)
 - `proposals` (references `vaults.accountAddress`, fields: `vaultAddress`, `manifestText`, `epochMin`, `epochMax`, `subintentHash`, `intentDiscriminator`, `minProposerTimestamp`, `maxProposerTimestamp`, `partialTransactionBytes`, `createdBy`, `createdAt`, `submittedAt`, `txId`, `invalidReason`)
-- `signatures` (UNIQUE on `proposalId, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `isValid`, `createdAt`)
+- `signatures` (UNIQUE on `proposalId, signerKeyType, signerKeyHash`, fields: `proposalId`, `signerPublicKey`, `signerKeyType`, `signerKeyHash`, `signatureBytes`, `signedPartialTransactionHex`, `createdAt`)
 - `submissionAttempts` (`proposalId`, `feePayerAccount`, `txHash`, `status`, `errorMessage`, `createdAt`)
 - `sessions` (`sessionId`, `walletAddress`, `createdAt`, `expiresAt`)
-- `challenges` (`challenge`, `expiresAt`, `used`)
+- `challenges` (`challenge`, `expiresAt`)
 
 ### Step 2.3: Generate Initial Migration
 
@@ -426,7 +436,7 @@ import { vaults, proposals, signatures } from 'db/schema'
 // --- Hand-written (non-DB) ---
 
 export const ProposalStatus = S.Literal(
-  'created', 'signing', 'ready', 'submitting',
+  'created', 'signing', 'ready',
   'committed', 'failed', 'expired', 'invalid'
 )
 
@@ -523,7 +533,7 @@ export class GetVaultSigners extends Rpc.make('GetVaultSigners')({
 
 // --- Proposals ---
 export class CreateProposal extends Rpc.make('CreateProposal')({
-  payload: { vaultAddress: S.String, manifestText: S.String, expiryEpoch: S.Number },
+  payload: { vaultAddress: S.String, manifestText: S.String, maxProposerTimestampMs: S.Number },
   success: Schemas.Proposal,
   error: S.Union(/* VaultNotFound, ManifestCompileError */),
 }) {}
@@ -552,7 +562,13 @@ export class GetTeamStatus extends Rpc.make('GetTeamStatus')({
 
 export class GetBadgeResource extends Rpc.make('GetBadgeResource')({
   success: S.Struct({ resourceAddress: S.String }),
-  error: S.Never,
+  error: S.Union(/* ConfigError */),
+}) {}
+
+export class RefreshSubmissionStatus extends Rpc.make('RefreshSubmissionStatus')({
+  payload: { proposalId: S.Number },
+  success: S.Struct({ status: Schemas.ProposalStatus, txId: S.String }),
+  error: S.Union(/* ProposalNotFound, GatewayError */),
 }) {}
 
 // --- Groups ---
@@ -560,7 +576,7 @@ export const AuthRpc = RpcGroup.make(GetChallenge, VerifyRola, GetSession, Logou
 export const VaultsRpc = RpcGroup.make(ImportVault, CreateVault, ListVaults, GetVault, GetVaultSigners, ResyncVault).prefix('vaults')
 export const ProposalsRpc = RpcGroup.make(
   CreateProposal, ListProposals, GetProposal,
-  SignProposal, GetSignatureStatus, SubmitProposal
+  SignProposal, GetSignatureStatus, SubmitProposal, RefreshSubmissionStatus
 ).prefix('proposals')
 export const TeamRpc = RpcGroup.make(GetTeamSigners, GetMembers, GetTeamStatus, GetBadgeResource).prefix('team')
 
@@ -618,12 +634,12 @@ ServerLayer = Layer.mergeAll(
 **`apps/server/src/auth/rola.ts`**:
 - ROLA verification service (Effect Service)
 - `GetChallenge`: generate random challenge, store in `challenges` table with expiry
-- `VerifyRola`: look up challenge (verify exists, not used, not expired), delete after use, verify signed challenge proves wallet ownership, check badge balance > 0 via Gateway, create session in DB, return session cookie
+- `VerifyRola`: look up challenge (verify exists and not expired), delete after use, verify signed challenge proves wallet ownership, check badge balance > 0 via Gateway, create/rotate per-device session in DB, return session cookie
 
 **`apps/server/src/auth/middleware.ts`**:
 - RPC middleware that extracts session cookie
 - Looks up session in DB → provides `CurrentUser` context tag (wallet address)
-- Applied to all RPC groups except AuthRpc
+- Applied to write RPCs (reads remain public)
 
 ### Step 4.3: Gateway Client Service
 
@@ -663,7 +679,7 @@ ServerLayer = Layer.mergeAll(
 **`apps/server/src/handlers/vaults.ts`**:
 - `ImportVault` — insert vault record (name + account address), read access rule from Gateway, verify parseable (CountOf/AllOf), store
 - `CreateVault` — accept user-selected signers (from discovered members), build manifest (create account + set owner role to CountOf(threshold, signers)), compile, sign with fee payer key, submit to Gateway, extract new account address from transaction receipt, store vault DB record
-- `ListVaults` — query all vault rows
+- `ListVaults` — query all vault rows except the row matching `TEAM_ACCOUNT_ADDRESS`
 - `GetVault` — fetch by `vaultAddress`
 - `GetVaultSigners` — fetch vault access rule from Gateway → parse access rule → return signers + threshold
 - `ResyncVault` — re-fetch on-chain state (balances + access rule)
@@ -674,34 +690,39 @@ ServerLayer = Layer.mergeAll(
 - `CreateProposal`:
   1. Verify vault exists
   2. Compile manifest (validate + append YIELD_TO_PARENT)
-  3. Fetch current epoch from Gateway
-  4. Validate expiryEpoch > currentEpoch
-  5. Build unsigned PartialTransactionV2 with random intent_discriminator
-  6. Store proposal (manifest, subintent_hash, partial_transaction_bytes, epoch range, status: created)
+  3. Validate `maxProposerTimestampMs > now` and set `minProposerTimestamp=now`
+  4. Build unsigned PartialTransactionV2 with random intent_discriminator
+  5. Run preview (RET + Gateway), retry once on timeout, fail closed on error
+  6. Store proposal (normalized manifest, subintent_hash, partial_transaction_bytes, timestamp bounds, status: created)
   7. Return proposal
+
+  Supported proposal types include vault auth rule changes (`SET_OWNER_ROLE`) to update signer set and/or threshold.
 
 - `SignProposal`:
   1. Deserialize signed partial hex → extract signature + public key
-  2. Hash public key → key_hash
-  3. Look up vault for this proposal → fetch **vault's** access rule from Gateway, verify key_hash is in vault's signer list
+  2. Hash public key + derive key type → (`key_type`, `key_hash`)
+  3. Look up vault for this proposal → fetch **vault's** access rule from Gateway, verify (`key_type`, `key_hash`) is in vault's signer list
   4. Validate subintent hash matches proposal's stored hash
   5. Store signature (UNIQUE constraint handles duplicates)
-  6. Count valid signatures → if >= vault's threshold, update status to 'ready'
+  6. Count signatures → if >= vault's threshold, update status to 'ready'
   7. If first signature and status was 'created', update to 'signing'
   8. Return SignatureStatus
 
 - `SubmitProposal`:
   1. Verify status is 'ready'
-  2. Reconstruct signed partial: combine stored unsigned partial + all valid signatures
-  3. Use FeePayerService to compose NotarizedTransactionV2
-  4. Submit to Gateway
-  5. Store submission attempt
-  6. Update proposal status to 'submitted', store tx_id
-  7. Return `{ txId, status: 'submitted' }`
+  2. Re-check vault access rule threshold on-chain against collected signatures
+  3. Reconstruct signed partial: combine stored unsigned partial + all signatures
+  4. Use FeePayerService to compose NotarizedTransactionV2
+  5. Run preview (RET + Gateway), retry once on timeout, fail closed on error
+  6. Submit to Gateway
+  7. Store submission attempt
+  8. Update proposal status to 'submitted', store tx_id
+  9. Return `{ txId, status: 'submitted' }`
 
 - `ListProposals` — query by `vaultAddress`, optional status filter, no pagination
-- `GetProposal` — fetch by id + on-demand validity check (epoch expiry, access rule changes)
+- `GetProposal` — pure fetch by id (no status/signature mutation)
 - `GetSignatureStatus` — count signatures, compare to vault's threshold
+- `RefreshSubmissionStatus` — query by `txId`, update proposal status to `committed`/`failed` where applicable
 
 ### Step 5.3: Auth Handler
 
@@ -715,18 +736,15 @@ ServerLayer = Layer.mergeAll(
 
 **`apps/server/src/handlers/team.ts`**:
 - `GetTeamSigners` → fetch team owner-rule access rule from Gateway, parse, return signer list + threshold
-- `GetMembers` → enumerate badge holders from Gateway, parse each holder owner rule, extract Ed25519 signer key only
+- `GetMembers` → enumerate badge holders from Gateway, parse each holder owner rule, extract Ed25519/Secp256k1 signer keys
 - `GetTeamStatus` → compare owner-rule signer set vs derived member signer set, return `signerSetMismatch`
 - `GetBadgeResource` → return `TEAM_MEMBER_BADGE_ADDRESS` from env
 
-### Step 5.5: On-Demand Validity Checking
+### Step 5.5: Validity & Status Updates
 
-Embedded in `GetProposal` handler:
-1. Check current epoch > epoch_max → mark 'expired'
-2. Fetch current **vault's** access rule from Gateway
-3. Invalidate signatures from removed signers (set `is_valid = false`)
-4. If valid signature count < threshold and was 'ready' → mark 'invalid'
-5. Return updated proposal
+- `GetProposal` remains read-only.
+- `SubmitProposal` enforces current signer/threshold validity; if checks fail, mark proposal `invalid`.
+- `RefreshSubmissionStatus` is explicit write action for submitted tx status reconciliation.
 
 **Files to create:**
 - `apps/server/src/handlers/vaults.ts`
@@ -789,9 +807,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 **`apps/client/src/atom/proposals.ts`**:
 - `proposalsListAtom(vaultAddress, status?)` — fetches proposals
-- `proposalDetailAtom(id)` — fetches proposal + on-demand validity
+- `proposalDetailAtom(id)` — fetches proposal (read-only)
 - `createProposalAtom` — creates proposal via RPC
 - `signatureStatusAtom(proposalId)` — fetches signature progress
+- `refreshSubmissionStatusAtom(proposalId)` — manual tx status refresh via RPC
 
 **`apps/client/src/atom/signing.ts`**:
 - `handleSignAtom(proposalDetailAtom, sigStatusAtom)`:
@@ -810,14 +829,14 @@ import tailwindcss from '@tailwindcss/vite'
 
 **`apps/client/src/atom/team.ts`**:
 - `teamSignersAtom` — fetches team owner-rule signers via `GetTeamSigners` RPC
-- `membersAtom` — fetches derived members (Ed25519 only) via `GetMembers` RPC
+- `membersAtom` — fetches derived members (Ed25519 + Secp256k1) via `GetMembers` RPC
 - `teamStatusAtom` — fetches signer-set mismatch status via `GetTeamStatus` RPC
 - `badgeResourceAtom` — fetches badge resource address
 
 ### Step 6.5: Manifest Builders (Client-Side)
 
 **`apps/client/src/lib/manifest.ts`**:
-- `buildSetOwnerRoleManifest({ vaultAddress, signers, threshold })` — sets vault owner role with `SET_OWNER_ROLE` to CountOf(threshold, signers)
+- `buildSetOwnerRoleManifest({ vaultAddress, signers, threshold })` — used by `/vaults/$vaultAddress/auth-rules`, sets vault owner role with `SET_OWNER_ROLE` to CountOf(threshold, signers)
 - `buildMintBadgeManifest({ badgeResource, recipientAddress })` — mint 1 badge + deposit
 - `buildRecallBadgeManifest({ targetAccount, badgeResource })` — recall + burn membership badge
 - `buildChangeSignersManifest({ accountAddress, signers, threshold })` — change owner role on the target vault account
@@ -838,9 +857,11 @@ File-based routing under `apps/client/src/routes/`:
 
 **`vaults/add.tsx`** — Add vault form with import/create toggle: import mode enters account address + name (any parseable access rule accepted); create mode enters name + threshold + signer picker (from discovered members), server creates on-chain account.
 
-**`vaults/$vaultAddress.tsx`** — Vault detail: balance, current threshold + signers, proposals list (filterable by status), create proposal button, warning badge for signers not in known members.
+**`vaults/$vaultAddress.tsx`** — Vault detail: balance, current threshold + signers, proposals list (filterable by status), create proposal button, change vault auth rules action, warning badge for signers not in known members.
 
-**`vaults/$vaultAddress/proposals/new.tsx`** — Create proposal form: manifest text editor, expiry epoch selector.
+**`vaults/$vaultAddress/auth-rules.tsx`** — Dedicated flow to change vault auth rules (signer set and/or threshold) by building a `SET_OWNER_ROLE` proposal.
+
+**`vaults/$vaultAddress/proposals/new.tsx`** — Create proposal form: manifest text editor, max expiry timestamp (unix ms / hours input).
 
 **`vaults/$vaultAddress/proposals/$proposalId.tsx`** — Proposal detail: status badge, manifest text, signature progress (collected/threshold), per-signer table, sign button, submit button, tx ID link.
 
@@ -888,7 +909,7 @@ File-based routing under `apps/client/src/routes/`:
 - Uses `@radixdlt/radix-engine-toolkit` (TypeScript WASM, supports V2)
 - Builds unsigned PartialTransactionV2 from:
   - Compiled manifest instructions
-  - IntentHeaderV2 (network_id, epoch range, random discriminator, proposer timestamps)
+  - IntentHeaderV2 (network_id, epoch bounds, random discriminator, proposer timestamps)
 - Returns: serialized partial bytes (hex) + subintent hash
 
 ### Step 7.2: Transaction Composer
@@ -903,8 +924,8 @@ File-based routing under `apps/client/src/routes/`:
 
 **`apps/server/src/manifest/signatureExtractor.ts`**:
 - Deserializes SignedPartialTransactionV2 hex
-- Extracts Ed25519 signature + public key from root_subintent_signatures
-- Computes key_hash (blake2b of public key)
+- Extracts Ed25519 or Secp256k1 signature + public key from root_subintent_signatures
+- Computes key_hash (blake2b of public key) and key_type
 - Validates subintent hash matches expected
 
 ### Step 7.4: Access Rule Parser
@@ -1002,22 +1023,23 @@ Use `@testcontainers/postgresql` for real Postgres.
 **`apps/server/src/__tests__/vaults.test.ts`**:
 - Import vault → reads access rule, stores record
 - Create vault with threshold → creates on-chain account with CountOf(threshold, signers) + stores record
-- List vaults → includes all vault rows (team row present but not special-cased in schema)
+- List vaults → excludes the team row (`TEAM_ACCOUNT_ADDRESS`)
 - Get vault signers → returns vault's access rule
 - Re-sync vault
 - Different vaults can have different thresholds
 
 **`apps/server/src/__tests__/proposals.test.ts`**:
 - Full lifecycle: create → sign → threshold met → submit
-- Duplicate signature rejection (UNIQUE constraint)
+- Duplicate signature idempotent success (UNIQUE constraint)
 - Invalid signer rejection (not in vault's access rule)
 - Signer validation against vault's threshold (not team account)
-- Epoch expiry detection
+- Timestamp expiry detection
 - Status transitions
+- Create/submit require successful preview
 
 **`apps/server/src/__tests__/team.test.ts`**:
 - `GetTeamSigners` returns team owner-rule signer set
-- `GetMembers` derives Ed25519 keys from badge holders only
+- `GetMembers` derives Ed25519/Secp256k1 keys from badge holders
 - Team status returns `signerSetMismatch` when owner-rule and derived member sets differ
 - Badge transfer attempt fails due to withdraw/deposit restrictions
 - Team recall + burn succeeds for membership removal

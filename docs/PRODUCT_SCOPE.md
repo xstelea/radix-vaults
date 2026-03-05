@@ -7,34 +7,30 @@
 On Radix, on-chain accounts can hold tokens and other assets. When an organization shares an account, multiple people need to approve transactions (multisig) so no single person can move funds unilaterally. Coordinating this manually — passing around transaction payloads, collecting signatures offline — is painful and error-prone.
 
 - **Vault** — An on-chain Radix account that holds a team's assets, controlled by multisig so transactions require approval from multiple signers before executing.
-- **Team** — The set of signers whose public keys are listed in the multisig access rule. They collectively approve all vault transactions via threshold signing (n-of-m).
+- **Team** — Badge-holding members who can perform write actions in the app. Vault signers are resolved from each vault's on-chain access rule.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│           Superadmin Account (multisig)          │
-│         3-of-3 signers: Alice, Bob, Carol        │
-└──────────┬──────────────┬──────────────┬─────────┘
-           │ owns         │ owns         │ owns
-           │ (can change  │ (can change  │ (can change
-           │  rules)      │  rules)      │  rules)
-           ▼              ▼              ▼
-    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
-    │  Vault A    │ │  Vault B    │ │  Vault C    │
-    │  2-of-3     │ │  3-of-3     │ │  1-of-3     │
-    │  threshold  │ │  threshold  │ │  threshold  │
-    └─────────────┘ └─────────────┘ └─────────────┘
+│ Team Account (badge ops only: mint/recall/burn) │
+└─────────────────────────────────────────────────┘
+
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│  Vault A    │ │  Vault B    │ │  Vault C    │
+│  2-of-3     │ │  3-of-5     │ │  1-of-2     │
+│ signers A   │ │ signers B   │ │ signers C   │
+└─────────────┘ └─────────────┘ └─────────────┘
 ```
 
-Each vault has its own signing threshold. Vault owner roles delegate to superadmin for rule management. All vaults share the same signer set (copied from superadmin), but each can require a different number of signatures.
+Each vault has its own independent signer set and threshold. Team membership controls who can perform write actions in the app, while vault-local multisig rules control which signatures count for a given vault proposal.
 
 This product provides a web UI to manage vaults, create transaction proposals, collect threshold signatures via the Radix Wallet, and submit approved transactions — replacing manual coordination with a structured workflow.
 
-**Purpose:** Badge-gated web app for managing shared Radix accounts through a proposal → sign → submit workflow, with per-vault threshold multisig backed by a superadmin account.
+**Purpose:** Web app for managing shared Radix accounts through a proposal → sign → submit workflow, with independent per-vault multisig and badge-gated write actions.
 
 **Components:**
 1. **Web App** — SPA for vault management, proposal creation, signing, and submission
 2. **Server** — Effect RPC backend handling proposal lifecycle, auth, and Radix Gateway communication
-3. **Bootstrap CLI** — One-time setup tool to create the superadmin account, badge resource, and initial badges on-chain
+3. **Bootstrap CLI** — One-time setup tool to create the team account, badge resource, and initial badges on-chain
 
 **Core Flow:**
 
@@ -57,8 +53,8 @@ Day-to-day: Badge holder logs in via ROLA → Creates proposal →
 
 | Role | Identification | Capabilities |
 |------|---------------|-------------|
-| Unauthenticated | No wallet / no badge | Nothing — app is fully badge-gated |
-| Team Member | Wallet connected + ROLA account proof + hold member badge (balance > 0) | Log in, view vaults, create proposals, sign proposals, submit proposals |
+| Unauthenticated | No wallet / no badge | Public read-only access (vaults/proposals/team status views) |
+| Team Member | Wallet connected + ROLA account proof + hold member badge (balance > 0) | Log in, perform write actions (create/sign/submit/resync/refresh) |
 | Signer | Key listed in a **vault's** access rule | Above + signatures count toward the vault's proposal threshold |
 
 **Authentication:**
@@ -90,10 +86,11 @@ sequenceDiagram
 ```
 
 **Authorization Model:**
-- Badge ownership = app access (binary: you have it or you don't)
-- All vaults share one signer set but each has its own threshold
-- No per-vault permissions — any badge holder can create proposals on any vault
-- Superadmin signer status is determined on-chain, not in the database
+- Badge ownership = write access (binary: you have it or you don't)
+- Reads are public
+- Vault signer sets are vault-local and can differ between vaults
+- No per-vault app permissions — any badge holder can create proposals on any vault
+- Signer status is determined on-chain, not in the database
 
 ---
 
@@ -101,7 +98,7 @@ sequenceDiagram
 
 ### 3.1 Vault
 
-A Radix on-chain account whose **owner role** delegates to the superadmin account (so superadmin can change the vault's rules) and whose **auth role** has a per-vault threshold with the same signers as superadmin — `CountOf(vault_threshold, [superadmin signers])`. Vaults can be added to the app in two ways: **imported** by providing an existing account address and display name (any parseable access rule accepted), or **created** on-chain by the server with a specified threshold (signers copied from superadmin's current signer set, transaction fees paid by the server fee payer key). No multisig approval is needed for vault creation — the fee payer signs the creation transaction directly.
+A Radix on-chain account with a vault-local owner/auth multisig rule (`CountOf`/`AllOf`) and independent signer set. Vaults can be added to the app in two ways: **imported** by providing an existing account address and display name (supported flat `CountOf`/`AllOf` only), or **created** on-chain by the server with a specified threshold and signer set (transaction fees paid by the server fee payer key). No multisig approval is needed for vault creation — the fee payer signs the creation transaction directly.
 
 ### 3.2 Proposal
 
@@ -110,28 +107,25 @@ A transaction manifest that requires threshold signatures before it can be submi
 ```
 Created → Signing (first signature received) → Ready (threshold met) →
   → Submitted (sent to network)
-  → Expired (epoch range exceeded)
-  → Invalid (signer removed from access rule after signing)
-  → Failed (transaction rejected by network)
+  → Committed (network success)
+  → Failed (network rejection)
+  → Expired (max proposer timestamp exceeded)
+  → Invalid (submit-time signer/threshold re-check or preview failure)
 ```
 
-A proposal becomes invalid if **the vault's** access rule changes after signatures were collected (e.g., a signer is removed or threshold is changed), reducing valid signatures below threshold.
+A proposal becomes invalid when submit-time checks fail (e.g., signer/threshold drift or preview failure). `GetProposal` is read-only and does not mutate validity state.
 
 ### 3.3 Signature
 
-A cryptographic approval from a signer on a proposal's subintent. Signatures are collected via Radix Wallet's pre-authorization flow. Each signer can sign a proposal at most once. The server validates that the signer's key hash appears in **the vault's** current access rule.
+A cryptographic approval from a signer on a proposal's subintent. Signatures are collected via Radix Wallet's pre-authorization flow. Each signer can sign a proposal at most once. The server validates that the signer's (`keyType`, `keyHash`) appears in **the vault's** current access rule.
 
-### 3.4 Superadmin
+### 3.4 Team Account
 
-A multisig account that owns all vaults and manages their access rules. Defined by:
-- **Signers** — public keys authorized to approve transactions
-- **Threshold** — minimum number of signatures required for superadmin operations (n-of-m)
-
-Manages vault access rules (change thresholds, sync signers) and badge management (mint/burn) alongside its own signer set. Supports **CountOf** (n-of-m) and **AllOf** (all must sign) access rules. Flat rules only — no nested structures.
+A team account used for membership badge operations and team visibility in the app. Team-level signer info is discovered on-chain and shown as a consistency signal relative to derived member signer sets.
 
 ### 3.5 Badge
 
-A fungible, soul-bound token used as the ROLA authentication gate. Minted via superadmin proposals. Holding any balance > 0 grants app access. The badge resource has mint authority on the superadmin account, so minting/burning requires superadmin threshold approval.
+A fungible, soul-bound token used as the write-authorization gate. Holding any balance > 0 grants write access. Team-controlled mint/recall/burn manages membership lifecycle.
 
 ---
 
@@ -141,9 +135,10 @@ A fungible, soul-bound token used as the ROLA authentication gate. Minted via su
 
 | Action | Description |
 |--------|-------------|
-| Create vault | Create a new on-chain account with specified `threshold`, signers fetched from superadmin, owner delegated to superadmin; fee payer signs the transaction |
+| Create vault | Create a new on-chain account with specified `threshold` and signer set; fee payer signs the transaction |
 | Import vault | Register an existing on-chain account by address + display name; verify supported access rule (any parseable CountOf/AllOf accepted) |
-| List vaults | View all imported vaults (excludes superadmin) |
+| Change vault auth rules | Create a vault-local proposal that calls `SET_OWNER_ROLE` to update signer set and/or threshold; executes after vault threshold approvals |
+| List vaults | View all imported vaults (team account hidden from vault list) |
 | View vault | See vault balance, proposal history, current threshold + signers |
 | View vault signers | Show vault's current signer set + threshold (fetched from on-chain access rule) |
 | Re-sync vault | Manually refresh on-chain state (balances + access rule) |
@@ -180,7 +175,7 @@ sequenceDiagram
 
     U->>B: Enter vault name + threshold
     B->>S: Create vault request (name + threshold)
-    S->>RTK: Build manifest (create account + set owner to superadmin + set auth to CountOf(threshold, signers))
+    S->>RTK: Build manifest (create account + set owner/auth to CountOf(threshold, signers))
     RTK-->>S: Compiled transaction
     S->>S: Sign with fee payer key
     S->>GW: Submit transaction
@@ -193,10 +188,10 @@ sequenceDiagram
 
 | Action | Description |
 |--------|-------------|
-| Create proposal | Write a transaction manifest + set expiry epoch; server compiles, validates, and stores |
-| View proposal | See manifest text, status, epoch range, transaction ID (if submitted) |
+| Create proposal | Write a transaction manifest + set max proposer timestamp (unix ms); server compiles, validates, previews, and stores |
+| View proposal | See manifest text, status, proposer timestamp bounds, transaction ID (if submitted) |
 | List proposals | Filter by vault and/or status |
-| Validity check | On-demand: detects epoch expiry or signer-set changes that invalidate signatures |
+| Refresh submitted status | Manual action to reconcile submitted tx state by txId |
 
 **Create Proposal**
 
@@ -207,14 +202,15 @@ sequenceDiagram
     participant S as Server
     participant DB as Database
 
-    U->>B: Write manifest + set expiry epoch
+    U->>B: Write manifest + set max proposer timestamp
     B->>S: Create proposal
     S->>S: Compile & validate manifest
+    S->>S: Preview (RET + Gateway)
     S->>DB: Store proposal (status: Created)
     S-->>B: Proposal created
 ```
 
-**Validity Check**
+**Manual Submission Status Refresh**
 
 ```mermaid
 sequenceDiagram
@@ -223,15 +219,13 @@ sequenceDiagram
     participant GW as Radix Gateway
     participant DB as Database
 
-    B->>S: Check proposal validity
-    S->>GW: Fetch current epoch + vault access rule
-    GW-->>S: Current epoch, access rule
-    alt Epoch range exceeded
-        S->>DB: Update status → Expired
-    else Signer removed from vault access rule
-        S->>DB: Update status → Invalid
+    B->>S: Refresh submitted status
+    S->>GW: Query transaction by txId
+    GW-->>S: Transaction status
+    alt Committed or Failed
+        S->>DB: Update proposal status
     end
-    S-->>B: Current validity status
+    S-->>B: Current status
 ```
 
 ### 4.3 Signing
@@ -242,7 +236,7 @@ sequenceDiagram
 | View signature progress | See collected vs. required signatures, per-signer status |
 
 The signing flow:
-1. Client builds a `SubintentRequest` from proposal metadata (epoch range, discriminator, timestamps, subintent hash)
+1. Client builds a `SubintentRequest` from proposal metadata (discriminator, proposer timestamps, subintent hash)
 2. Radix Wallet independently computes the same subintent hash and signs
 3. Client sends signed partial transaction back to server
 4. Server extracts and validates signature against **vault's** access rule
@@ -260,7 +254,7 @@ sequenceDiagram
 
     U->>B: Click "Sign"
     B->>S: Get subintent data
-    S-->>B: Epoch range, discriminator, subintent hash
+    S-->>B: Proposer timestamps, discriminator, subintent hash
     B->>W: SubintentRequest (pre-authorization)
     W->>U: Review & approve
     U->>W: Approve
@@ -280,7 +274,7 @@ sequenceDiagram
 
 | Action | Description |
 |--------|-------------|
-| Submit proposal | Compose notarized transaction with fee payer, submit to Gateway |
+| Submit proposal | Re-check signer threshold, run preview, compose notarized transaction with fee payer, submit to Gateway |
 | View result | Transaction ID + submitted status |
 
 **Submit Proposal**
@@ -296,28 +290,31 @@ sequenceDiagram
     U->>B: Click "Submit"
     B->>S: Submit proposal
     S->>DB: Fetch proposal + all signatures
+    S->>GW: Re-check vault access rule
     S->>S: Compose notarized transaction (signatures + fee payer)
+    S->>S: Preview (RET + Gateway)
+    S->>S: Derive txId before submit
     S->>GW: Submit transaction
-    GW-->>S: Transaction ID
-    S->>DB: Update status → Submitted, store tx ID
-    S-->>B: Transaction ID
+    GW-->>S: Submission accepted (or duplicate)
+    S->>DB: Update status → Submitted, store txId
+    S-->>B: txId
 ```
 
-Submission is idempotent — the Radix network deduplicates by subintent hash. No server-side polling; the user checks transaction status via the Radix Dashboard or explorer.
+Submission is idempotent — the Radix network deduplicates by hash. No server-side polling loop; users can trigger manual status refresh in-app or check explorers.
 
-### 4.5 Superadmin Operations
+### 4.5 Team Operations
 
 | Action | Description |
 |--------|-------------|
-| View signers | Current signer list + threshold (fetched from on-chain state) |
+| View team signers | Current signer list + threshold (fetched from on-chain state) |
+| View derived members | Badge holders parsed to signer keys (Ed25519/Secp256k1) |
+| View signer-set mismatch | Compare owner-rule signer set vs derived member signer set |
 | View badge resource | Badge resource address |
-| Mint badge | Create a proposal on the superadmin vault to mint a badge to a specified account |
-| Burn/revoke badge | Create a proposal to burn a badge from a specified account |
-| Change signers | Create a proposal to modify the superadmin access rule (add/remove signers, change threshold) |
-| Change vault threshold | Create a proposal on superadmin to change a vault's auth rule (threshold or signers) |
-| Re-sync | Refresh superadmin on-chain state |
+| Mint badge | Team-governed badge mint flow |
+| Burn/revoke badge | Team-governed recall + burn flow |
+| Re-sync | Refresh team on-chain state |
 
-All superadmin operations (mint, burn, signer changes) go through the standard proposal → sign → submit flow on the superadmin vault.
+Vault auth rule changes remain vault-local proposal actions (`SET_OWNER_ROLE` on the target vault).
 
 ---
 
@@ -328,18 +325,19 @@ All superadmin operations (mint, burn, signer changes) go through the standard p
 | Page | Route | Key Actions |
 |------|-------|-------------|
 | Dashboard | `/` | View vault list + pending proposal counts |
-| Add Vault | `/vaults/add` | Import existing vault by address or create new vault on-chain (with threshold input; signers auto-fetched from superadmin) |
+| Add Vault | `/vaults/add` | Import existing vault by address or create new vault on-chain (name + threshold + signer set) |
 | Vault Detail | `/vaults/$vaultId` | View balance, current threshold + signers, browse proposals (filterable by status), create proposal |
-| Create Proposal | `/vaults/$vaultId/proposals/new` | Write manifest text, set expiry epoch, submit |
+| Change Vault Auth Rules | `/vaults/$vaultId/auth-rules` | Update signer set and/or threshold through a vault-local proposal |
+| Create Proposal | `/vaults/$vaultId/proposals/new` | Write manifest text, set max proposer timestamp, submit |
 | Proposal Detail | `/vaults/$vaultId/proposals/$proposalId` | View status, manifest, signature progress; sign or submit |
-| Superadmin | `/superadmin` | View signers + threshold, badge resource, vault threshold management, re-sync |
-| Badge Management | `/superadmin/badges` | Mint badge (enter recipient), burn/revoke badge |
-| Signer Management | `/superadmin/signers` | View current signers, create proposal to change access rule |
-| Superadmin Proposals | `/superadmin/proposals` | List proposals for badge mints, signer changes |
+| Team | `/team` | View team signers, derived members, mismatch warning, badge resource, re-sync |
+| Badge Management | `/team/badges` | Mint badge (enter recipient), burn/revoke badge |
+| Team Signers | `/team/signers` | View current team owner-rule signers |
+| Team Proposals | `/team/proposals` | List team proposals |
 
 ### 5.2 Layout
 
-- **Sidebar navigation:** Vault list, superadmin section, connected wallet info
+- **Sidebar navigation:** Vault list, team section, connected wallet info
 - **Wallet connect button:** Triggers ROLA login flow
 - **Responsive:** Desktop-first with basic mobile support
 
@@ -373,8 +371,8 @@ One-time setup tool that creates the on-chain infrastructure needed before the w
 
 ### 6.3 Steps
 
-1. Create superadmin multisig account with specified signers + threshold
-2. Create soul-bound fungible badge resource with mint authority on superadmin
+1. Create team multisig account with specified signers + threshold
+2. Create soul-bound fungible badge resource with mint/recall authority on team account
 3. Mint initial badges to specified recipient accounts
 
 **Bootstrap**
@@ -393,15 +391,15 @@ sequenceDiagram
     RTK-->>CLI: Notarized transaction
     CLI->>GW: Submit transaction
     GW-->>CLI: Transaction ID
-    CLI-->>Op: Output SUPERADMIN_ADDRESS + ROLA_BADGE_RESOURCE
+    CLI-->>Op: Output TEAM_ACCOUNT_ADDRESS + TEAM_MEMBER_BADGE_ADDRESS
 ```
 
 ### 6.4 Outputs
 
 Environment variable values for the server and client:
 ```
-SUPERADMIN_ADDRESS=account_tdx_2_1...
-ROLA_BADGE_RESOURCE=resource_tdx_2_1...
+TEAM_ACCOUNT_ADDRESS=account_tdx_2_1...
+TEAM_MEMBER_BADGE_ADDRESS=resource_tdx_2_1...
 ```
 
 ---
@@ -412,15 +410,16 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 
 | Requirement | Acceptance |
 |-------------|-----------|
-| Badge-gated access | Only users holding the ROLA badge can log in |
+| Write access gate | Only users holding the member badge can perform write actions |
 | Add vault | User can import an existing on-chain account (any parseable access rule) or create a new vault on-chain with specified threshold; app stores the record |
-| Create proposal | User can submit a manifest; server compiles, validates, and stores the proposal |
+| Change vault auth rules | User can create and submit a vault-local `SET_OWNER_ROLE` proposal to change signer set and/or threshold |
+| Create proposal | User can submit a manifest; server compiles, validates, previews, and stores the proposal |
 | Sign proposal | Signer can approve via Radix Wallet; signature is validated and recorded |
-| Threshold detection | System correctly identifies when enough valid signatures are collected against the per-vault threshold |
-| Submit transaction | Fully-signed proposal is composed with fee payer and submitted to Gateway |
-| Validity checking | Expired proposals and invalidated signatures are detected on demand |
-| Superadmin management | Badge minting/burning and signer changes work through the standard proposal flow |
-| Bootstrap CLI | Creates superadmin account, badge resource, and initial badges in one run |
+| Threshold detection | System correctly identifies when enough signatures are collected against the per-vault threshold |
+| Submit transaction | Fully-signed proposal is re-checked + previewed, then composed with fee payer and submitted to Gateway |
+| Status refresh | Submitted transactions can be manually refreshed in-app |
+| Team management | Badge mint/recall/burn and team visibility flows are available |
+| Bootstrap CLI | Creates team account, badge resource, and initial badges in one run |
 
 ### 7.2 Non-Functional Requirements
 
@@ -429,7 +428,7 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 | Network support | Stokenet and Mainnet via configuration; separate deployment per network, configured via `NETWORK_ID` env var |
 | Wallet support | Radix Wallet via dApp Toolkit |
 | Idempotent submission | Re-submitting the same proposal does not create duplicates |
-| Session security | HTTP-only cookies, server-side sessions, single-use ROLA challenges |
+| Session security | HTTP-only cookies, per-device sessions, sliding expiration, single-use ROLA challenges |
 | Fee payer | Dedicated account with small XRD balance, manual top-up |
 
 ---
@@ -440,12 +439,12 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 |------|--------|
 | Pagination | Not needed for MVP scale |
 | Server-side rendering (SSR) | SPA-only for simplicity |
-| Transaction status polling | User checks status via Radix Dashboard; server returns tx hash only |
+| Background transaction polling | Manual refresh endpoint is sufficient for MVP |
 | Nested access rules | Only flat CountOf/AllOf supported; no AnyOf or nested structures |
-| Per-vault signer sets | All vaults share superadmin signers; only thresholds differ per vault |
+| Automated badge revocation checks on every write | Membership is rechecked on session refresh boundary in MVP |
 | Real-time updates | Manual re-sync buttons instead of WebSocket/SSE push |
 | Automated fee payer top-up | Manual XRD funding of fee payer account |
-| Audit log | No history of who signed or when beyond current proposal state |
+| Full audit/event stream | Keep DB records only; no dedicated audit subsystem |
 
 ---
 
@@ -456,5 +455,4 @@ ROLA_BADGE_RESOURCE=resource_tdx_2_1...
 | Fee payer funding | Ops | How is the fee payer account initially funded and monitored for low balance? |
 | Vault removal | Data model | Can vaults be removed from the database, or only archived? |
 | Manifest templates | UX | Should the app provide pre-built manifest templates for common operations (transfers, staking)? |
-| Proposal expiry notification | UX | Should the app warn users when proposals are approaching epoch expiry? |
-| Access rule migration | Superadmin | When superadmin signers change, vault auth rules become stale (still have old signer set). Should vaults auto-sync, or require manual re-sync? In-flight proposals may also be invalidated. |
+| Proposal expiry warning | UX | Current plan warns for long expiry windows (>30 days); should there also be near-expiry warnings? |
