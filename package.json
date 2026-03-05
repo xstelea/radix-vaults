@@ -21,6 +21,7 @@
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^16.2.6",
+    "oxlint": "catalog:",
     "turbo": "^2.6.3",
     "typescript": "^5.9.3"
   }
