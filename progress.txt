@@ -1,0 +1,16 @@
+# Radix Vaults — Implementation Progress
+
+## Issue #3: Public vault reads (DONE)
+- Merged via PR #16 (commit 84a4fb7)
+- Dashboard list + vault detail views with RPC
+
+## Issue #4: ROLA auth + member badge write gate (DONE)
+- Commit 1186296 on main
+- ROLA challenge-response login (ed25519/secp256k1 signature verification)
+- DB-backed single-use challenges (5min TTL) and sessions (24h TTL)
+- Badge balance check via Gateway API before granting write access
+- HTTP-only session cookie auth with requireAuth middleware
+- Auth HTTP routes: GET /auth/challenge, POST /auth/verify, GET /auth/session, POST /auth/logout
+- Client: wallet connect button + radix dapp toolkit integration
+- Tests: challengeStore (4), rola verification (3), auth e2e (4), plus existing tests (8) = 19 total
+- Schema migration 0002 for challenges + sessions tables
