@@ -22,5 +22,9 @@ node_modules/
 .repos/
 .claude/
 
+# Playwright
+**/test-results/
+**/playwright-report/
+
 # Husky generated internals
 .husky/_/

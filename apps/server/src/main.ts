@@ -1,10 +1,16 @@
 import { HttpLayerRouter, HttpServerResponse } from '@effect/platform'
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { RpcSerialization, RpcServer } from '@effect/rpc'
-import { AppRpc } from '@radix-vaults/shared'
+import { AppRpc, AuthConfig } from '@radix-vaults/shared'
 import { Effect, Layer, Logger } from 'effect'
 import { createServer } from 'node:http'
+import { AuthRoutesLive } from './auth/routes'
+import { BadgeChecker } from './auth/badgeChecker'
+import { ChallengeStore } from './auth/challengeStore'
+import { RolaVerifier } from './auth/rola'
+import { SessionStore } from './auth/sessionStore'
 import { DatabaseMigrations } from './db/migrate'
+import { ORM } from './db/orm'
 import { PgClientLive } from './db/pgClient'
 import { seedTracerBulletData } from './db/seed'
 import { AppRpcHandlersLive } from './rpc/handlers'
@@ -26,9 +32,17 @@ const HealthRouteLive = HttpLayerRouter.add(
   HttpServerResponse.unsafeJson({ status: 'ok' })
 )
 
+const AuthServicesLive = Layer.mergeAll(
+  ChallengeStore.Default,
+  SessionStore.Default,
+  RolaVerifier.Default,
+  BadgeChecker.Default
+).pipe(Layer.provide(ORM.Default), Layer.provide(AuthConfig.Live))
+
 const ServerLive = HttpLayerRouter.serve(
-  Layer.mergeAll(RpcRoutesLive, HealthRouteLive)
+  Layer.mergeAll(RpcRoutesLive, HealthRouteLive, AuthRoutesLive)
 ).pipe(
+  Layer.provide(AuthServicesLive),
   Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
   Layer.provideMerge(PgClientLive)
 )

@@ -17,6 +17,8 @@
     "@effect/sql": "catalog:",
     "@effect/sql-drizzle": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@radix-vaults/database": "workspace:*",
     "@radix-vaults/shared": "workspace:*",
     "drizzle-orm": "catalog:",
