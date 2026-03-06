@@ -1,18 +1,28 @@
 import { FetchHttpClient } from '@effect/platform'
 import { RpcClient, RpcSerialization } from '@effect/rpc'
-import { AppRpc, type ServerHealth } from '@radix-vaults/shared'
+import {
+  AppRpc,
+  type VaultDetail,
+  type VaultListItem,
+  type VaultSigners
+} from '@radix-vaults/shared'
 import { Effect } from 'effect'
+import { envVars } from './envVars'
 
-const rpcUrl = import.meta.env.VITE_RPC_URL ?? '/rpc'
+const rpcUrl = envVars.RPC_URL
 
-export const getServerHealth = Effect.gen(function* () {
-  const client = yield* RpcClient.make(AppRpc)
-  return yield* client.GetServerHealth({})
-}).pipe(
-  Effect.scoped,
-  Effect.provide(RpcClient.layerProtocolHttp({ url: rpcUrl })),
-  Effect.provide(RpcSerialization.layerJson),
-  Effect.provide(FetchHttpClient.layer)
-)
+export class RadixVaultRpcClient extends Effect.Service<RadixVaultRpcClient>()(
+  '@radix-vaults/client/RpcClient',
+  {
+    scoped: Effect.gen(function* () {
+      const client = yield* RpcClient.make(AppRpc).pipe(
+        Effect.provide(RpcClient.layerProtocolHttp({ url: rpcUrl })),
+        Effect.provide(RpcSerialization.layerJson),
+        Effect.provide(FetchHttpClient.layer)
+      )
+      return client
+    })
+  }
+) {}
 
-export type { ServerHealth }
+export type { VaultListItem, VaultDetail, VaultSigners }
