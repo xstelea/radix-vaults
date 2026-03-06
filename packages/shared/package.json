@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@effect/rpc": "catalog:",
+    "@radix-effects/shared": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {

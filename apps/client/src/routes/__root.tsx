@@ -4,6 +4,8 @@ import {
   Outlet,
   Scripts
 } from '@tanstack/react-router'
+import { RegistryProvider } from '@effect-atom/atom-react'
+import { Toaster } from 'sonner'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -33,9 +35,12 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <div className="app-shell">
-      <Outlet />
-    </div>
+    <RegistryProvider>
+      <Toaster />
+      <div className="app-shell">
+        <Outlet />
+      </div>
+    </RegistryProvider>
   )
 }
 

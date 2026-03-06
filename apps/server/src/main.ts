@@ -6,26 +6,19 @@ import { Effect, Layer, Logger } from 'effect'
 import { createServer } from 'node:http'
 import { DatabaseMigrations } from './db/migrate'
 import { PgClientLive } from './db/pgClient'
-import { checkDatabase } from './health'
+import { seedTracerBulletData } from './db/seed'
+import { AppRpcHandlersLive } from './rpc/handlers'
 
 const port = Number(process.env.SERVER_PORT ?? '3001')
-
-const HandlersLive = AppRpc.toLayer({
-  GetServerHealth: () =>
-    checkDatabase.pipe(
-      Effect.map((dbStatus) => ({
-        status: 'ok' as const,
-        dbStatus,
-        timestamp: new Date().toISOString()
-      }))
-    )
-})
 
 const RpcRoutesLive = RpcServer.layerHttpRouter({
   group: AppRpc,
   path: '/rpc',
   protocol: 'http'
-}).pipe(Layer.provide(HandlersLive), Layer.provide(RpcSerialization.layerJson))
+}).pipe(
+  Layer.provide(AppRpcHandlersLive),
+  Layer.provide(RpcSerialization.layerJson)
+)
 
 const HealthRouteLive = HttpLayerRouter.add(
   'GET',
@@ -43,6 +36,7 @@ const ServerLive = HttpLayerRouter.serve(
 const startup = Effect.gen(function* () {
   const runMigrations = yield* DatabaseMigrations
   yield* runMigrations()
+  yield* seedTracerBulletData.pipe(Effect.provide(PgClientLive))
   yield* Effect.logInfo(
     `Effect RPC server listening on http://localhost:${port}/rpc`
   )
