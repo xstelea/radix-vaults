@@ -1,4 +1,8 @@
-import { AuthConfig } from '@radix-vaults/shared'
+import {
+  type AccountAddress,
+  type HexString,
+  AuthConfig
+} from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import { describe, expect, it } from '@effect/vitest'
 import { RolaVerifier, RolaVerificationError } from './rola'
@@ -25,13 +29,13 @@ describe('RolaVerifier', () => {
       Effect.gen(function* () {
         const result = yield* Effect.either(
           verifier.verify({
-            address: 'account_tdx_2_1test',
+            address: 'account_tdx_2_1test' as AccountAddress,
             type: 'account',
             challenge:
-              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1',
+              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1' as HexString,
             proof: {
-              publicKey: 'a'.repeat(64),
-              signature: 'b'.repeat(128),
+              publicKey: 'a'.repeat(64) as HexString,
+              signature: 'b'.repeat(128) as HexString,
               curve: 'curve25519'
             }
           })
@@ -54,13 +58,13 @@ describe('RolaVerifier', () => {
       Effect.gen(function* () {
         const result = yield* Effect.either(
           verifier.verify({
-            address: 'account_tdx_2_1test',
+            address: 'account_tdx_2_1test' as AccountAddress,
             type: 'account',
             challenge:
-              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1',
+              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1' as HexString,
             proof: {
-              publicKey: 'a'.repeat(64),
-              signature: 'b'.repeat(128),
+              publicKey: 'a'.repeat(64) as HexString,
+              signature: 'b'.repeat(128) as HexString,
               curve: 'curve25519' // we only test signature verification errors since the schema enforces curve types
             }
           })
@@ -75,13 +79,13 @@ describe('RolaVerifier', () => {
       Effect.gen(function* () {
         const result = yield* Effect.either(
           verifier.verify({
-            address: 'account_tdx_2_1test',
+            address: 'account_tdx_2_1test' as AccountAddress,
             type: 'account',
             challenge:
-              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1',
+              '17f3cb369f2632454f7f22c24e72b0adf7b95e36f2297467d3ff04010b2967e1' as HexString,
             proof: {
-              publicKey: 'zz',
-              signature: 'ab'.repeat(32),
+              publicKey: 'zz' as HexString,
+              signature: 'ab'.repeat(32) as HexString,
               curve: 'curve25519'
             }
           })

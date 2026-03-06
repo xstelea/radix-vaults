@@ -1,4 +1,5 @@
+export * from './api'
 export * from './auth'
 export * from './config'
-export * from './rpc'
 export * from './vaultAddress'
+export { AccountAddress, HexString } from '@radix-effects/shared'

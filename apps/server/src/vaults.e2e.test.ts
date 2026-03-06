@@ -1,9 +1,18 @@
-import { FetchHttpClient, HttpLayerRouter } from '@effect/platform'
+import {
+  FetchHttpClient,
+  HttpApiBuilder,
+  HttpApiClient
+} from '@effect/platform'
 import { NodeHttpServer } from '@effect/platform-node'
-import { RpcClient, RpcSerialization, RpcServer } from '@effect/rpc'
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { AppRpc, VaultAddress } from '@radix-vaults/shared'
+import {
+  type AccountAddress,
+  type HexString,
+  AppApi,
+  SessionMiddleware,
+  VaultAddress
+} from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Layer, Redacted } from 'effect'
@@ -12,7 +21,7 @@ import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import pg from 'pg'
-import { AppRpcHandlersLive } from './rpc/handlers'
+import { VaultHandlersLive } from './api/vaultHandlers'
 import { PgContainer } from './test/PgContainer'
 
 const resolveMigrationsFolder = () => {
@@ -65,23 +74,52 @@ const seedReadFlowData = Effect.gen(function* () {
   `
 })
 
+const MockSessionMiddleware = Layer.succeed(
+  SessionMiddleware,
+  Effect.succeed({
+    sessionId: 'test',
+    accountAddress: 'account_tdx_2_1testuser' as AccountAddress
+  })
+)
+
+const MockAuthHandlersLive = HttpApiBuilder.group(AppApi, 'auth', (handlers) =>
+  handlers
+    .handle('createChallenge', () =>
+      Effect.succeed({ challenge: 'mock' as HexString })
+    )
+    .handle('verify', () =>
+      Effect.succeed({
+        accountAddress: 'mock' as AccountAddress,
+        expiresAt: 'mock'
+      })
+    )
+    .handle('getSession', () =>
+      Effect.succeed({ accountAddress: 'mock' as AccountAddress })
+    )
+    .handle('logout', () => Effect.succeed({ ok: true as const }))
+)
+
+const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
+  handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
+)
+
 const makeServerLive = (
   port: number,
   pgClientLayer: Layer.Layer<SqlClient.SqlClient, unknown>
-) =>
-  HttpLayerRouter.serve(
-    RpcServer.layerHttpRouter({
-      group: AppRpc,
-      path: '/rpc',
-      protocol: 'http'
-    }).pipe(
-      Layer.provide(AppRpcHandlersLive),
-      Layer.provide(RpcSerialization.layerJson)
-    )
-  ).pipe(
+) => {
+  const ApiLive = HttpApiBuilder.api(AppApi).pipe(
+    Layer.provide(MockAuthHandlersLive),
+    Layer.provide(VaultHandlersLive),
+    Layer.provide(HealthHandlersLive),
+    Layer.provide(MockSessionMiddleware)
+  )
+
+  return HttpApiBuilder.serve().pipe(
+    Layer.provide(ApiLive),
     Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
     Layer.provideMerge(pgClientLayer)
   )
+}
 
 describe('vault read flow e2e', () => {
   it.scopedLive(
@@ -119,38 +157,37 @@ describe('vault read flow e2e', () => {
         )
         yield* Effect.sleep('250 millis')
 
-        const rpcFlow = Effect.gen(function* () {
-          const client = yield* RpcClient.make(AppRpc)
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
 
-          const list = yield* client.ListVaults({})
+          const list = yield* client.vaults.list()
           expect(list).toHaveLength(2)
           expect(list[0]?.name).toBe('Alpha Vault')
           expect(list[0]?.pendingProposalCount).toBe(1)
           expect(list[1]?.name).toBe('Beta Vault')
           expect(list[1]?.pendingProposalCount).toBe(1)
 
-          const detail = yield* client.GetVaultDetail({
-            vaultAddress: VaultAddress.make('account_tdx_2_1qalpha')
+          const detail = yield* client.vaults.detail({
+            path: {
+              vaultAddress: VaultAddress.make('account_tdx_2_1qalpha')
+            }
           })
           expect(detail.name).toBe('Alpha Vault')
           expect(detail.pendingProposalCount).toBe(1)
           expect(detail.balanceXrd).toBe('0')
 
-          const signers = yield* client.GetVaultSigners({
-            vaultAddress: VaultAddress.make('account_tdx_2_1qalpha')
+          const signers = yield* client.vaults.signers({
+            path: {
+              vaultAddress: VaultAddress.make('account_tdx_2_1qalpha')
+            }
           })
           expect(signers.threshold).toBe(0)
           expect(signers.signers).toHaveLength(0)
-        }).pipe(
-          Effect.scoped,
-          Effect.provide(
-            RpcClient.layerProtocolHttp({ url: `http://localhost:${port}/rpc` })
-          ),
-          Effect.provide(RpcSerialization.layerJson),
-          Effect.provide(FetchHttpClient.layer)
-        )
+        }).pipe(Effect.provide(FetchHttpClient.layer))
 
-        yield* rpcFlow
+        yield* apiFlow
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )

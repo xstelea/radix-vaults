@@ -1,19 +1,19 @@
 import type { VaultAddress } from '@radix-vaults/shared'
 import { Effect } from 'effect'
-import { RadixVaultRpcClient } from '@/lib/rpcClient'
+import { AppApiClient } from '@/lib/apiClient'
 
 export class VaultService extends Effect.Service<VaultService>()(
   '@radix-vaults/client/VaultService',
   {
-    dependencies: [RadixVaultRpcClient.Default],
+    dependencies: [AppApiClient.Default],
     effect: Effect.gen(function* () {
-      const client = yield* RadixVaultRpcClient
+      const client = yield* AppApiClient
       return {
-        list: () => client.ListVaults({}),
+        list: () => client.vaults.list(),
         getDetail: (vaultAddress: VaultAddress) =>
-          client.GetVaultDetail({ vaultAddress }),
+          client.vaults.detail({ path: { vaultAddress } }),
         getSigners: (vaultAddress: VaultAddress) =>
-          client.GetVaultSigners({ vaultAddress })
+          client.vaults.signers({ path: { vaultAddress } })
       }
     })
   }

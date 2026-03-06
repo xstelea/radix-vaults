@@ -1,50 +1,31 @@
+import { type VerifyRequestSchema } from '@radix-vaults/shared'
 import { Effect } from 'effect'
+import { AppApiClient } from '@/lib/apiClient'
 
 export class AuthService extends Effect.Service<AuthService>()(
   '@radix-vaults/client/AuthService',
   {
-    succeed: {
-      createChallenge: () =>
-        Effect.tryPromise({
-          try: () =>
-            fetch('/auth/challenge').then(
-              (r) => r.json() as Promise<{ challenge: string }>
-            ),
-          catch: () => new Error('Failed to create challenge')
-        }).pipe(Effect.map((r) => r.challenge)),
+    dependencies: [AppApiClient.Default],
+    effect: Effect.gen(function* () {
+      const client = yield* AppApiClient
+      return {
+        createChallenge: () =>
+          client.auth.createChallenge().pipe(Effect.map((r) => r.challenge)),
 
-      verify: (signedChallenges: unknown[]) =>
-        Effect.tryPromise({
-          try: () =>
-            fetch('/auth/verify', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ signedChallenges })
-            }).then(async (r) => {
-              const body = await r.json()
-              if (!r.ok) throw new Error(body.error ?? 'Verification failed')
-              return body as { accountAddress: string; expiresAt: string }
-            }),
-          catch: (e) =>
-            e instanceof Error ? e : new Error('Verification failed')
-        }),
+        verify: (signedChallenge: unknown) =>
+          client.auth.verify({
+            payload: {
+              signedChallenge
+            } as typeof VerifyRequestSchema.Type
+          }),
 
-      getSession: () =>
-        Effect.tryPromise({
-          try: () =>
-            fetch('/auth/session').then(async (r) => {
-              if (!r.ok) return null
-              const body = await r.json()
-              return body as { accountAddress: string } | null
-            }),
-          catch: () => new Error('Failed to check session')
-        }),
+        getSession: () =>
+          client.auth
+            .getSession()
+            .pipe(Effect.catchTag('Unauthorized', () => Effect.succeed(null))),
 
-      logout: () =>
-        Effect.tryPromise({
-          try: () => fetch('/auth/logout', { method: 'POST' }),
-          catch: () => new Error('Failed to logout')
-        }).pipe(Effect.asVoid)
-    }
+        logout: () => client.auth.logout().pipe(Effect.asVoid)
+      }
+    })
   }
 ) {}

@@ -1,3 +1,4 @@
+import type { HexString } from '@radix-vaults/shared'
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -117,7 +118,7 @@ describe('ChallengeStore', () => {
         yield* runMigrations(connectionUri)
 
         const result = yield* withChallengeStore(pgClientLayer, (store) =>
-          Effect.either(store.consume('deadbeef'.repeat(8)))
+          Effect.either(store.consume('deadbeef'.repeat(8) as HexString))
         )
 
         expect(result._tag).toBe('Left')

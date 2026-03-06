@@ -18,9 +18,6 @@ catalogs:
     '@effect/platform-node':
       specifier: ^0.103.0
       version: 0.103.0
-    '@effect/rpc':
-      specifier: ^0.72.2
-      version: 0.72.2
     '@effect/sql':
       specifier: ^0.48.6
       version: 0.48.6
@@ -36,6 +33,9 @@ catalogs:
     '@playwright/test':
       specifier: ^1.57.0
       version: 1.58.2
+    '@radix-effects/gateway':
+      specifier: ^0.5.0
+      version: 0.5.0
     '@radix-effects/shared':
       specifier: ^0.0.1
       version: 0.0.1
@@ -152,9 +152,6 @@ importers:
       '@effect/platform-browser':
         specifier: 'catalog:'
         version: 0.73.0(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12)
-      '@effect/rpc':
-        specifier: 'catalog:'
-        version: 0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12)
       '@radix-vaults/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -240,9 +237,6 @@ importers:
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 0.103.0(@effect/cluster@0.55.0(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/workflow@0.15.2(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(effect@3.19.12)
-      '@effect/rpc':
-        specifier: 'catalog:'
-        version: 0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12)
       '@effect/sql':
         specifier: 'catalog:'
         version: 0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12)
@@ -258,6 +252,9 @@ importers:
       '@noble/hashes':
         specifier: ^2.0.1
         version: 2.0.1
+      '@radix-effects/gateway':
+        specifier: 'catalog:'
+        version: 0.5.0
       '@radix-vaults/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -326,9 +323,9 @@ importers:
 
   packages/shared:
     dependencies:
-      '@effect/rpc':
+      '@effect/platform':
         specifier: 'catalog:'
-        version: 0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12)
+        version: 0.93.8(effect@3.19.12)
       '@radix-effects/shared':
         specifier: 'catalog:'
         version: 0.0.1
@@ -1103,6 +1100,9 @@ packages:
     resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/ed25519@2.3.0':
+    resolution: {integrity: sha512-M7dvXL2B92/M7dw9+gzuydL8qn/jiqNHaoR3Q+cb1q1GHV7uwE17WCyFMG+Y+TZb5izcaXk5TdJRrDUxHXL78A==}
+
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
@@ -1476,12 +1476,28 @@ packages:
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
 
+  '@radix-effects/gateway@0.5.0':
+    resolution: {integrity: sha512-yfoIHDDl1KYqgA/YBNnXwkf+AQV7lq6BlTOVPYmT2rKquQr09SOYKQr0dZ9D9cke9KmVUgE76dxLrhotr2KbDQ==}
+
   '@radix-effects/shared@0.0.1':
     resolution: {integrity: sha512-t0zZocsmFImIrgvSRW8urTgPBOdjfbkBWp+7PGHKlegN07/D5wMpelFvc7qJ4+5t34uLOrM5f+wrlbHyWXb/FA==}
+
+  '@radixdlt/babylon-core-api-sdk@1.3.0':
+    resolution: {integrity: sha512-Tgtv8t3/Yk6K83Sf+7zCA8yJDcwyxRrE+jTRabF+tHfd1sTrMNqxyC7+jtW8jIgXsUEVR/FSQ4hQUJ/CkAAK6g==}
+
+  '@radixdlt/babylon-gateway-api-sdk@1.10.1':
+    resolution: {integrity: sha512-l/Pt1qaxi2I99ykl9oS4pO+AzBmpMY6oqMOBq0ABbpg7YqqaugZU3OUP/tI0SQsIR1QvXYGdxlsS+HnhioeHlA==}
 
   '@radixdlt/radix-dapp-toolkit@2.3.0':
     resolution: {integrity: sha512-sBC5h58WBESfjI7w5UW/3ltasEF6MYCtbgAdTA/g7E1fAbCQ7Zeai6id8TIE97L7hxv7g+uiOwNnpruN+TJJEw==}
     engines: {node: '>=18'}
+
+  '@radixdlt/radix-engine-toolkit@1.0.6':
+    resolution: {integrity: sha512-lQTGMEID5HUMkeuyiUOI1UGAxrBPzlI2XHL+Q9IBuB06mhthk4t7rEDFtJuj2zVsSld8UBADmhfc1r7NlctDIQ==}
+
+  '@radixdlt/rola@2.1.0':
+    resolution: {integrity: sha512-6RmKXM1EodtNFnRIjWPCaU1WiF5oOSeJhV+5SFFH8ttCpV/WmNcP010ARHDyFZGMCsK0fvpS7w5gdCMeKECNew==}
+    engines: {node: '>=14.0.0'}
 
   '@rolldown/pluginutils@1.0.0-beta.40':
     resolution: {integrity: sha512-s3GeJKSQOwBlzdUrj4ISjJj5SfSh+aqn0wjOar4Bx95iV1ETI7F6S/5hLcfAxZ9kXDcyrAkxPlqmd1ZITttf+w==}
@@ -1860,6 +1876,12 @@ packages:
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
 
+  '@types/secp256k1@4.0.7':
+    resolution: {integrity: sha512-Rcvjl6vARGAKRO6jHeKMatGrvOMGrR/AR11N1x2LqintPCyDZ7NBhrh238Z2VZc7aM7KIwnFpFQ7fnfK4H/9Qw==}
+
+  '@types/secure-random@1.1.3':
+    resolution: {integrity: sha512-zUvl/Y/9gG2wRE5IUgqJTje0jQr97Rw+ZWovmkbkP393aUO7PR71diJlp4wKQcqucUoJVXMJdWjZfVkcoCt64w==}
+
   '@types/ssh2-streams@0.1.13':
     resolution: {integrity: sha512-faHyY3brO9oLEA0QlcO8N2wT7R0+1sHWZvQ+y3rMLwdY1ZyS1z0W3t65j9PqT4HmQ6ALzNe7RZlNuCNE0wBSWA==}
 
@@ -2052,6 +2074,9 @@ packages:
   blakejs@1.2.1:
     resolution: {integrity: sha512-QXUSXI3QVc/gJME0dBpXrag1kbzOqCjCX8/b54ntNyW6sjtoqxqRk3LTmXzaJoh71zMsDCjM+47jS7XiwN/+fQ==}
 
+  bn.js@4.12.3:
+    resolution: {integrity: sha512-fGTi3gxV/23FTYdAoUtLYp6qySe2KE3teyZitipKNRuVYcBkoP/bB3guXN/XVKUe9mxCHXnc9C4ocyz8OmgN0g==}
+
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
@@ -2061,6 +2086,9 @@ packages:
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
     engines: {node: '>=8'}
+
+  brorand@1.1.0:
+    resolution: {integrity: sha512-cKV8tMCEpQs4hK/ik71d6LrPOnpkpGBR0wzxqr68g2m/LB2GxVYQroAjMJZRVM1Y4BCjCKc3vAamxSzOY2RP+w==}
 
   browserslist@4.28.1:
     resolution: {integrity: sha512-ZC5Bd0LgJXgwGqUknZY/vkUQ04r8NXnJZ3yYi4vDmSiZmC/pdSN0NbNRPxZpbtO4uAfDUAFffO8IZoM3Gj8IkA==}
@@ -2098,6 +2126,9 @@ packages:
   chai@5.3.3:
     resolution: {integrity: sha512-4zNhdJD/iOjSH0A05ea+Ke6MU5mmpQcbQsSOkgdaUMJ9zTlDTD/GYlwohmIE2u0gaxHYiVHEn1Fw9mZ/ktJWgw==}
     engines: {node: '>=18'}
+
+  change-case@5.4.4:
+    resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
   check-error@2.1.3:
     resolution: {integrity: sha512-PAJdDJusoxnwm1VwW07VWwUN1sl7smmC3OKggvndJFadxxDRyFJBX/ggnu/KE4kQAB7a3Dp8f/YXC1FlUprWmA==}
@@ -2198,6 +2229,9 @@ packages:
     peerDependenciesMeta:
       supports-color:
         optional: true
+
+  decimal.js@10.6.0:
+    resolution: {integrity: sha512-YpgQiITW3JXGntzdUmyUR1V812Hn8T1YVXhCu+wO3OpS4eU9l4YdD3qjyiKdV6mvV29zapkMeD390UVEf2lkUg==}
 
   deep-eql@5.0.2:
     resolution: {integrity: sha512-h5k/5U50IJJFpzfL6nO9jaaumfjO/f2NjK/oYB2Djzm4p9L+3T9qWpZqZ2hAbLPuuYq9wrU08WQyBTL5GbPk5Q==}
@@ -2340,6 +2374,9 @@ packages:
 
   electron-to-chromium@1.5.307:
     resolution: {integrity: sha512-5z3uFKBWjiNR44nFcYdkcXjKMbg5KXNdciu7mhTPo9tB7NbqSNP2sSnGR+fqknZSCwKkBN+oxiiajWs4dT6ORg==}
+
+  elliptic@6.6.1:
+    resolution: {integrity: sha512-RaddvvMatK2LJHqFJ+YA4WysVN5Ita9E35botqIYspQ4TkRAlCicdzKOjlyv/1Za5RyTNn7di//eEV0uTAfe3g==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -2515,6 +2552,12 @@ packages:
     peerDependenciesMeta:
       crossws:
         optional: true
+
+  hash.js@1.1.7:
+    resolution: {integrity: sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==}
+
+  hmac-drbg@1.0.1:
+    resolution: {integrity: sha512-Tti3gMqLdZfhOQY1Mzf/AanLiqh1WTiJgEj26ZuYQ9fbkLomzGchCws4FyrSd4VkpBfiNhaE1On+lOz894jvXg==}
 
   htmlparser2@10.1.0:
     resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
@@ -2735,6 +2778,12 @@ packages:
     resolution: {integrity: sha512-VP79XUPxV2CigYP3jWwAUFSku2aKqBH7uTAapFWCBqutsbmDo96KY5o8uh6U+/YSIn5OxJnXp73beVkpqMIGhA==}
     engines: {node: '>=18'}
 
+  minimalistic-assert@1.0.1:
+    resolution: {integrity: sha512-UtJcAD4yEaGtjPezWuO9wC4nwUnVH/8/Im3yEHQP4b67cXlD/Qr9hdITCU1xDbSEXg2XKNaP8jsReV7vQd00/A==}
+
+  minimalistic-crypto-utils@1.0.1:
+    resolution: {integrity: sha512-JIYlbt6g8i5jKfJ3xz7rF0LXmv2TkDxBLUkiBeZ7bAx4GnnNMr8xFpGnOxn6GhTEHx3SjRrZEoU+j04prX1ktg==}
+
   minimatch@5.1.9:
     resolution: {integrity: sha512-7o1wEA2RyMP7Iu7GNba9vc0RWWGACJOCZBJX2GJWip0ikV+wcOsgVuY9uE8CPiyQhkGFSlhuSkZPavN7u1c2Fw==}
     engines: {node: '>=10'}
@@ -2780,11 +2829,18 @@ packages:
     resolution: {integrity: sha512-kOCT/1MCPAxY5iUV3wytNFUMUolzuwd/VF/1KCx7kf6CutrOsTie+84zTGTpgQycjvfLdBBdvBvFLqFD2c0wkQ==}
     engines: {node: '>=18'}
 
+  node-addon-api@5.1.0:
+    resolution: {integrity: sha512-eh0GgfEkpnoWDq+VY8OyvYhFEzBk6jIYbRKdIlyTiAXIVJ8PyBaKb0rp7oDtoddbdoHWhq8wwr+XZ81F1rpNdA==}
+
   node-addon-api@7.1.1:
     resolution: {integrity: sha512-5m3bsyrjFWE1xf7nz7YXdN4udnVtXK6/Yfgn5qnahL6bCkf2yKt4k3nuTKAtT4r3IG8JNR2ncsIMdZuAzJjHQQ==}
 
   node-gyp-build-optional-packages@5.2.2:
     resolution: {integrity: sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw==}
+    hasBin: true
+
+  node-gyp-build@4.8.4:
+    resolution: {integrity: sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==}
     hasBin: true
 
   node-releases@2.0.36:
@@ -3023,6 +3079,9 @@ packages:
     resolution: {integrity: sha512-YTUo+Flmw4ZXiWfQKGcwwc11KnoRAYgzAE2E7mXKCjSviTKShtxBsN6YUUBB2gtaBzKzeKunxhUwNHQuRryhWA==}
     engines: {node: '>= 4'}
 
+  reflect-metadata@0.2.2:
+    resolution: {integrity: sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==}
+
   require-directory@2.1.1:
     resolution: {integrity: sha512-fGxEI7+wsG9xrvdjsrlmL22OMTTiHRwAMroiEeMgq8gzoLC/PQr7RsRDSTLUg/bZAZtF+TVIkHc6/4RIKrui+Q==}
     engines: {node: '>=0.10.0'}
@@ -3061,8 +3120,15 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
+  sbor-ez-mode@0.2.0:
+    resolution: {integrity: sha512-O/YoTLHj7w7zBOQr/Jxg89au6zy0kpv8UGh50eYTpCD6waIo4ryxzRydkZs1LE1HbGyQVB/kMx3dy29ScKIGEA==}
+
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
+
+  secp256k1@5.0.1:
+    resolution: {integrity: sha512-lDFs9AAIaWP9UCdtWrotXWWF9t8PWgQDcxqgAnpM9rMqxb3Oaq2J0thzPVSxBwdJgyQtkU/sYtFtbM1RSt/iYA==}
+    engines: {node: '>=18.0.0'}
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
@@ -4123,6 +4189,8 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.0.1
 
+  '@noble/ed25519@2.3.0': {}
+
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.0.1': {}
@@ -4348,10 +4416,25 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
+  '@radix-effects/gateway@0.5.0':
+    dependencies:
+      '@radixdlt/babylon-core-api-sdk': 1.3.0
+      '@radixdlt/babylon-gateway-api-sdk': 1.10.1
+      '@radixdlt/radix-engine-toolkit': 1.0.6
+      '@radixdlt/rola': 2.1.0
+      bignumber.js: 9.3.1
+      effect: 3.19.12
+      sbor-ez-mode: 0.2.0
+      zod: 3.25.76
+
   '@radix-effects/shared@0.0.1':
     dependencies:
       bignumber.js: 9.3.1
       effect: 3.19.12
+
+  '@radixdlt/babylon-core-api-sdk@1.3.0': {}
+
+  '@radixdlt/babylon-gateway-api-sdk@1.10.1': {}
 
   '@radixdlt/radix-dapp-toolkit@2.3.0(typescript@5.9.3)':
     dependencies:
@@ -4369,6 +4452,26 @@ snapshots:
       valibot: 0.42.1(typescript@5.9.3)
     transitivePeerDependencies:
       - typescript
+
+  '@radixdlt/radix-engine-toolkit@1.0.6':
+    dependencies:
+      '@noble/ed25519': 2.3.0
+      '@noble/hashes': 1.8.0
+      '@types/secp256k1': 4.0.7
+      '@types/secure-random': 1.1.3
+      blakejs: 1.2.1
+      change-case: 5.4.4
+      decimal.js: 10.6.0
+      reflect-metadata: 0.2.2
+      secp256k1: 5.0.1
+
+  '@radixdlt/rola@2.1.0':
+    dependencies:
+      '@noble/curves': 1.9.7
+      '@radixdlt/babylon-gateway-api-sdk': 1.10.1
+      '@radixdlt/radix-engine-toolkit': 1.0.6
+      blakejs: 1.2.1
+      neverthrow: 8.2.0
 
   '@rolldown/pluginutils@1.0.0-beta.40': {}
 
@@ -4782,6 +4885,14 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@types/secp256k1@4.0.7':
+    dependencies:
+      '@types/node': 24.11.0
+
+  '@types/secure-random@1.1.3':
+    dependencies:
+      '@types/node': 24.11.0
+
   '@types/ssh2-streams@0.1.13':
     dependencies:
       '@types/node': 24.11.0
@@ -4986,6 +5097,8 @@ snapshots:
 
   blakejs@1.2.1: {}
 
+  bn.js@4.12.3: {}
+
   boolbase@1.0.0: {}
 
   brace-expansion@2.0.2:
@@ -4995,6 +5108,8 @@ snapshots:
   braces@3.0.3:
     dependencies:
       fill-range: 7.1.1
+
+  brorand@1.1.0: {}
 
   browserslist@4.28.1:
     dependencies:
@@ -5034,6 +5149,8 @@ snapshots:
       deep-eql: 5.0.2
       loupe: 3.2.1
       pathval: 2.0.1
+
+  change-case@5.4.4: {}
 
   check-error@2.1.3: {}
 
@@ -5154,6 +5271,8 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  decimal.js@10.6.0: {}
+
   deep-eql@5.0.2: {}
 
   detect-libc@2.1.2: {}
@@ -5225,6 +5344,16 @@ snapshots:
       fast-check: 3.23.2
 
   electron-to-chromium@1.5.307: {}
+
+  elliptic@6.6.1:
+    dependencies:
+      bn.js: 4.12.3
+      brorand: 1.1.0
+      hash.js: 1.1.7
+      hmac-drbg: 1.0.1
+      inherits: 2.0.4
+      minimalistic-assert: 1.0.1
+      minimalistic-crypto-utils: 1.0.1
 
   emoji-regex@10.6.0: {}
 
@@ -5433,6 +5562,17 @@ snapshots:
       rou3: 0.7.12
       srvx: 0.11.8
 
+  hash.js@1.1.7:
+    dependencies:
+      inherits: 2.0.4
+      minimalistic-assert: 1.0.1
+
+  hmac-drbg@1.0.1:
+    dependencies:
+      hash.js: 1.1.7
+      minimalistic-assert: 1.0.1
+      minimalistic-crypto-utils: 1.0.1
+
   htmlparser2@10.1.0:
     dependencies:
       domelementtype: 2.3.0
@@ -5622,6 +5762,10 @@ snapshots:
 
   mimic-function@5.0.1: {}
 
+  minimalistic-assert@1.0.1: {}
+
+  minimalistic-crypto-utils@1.0.1: {}
+
   minimatch@5.1.9:
     dependencies:
       brace-expansion: 2.0.2
@@ -5665,12 +5809,16 @@ snapshots:
     optionalDependencies:
       '@rollup/rollup-linux-x64-gnu': 4.59.0
 
+  node-addon-api@5.1.0: {}
+
   node-addon-api@7.1.1: {}
 
   node-gyp-build-optional-packages@5.2.2:
     dependencies:
       detect-libc: 2.1.2
     optional: true
+
+  node-gyp-build@4.8.4: {}
 
   node-releases@2.0.36: {}
 
@@ -5947,6 +6095,8 @@ snapshots:
       tiny-invariant: 1.3.3
       tslib: 2.8.1
 
+  reflect-metadata@0.2.2: {}
+
   require-directory@2.1.1: {}
 
   resolve-pkg-maps@1.0.0: {}
@@ -6003,7 +6153,18 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
+  sbor-ez-mode@0.2.0:
+    dependencies:
+      '@radixdlt/babylon-gateway-api-sdk': 1.10.1
+      neverthrow: 8.2.0
+
   scheduler@0.27.0: {}
+
+  secp256k1@5.0.1:
+    dependencies:
+      elliptic: 6.6.1
+      node-addon-api: 5.1.0
+      node-gyp-build: 4.8.4
 
   semver@6.3.1: {}
 

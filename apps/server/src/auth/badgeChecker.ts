@@ -1,17 +1,13 @@
-import { AuthConfig } from '@radix-vaults/shared'
+import { GetFungibleBalance } from '@radix-effects/gateway'
+import { type AccountAddress, AuthConfig } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
-
-const GATEWAY_URLS: Record<number, string> = {
-  1: 'https://mainnet.radixdlt.com',
-  2: 'https://stokenet.radixdlt.com'
-}
 
 export class BadgeCheckError extends Data.TaggedError('BadgeCheckError')<{
   reason: string
 }> {}
 
 export class NoBadgeError extends Data.TaggedError('NoBadgeError')<{
-  accountAddress: string
+  accountAddress: AccountAddress
 }> {}
 
 export class BadgeChecker extends Effect.Service<BadgeChecker>()(
@@ -19,43 +15,28 @@ export class BadgeChecker extends Effect.Service<BadgeChecker>()(
   {
     effect: Effect.gen(function* () {
       const config = yield* AuthConfig
-      const gatewayUrl = GATEWAY_URLS[config.networkId] ?? GATEWAY_URLS[2]!
+      const getFungibleBalance = yield* GetFungibleBalance
 
       const hasBadge = (
-        accountAddress: string
+        accountAddress: AccountAddress
       ): Effect.Effect<void, NoBadgeError | BadgeCheckError> =>
-        Effect.tryPromise({
-          try: async () => {
-            const res = await fetch(
-              `${gatewayUrl}/state/entity/page/fungible-vaults/`,
-              {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                  address: accountAddress,
-                  resource_address: config.teamMemberBadgeAddress
-                })
-              }
-            )
-            if (!res.ok) {
-              throw new Error(`Gateway returned ${res.status}`)
-            }
-            return (await res.json()) as {
-              items?: { vault_address: string; amount: string }[]
-            }
-          },
-          catch: (e) =>
-            new BadgeCheckError({
-              reason: `Failed to query badge balance: ${e instanceof Error ? e.message : String(e)}`
-            })
+        getFungibleBalance({
+          addresses: [accountAddress]
         }).pipe(
-          Effect.flatMap((data) => {
-            const items = data.items ?? []
-            const totalBalance = items.reduce(
-              (sum, item) => sum + Number(item.amount ?? '0'),
-              0
+          Effect.mapError(
+            (error) =>
+              new BadgeCheckError({
+                reason: `Failed to query badge balance: ${error._tag}`
+              })
+          ),
+          Effect.flatMap((results) => {
+            const hasBadgeBalance = results.some((result) =>
+              result.items.some(
+                (item) =>
+                  item.resource_address === config.teamMemberBadgeAddress
+              )
             )
-            if (totalBalance <= 0) {
+            if (!hasBadgeBalance) {
               return Effect.fail(new NoBadgeError({ accountAddress }))
             }
             return Effect.void

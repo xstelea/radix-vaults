@@ -16,7 +16,6 @@
     "@effect-atom/atom-react": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-browser": "catalog:",
-    "@effect/rpc": "catalog:",
     "@radix-vaults/shared": "workspace:*",
     "@radixdlt/radix-dapp-toolkit": "^2.3.0",
     "@tailwindcss/vite": "catalog:",

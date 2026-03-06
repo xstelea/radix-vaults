@@ -13,10 +13,10 @@
   "dependencies": {
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
-    "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
     "@effect/sql-drizzle": "catalog:",
     "@effect/sql-pg": "catalog:",
+    "@radix-effects/gateway": "catalog:",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
     "@radix-vaults/database": "workspace:*",

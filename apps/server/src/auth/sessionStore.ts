@@ -1,5 +1,5 @@
 import { sessions } from '@radix-vaults/database'
-import type { SessionInfo } from '@radix-vaults/shared'
+import type { AccountAddress, SessionInfo } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
 import { and, eq, gt, sql } from 'drizzle-orm'
 import { ORM } from '../db/orm'
@@ -18,7 +18,7 @@ export class SessionStore extends Effect.Service<SessionStore>()(
     effect: Effect.gen(function* () {
       const db = yield* ORM
 
-      const create = (accountAddress: string) =>
+      const create = (accountAddress: AccountAddress) =>
         db
           .insert(sessions)
           .values({
@@ -52,7 +52,7 @@ export class SessionStore extends Effect.Service<SessionStore>()(
                 return Effect.fail(new SessionNotFoundError({ sessionId }))
               }
               return Effect.succeed({
-                accountAddress: session.accountAddress,
+                accountAddress: session.accountAddress as AccountAddress,
                 expiresAt: session.expiresAt.toISOString()
               } satisfies SessionInfo)
             }),

@@ -5,9 +5,8 @@ import {
   Scripts
 } from '@tanstack/react-router'
 import { RegistryProvider } from '@effect-atom/atom-react'
-import { ClientOnly } from '@tanstack/react-router'
 import { Toaster } from 'sonner'
-import { WalletConnect } from '@/components/WalletConnect'
+import ConnectButton from '@/components/ConnectButton'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -41,9 +40,7 @@ function RootComponent() {
       <Toaster />
       <div className="app-shell">
         <header className="mx-auto flex max-w-4xl items-center justify-end px-4 py-3">
-          <ClientOnly>
-            <WalletConnect />
-          </ClientOnly>
+          <ConnectButton />
         </header>
         <Outlet />
       </div>

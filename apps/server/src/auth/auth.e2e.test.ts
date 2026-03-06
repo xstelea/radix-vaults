@@ -1,9 +1,8 @@
-import { HttpLayerRouter } from '@effect/platform'
+import { HttpApiBuilder } from '@effect/platform'
 import { NodeHttpServer } from '@effect/platform-node'
-import { RpcSerialization, RpcServer } from '@effect/rpc'
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { AppRpc, AuthConfig } from '@radix-vaults/shared'
+import { AppApi, AuthConfig } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Layer, Redacted } from 'effect'
@@ -12,13 +11,15 @@ import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import pg from 'pg'
-import { AuthRoutesLive } from './routes'
+import type { AccountAddress } from '@radix-vaults/shared'
 import { BadgeChecker, NoBadgeError } from './badgeChecker'
 import { ChallengeStore } from './challengeStore'
 import { RolaVerifier } from './rola'
 import { SessionStore } from './sessionStore'
 import { ORM } from '../db/orm'
-import { AppRpcHandlersLive } from '../rpc/handlers'
+import { AuthHandlersLive } from '../api/authHandlers'
+import { VaultHandlersLive } from '../api/vaultHandlers'
+import { SessionMiddlewareLive } from '../api/sessionMiddleware'
 import { PgContainer } from '../test/PgContainer'
 
 const resolveMigrationsFolder = () => {
@@ -59,9 +60,13 @@ const MockBadgeCheckerHasBadge = Layer.succeed(BadgeChecker, {
 } as unknown as BadgeChecker)
 
 const MockBadgeCheckerNoBadge = Layer.succeed(BadgeChecker, {
-  hasBadge: (accountAddress: string) =>
+  hasBadge: (accountAddress: AccountAddress) =>
     Effect.fail(new NoBadgeError({ accountAddress }))
 } as unknown as BadgeChecker)
+
+const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
+  handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
+)
 
 const makeTestServer = (
   port: number,
@@ -78,19 +83,15 @@ const makeTestServer = (
     badgeLayer
   ).pipe(Layer.provide(ORM.Default), Layer.provide(testAuthConfig))
 
-  return HttpLayerRouter.serve(
-    Layer.mergeAll(
-      RpcServer.layerHttpRouter({
-        group: AppRpc,
-        path: '/rpc',
-        protocol: 'http'
-      }).pipe(
-        Layer.provide(AppRpcHandlersLive),
-        Layer.provide(RpcSerialization.layerJson)
-      ),
-      AuthRoutesLive
-    )
-  ).pipe(
+  const ApiLive = HttpApiBuilder.api(AppApi).pipe(
+    Layer.provide(AuthHandlersLive),
+    Layer.provide(VaultHandlersLive),
+    Layer.provide(HealthHandlersLive),
+    Layer.provide(SessionMiddlewareLive)
+  )
+
+  return HttpApiBuilder.serve().pipe(
+    Layer.provide(ApiLive),
     Layer.provide(authServices),
     Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
     Layer.provideMerge(pgClientLayer)
@@ -99,9 +100,10 @@ const makeTestServer = (
 
 const fetchJson = async (url: string, init?: RequestInit) => {
   const res = await fetch(url, init)
+  const text = await res.text()
   return {
     status: res.status,
-    body: (await res.json()) as Record<string, unknown>,
+    body: text ? (JSON.parse(text) as Record<string, unknown>) : {},
     headers: Object.fromEntries(res.headers.entries())
   }
 }
@@ -152,18 +154,16 @@ describe('Auth e2e', () => {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-              signedChallenges: [
-                {
-                  address: 'account_tdx_2_1testuser',
-                  type: 'account',
-                  challenge,
-                  proof: {
-                    publicKey: 'aa'.repeat(32),
-                    signature: 'bb'.repeat(32),
-                    curve: 'curve25519'
-                  }
+              signedChallenge: {
+                address: 'account_tdx_2_1testuser',
+                type: 'account',
+                challenge,
+                proof: {
+                  publicKey: 'aa'.repeat(32),
+                  signature: 'bb'.repeat(32),
+                  curve: 'curve25519'
                 }
-              ]
+              }
             })
           })
         )
@@ -232,25 +232,23 @@ describe('Auth e2e', () => {
         )
         const challenge = challengeRes.body.challenge as string
 
-        const signedChallenges = [
-          {
-            address: 'account_tdx_2_1testuser',
-            type: 'account',
-            challenge,
-            proof: {
-              publicKey: 'aa'.repeat(32),
-              signature: 'bb'.repeat(32),
-              curve: 'curve25519'
-            }
+        const signedChallenge = {
+          address: 'account_tdx_2_1testuser',
+          type: 'account',
+          challenge,
+          proof: {
+            publicKey: 'aa'.repeat(32),
+            signature: 'bb'.repeat(32),
+            curve: 'curve25519'
           }
-        ]
+        }
 
         // First verify succeeds
         const res1 = yield* Effect.promise(() =>
           fetchJson(`${base}/auth/verify`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ signedChallenges })
+            body: JSON.stringify({ signedChallenge })
           })
         )
         expect(res1.status).toBe(200)
@@ -260,11 +258,10 @@ describe('Auth e2e', () => {
           fetchJson(`${base}/auth/verify`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ signedChallenges })
+            body: JSON.stringify({ signedChallenge })
           })
         )
         expect(res2.status).toBe(401)
-        expect(res2.body.error).toContain('challenge')
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )
@@ -303,23 +300,20 @@ describe('Auth e2e', () => {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
-              signedChallenges: [
-                {
-                  address: 'account_tdx_2_1nobadge',
-                  type: 'account',
-                  challenge,
-                  proof: {
-                    publicKey: 'aa'.repeat(32),
-                    signature: 'bb'.repeat(32),
-                    curve: 'curve25519'
-                  }
+              signedChallenge: {
+                address: 'account_tdx_2_1nobadge',
+                type: 'account',
+                challenge,
+                proof: {
+                  publicKey: 'aa'.repeat(32),
+                  signature: 'bb'.repeat(32),
+                  curve: 'curve25519'
                 }
-              ]
+              }
             })
           })
         )
         expect(verifyRes.status).toBe(401)
-        expect(verifyRes.body.error).toContain('badge')
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )

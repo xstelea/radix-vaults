@@ -1,15 +1,14 @@
+import { HexString } from '@radix-vaults/shared'
 import { challenges } from '@radix-vaults/database'
-import { Data, Effect } from 'effect'
+import { Data, DateTime, Effect } from 'effect'
 import { and, eq, gt, sql } from 'drizzle-orm'
 import { randomBytes } from 'node:crypto'
 import { ORM } from '../db/orm'
 
-const CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
-
 export class ChallengeExpiredOrUsedError extends Data.TaggedError(
   'ChallengeExpiredOrUsedError'
 )<{
-  challenge: string
+  challenge: HexString
 }> {}
 
 export class ChallengeStore extends Effect.Service<ChallengeStore>()(
@@ -20,8 +19,11 @@ export class ChallengeStore extends Effect.Service<ChallengeStore>()(
 
       const create = () =>
         Effect.gen(function* () {
-          const challengeHex = randomBytes(32).toString('hex')
-          const expiresAt = new Date(Date.now() + CHALLENGE_TTL_MS)
+          const challengeHex = HexString.make(randomBytes(32).toString('hex'))
+          const expiresAt = (yield* DateTime.now).pipe(
+            DateTime.addDuration('5 minutes'),
+            DateTime.toDateUtc
+          )
 
           yield* db
             .insert(challenges)
@@ -35,7 +37,7 @@ export class ChallengeStore extends Effect.Service<ChallengeStore>()(
           return challengeHex
         })
 
-      const consume = (challengeHex: string) =>
+      const consume = (challengeHex: HexString) =>
         db
           .update(challenges)
           .set({ used: true })

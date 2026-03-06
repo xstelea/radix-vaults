@@ -1,4 +1,4 @@
-import type { SignedChallenge } from '@radix-vaults/shared'
+import type { HexString, SignedChallenge } from '@radix-vaults/shared'
 import { AuthConfig } from '@radix-vaults/shared'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { ed25519 } from '@noble/curves/ed25519.js'
@@ -12,10 +12,10 @@ export class RolaVerificationError extends Data.TaggedError(
 }> {}
 
 const createSignatureMessage = (
-  challenge: string,
+  challenge: HexString,
   dAppDefinitionAddress: string,
   origin: string
-): Effect.Effect<string, RolaVerificationError> =>
+): Effect.Effect<HexString, RolaVerificationError> =>
   Effect.try({
     try: () => {
       const prefix = Buffer.from('R', 'ascii')
@@ -34,51 +34,49 @@ const createSignatureMessage = (
         originBuffer
       ])
       const hash = blake2b(message, { dkLen: 32 })
-      return Buffer.from(hash).toString('hex')
+      return Buffer.from(hash).toString('hex') as HexString
     },
     catch: () => new RolaVerificationError({ reason: 'couldNotHashMessage' })
   })
 
-const hexToBytes = (hex: string) => Buffer.from(hex, 'hex')
+const hexToBytes = (hex: HexString) => Buffer.from(hex, 'hex')
 
 const verifySignature = (
   signedChallenge: SignedChallenge,
-  signatureMessageHex: string
+  signatureMessageHex: HexString
 ): Effect.Effect<void, RolaVerificationError> =>
-  Effect.try({
-    try: () => {
-      const { curve, publicKey, signature } = signedChallenge.proof
-      const msgBytes = hexToBytes(signatureMessageHex)
-      const pubKeyBytes = hexToBytes(publicKey)
-      let isValid = false
-      if (curve === 'curve25519') {
-        isValid = ed25519.verify(hexToBytes(signature), msgBytes, pubKeyBytes)
-      } else if (curve === 'secp256k1') {
-        isValid = secp256k1.verify(
-          hexToBytes(signature.slice(2)),
-          msgBytes,
-          pubKeyBytes
-        )
-      }
-      if (!isValid) {
-        throw new Error('invalid')
-      }
-    },
-    catch: (e) =>
-      new RolaVerificationError({
-        reason:
-          e instanceof Error && e.message === 'invalid'
-            ? 'invalidSignature'
-            : 'invalidPublicKey'
-      })
+  Effect.gen(function* () {
+    const { curve, publicKey, signature } = signedChallenge.proof
+    const msgBytes = hexToBytes(signatureMessageHex)
+    const pubKeyBytes = hexToBytes(publicKey)
+
+    const isValid = yield* Effect.try({
+      try: () => {
+        if (curve === 'curve25519')
+          return ed25519.verify(hexToBytes(signature), msgBytes, pubKeyBytes)
+        if (curve === 'secp256k1')
+          return secp256k1.verify(
+            hexToBytes(signature.slice(2) as HexString),
+            msgBytes,
+            pubKeyBytes
+          )
+        return false
+      },
+      catch: () => new RolaVerificationError({ reason: 'invalidPublicKey' })
+    })
+
+    if (!isValid)
+      yield* Effect.fail(
+        new RolaVerificationError({ reason: 'invalidSignature' })
+      )
   })
 
-const createPublicKeyHash = (publicKeyHex: string) =>
+const createPublicKeyHash = (publicKeyHex: HexString) =>
   Effect.try({
     try: () => {
       const hash = blake2b(Buffer.from(publicKeyHex, 'hex'), { dkLen: 32 })
       const last29 = hash.subarray(-29)
-      return Buffer.from(last29).toString('hex')
+      return Buffer.from(last29).toString('hex') as HexString
     },
     catch: () => new RolaVerificationError({ reason: 'couldNotHashPublicKey' })
   })

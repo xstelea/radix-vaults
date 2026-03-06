@@ -8,8 +8,8 @@ class EnvVars extends Schema.Class<EnvVars>('EnvVars')({
   ENV: Schema.Literal('dev', 'staging', 'prod', 'local').annotations({
     decodingFallback: () => Either.right('prod' as const)
   }),
-  RPC_URL: Schema.String.annotations({
-    decodingFallback: () => Either.right('/rpc')
+  API_BASE_URL: Schema.String.annotations({
+    decodingFallback: () => Either.right('')
   })
 }) {}
 
@@ -17,7 +17,7 @@ const isVitest = typeof import.meta.env.VITEST !== 'undefined'
 
 const vitestMockEnvVars: typeof EnvVars.Encoded = {
   ENV: 'dev',
-  RPC_URL: '/rpc'
+  API_BASE_URL: ''
 }
 
 export const envVars = pipe(
@@ -25,7 +25,7 @@ export const envVars = pipe(
     onTrue: constant(vitestMockEnvVars),
     onFalse: constant({
       ENV: import.meta.env.VITE_ENV as unknown,
-      RPC_URL: import.meta.env.VITE_RPC_URL as unknown
+      API_BASE_URL: import.meta.env.VITE_API_BASE_URL as unknown
     } satisfies Record<keyof typeof EnvVars.Encoded, unknown>)
   }),
   Schema.decodeUnknownEither(EnvVars),

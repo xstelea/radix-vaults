@@ -1,8 +1,9 @@
 import {
-  RadixDappToolkit,
-  DataRequestBuilder
+  DataRequestBuilder,
+  RadixDappToolkit as RadixDappToolkitFactory
 } from '@radixdlt/radix-dapp-toolkit'
-import { envVars } from './envVars'
+import { Context, Effect, Layer, Ref } from 'effect'
+import { AppApiClient } from '@/lib/apiClient'
 
 const DAPP_DEFINITION_ADDRESS =
   import.meta.env.VITE_DAPP_DEFINITION_ADDRESS ??
@@ -10,29 +11,32 @@ const DAPP_DEFINITION_ADDRESS =
 
 const NETWORK_ID = Number(import.meta.env.VITE_NETWORK_ID ?? '2')
 
-let rdtInstance: ReturnType<typeof RadixDappToolkit> | null = null
+export class RadixDappToolkit extends Context.Tag('RadixDappToolkit')<
+  RadixDappToolkit,
+  Ref.Ref<RadixDappToolkitFactory>
+>() {
+  static Live = Layer.scoped(
+    this,
+    Effect.gen(function* () {
+      const rdt = RadixDappToolkitFactory({
+        networkId: NETWORK_ID,
+        dAppDefinitionAddress: DAPP_DEFINITION_ADDRESS
+      })
 
-export const getRadixDappToolkit = () => {
-  if (rdtInstance) return rdtInstance
+      rdt.walletApi.setRequestData(
+        DataRequestBuilder.accounts().atLeast(1).withProof()
+      )
 
-  rdtInstance = RadixDappToolkit({
-    dAppDefinitionAddress: DAPP_DEFINITION_ADDRESS,
-    networkId: NETWORK_ID
-  })
+      const client = yield* AppApiClient
+      rdt.walletApi.provideChallengeGenerator(() =>
+        Effect.runPromise(
+          client.auth.createChallenge().pipe(Effect.map((r) => r.challenge))
+        )
+      )
 
-  rdtInstance.walletApi.setRequestData(
-    DataRequestBuilder.accounts().atLeast(1).withProof()
+      yield* Effect.addFinalizer(() => Effect.sync(() => rdt.destroy()))
+
+      return RadixDappToolkit.of(yield* Ref.make(rdt))
+    })
   )
-
-  rdtInstance.walletApi.provideChallengeGenerator(async () => {
-    const res = await fetch('/auth/challenge')
-    const { challenge } = await res.json()
-    return challenge
-  })
-
-  return rdtInstance
 }
-
-export const isVitestEnv =
-  typeof import.meta.env.VITEST !== 'undefined' ||
-  envVars.EFFECTIVE_ENV === 'dev'

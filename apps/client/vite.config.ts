@@ -19,11 +19,15 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/rpc': {
+      '/auth': {
         target: 'http://localhost:3001',
         changeOrigin: true
       },
-      '/auth': {
+      '/vaults': {
+        target: 'http://localhost:3001',
+        changeOrigin: true
+      },
+      '/health': {
         target: 'http://localhost:3001',
         changeOrigin: true
       }
