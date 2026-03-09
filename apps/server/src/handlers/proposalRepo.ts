@@ -1,4 +1,4 @@
-import { proposals } from '@radix-vaults/database'
+import { proposals, proposalSignatures } from '@radix-vaults/database'
 import {
   VaultAddress,
   type VaultAddress as VaultAddressType
@@ -11,6 +11,13 @@ export class ProposalNotFoundDbError extends Data.TaggedError(
   'ProposalNotFoundDbError'
 )<{
   proposalId: number
+}> {}
+
+export class DuplicateSignatureDbError extends Data.TaggedError(
+  'DuplicateSignatureDbError'
+)<{
+  proposalId: number
+  signerAccountAddress: string
 }> {}
 
 export class ProposalRepo extends Effect.Service<ProposalRepo>()(
@@ -104,7 +111,74 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      return { insert, listByVault, getById } as const
+      const addSignature = (input: {
+        proposalId: number
+        signerAccountAddress: string
+        signerKeyHash: string
+        signerKeyType: 'ed25519' | 'secp256k1'
+      }) =>
+        db
+          .insert(proposalSignatures)
+          .values({
+            proposalId: input.proposalId,
+            signerAccountAddress: input.signerAccountAddress,
+            signerKeyHash: input.signerKeyHash,
+            signerKeyType: input.signerKeyType
+          })
+          .returning()
+          .pipe(
+            Effect.map((rows) => rows[0]!),
+            Effect.catchTag('SqlError', (e) => {
+              if (
+                String(e).includes('unique') ||
+                String(e).includes('duplicate')
+              ) {
+                return Effect.fail(
+                  new DuplicateSignatureDbError({
+                    proposalId: input.proposalId,
+                    signerAccountAddress: input.signerAccountAddress
+                  })
+                )
+              }
+              return Effect.die(e)
+            })
+          )
+
+      const getSignatures = (proposalId: number) =>
+        db
+          .select({
+            signerAccountAddress: proposalSignatures.signerAccountAddress,
+            signerKeyHash: proposalSignatures.signerKeyHash,
+            signerKeyType: proposalSignatures.signerKeyType,
+            signedAt: proposalSignatures.signedAt
+          })
+          .from(proposalSignatures)
+          .where(eq(proposalSignatures.proposalId, proposalId))
+          .pipe(
+            Effect.map((rows) =>
+              rows.map((row) => ({
+                ...row,
+                signedAt: row.signedAt.toISOString()
+              }))
+            ),
+            Effect.catchTags({ SqlError: Effect.die })
+          )
+
+      const updateStatus = (proposalId: number, status: string) =>
+        db
+          .update(proposals)
+          .set({ status })
+          .where(eq(proposals.id, proposalId))
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
+      return {
+        insert,
+        listByVault,
+        getById,
+        addSignature,
+        getSignatures,
+        updateStatus
+      } as const
     })
   }
 ) {}

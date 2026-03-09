@@ -138,9 +138,11 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
           manifest: '',
           maxProposerTimestamp: '',
           createdBy: '',
-          createdAt: ''
+          createdAt: '',
+          signatureProgress: { collected: 0, required: 0, signatures: [] }
         })
       )
+      .handle('sign', () => Effect.succeed({ ok: true as const }))
 )
 
 // --- Mock AccessRuleValidator ---

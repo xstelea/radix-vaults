@@ -4,6 +4,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uuid,
   varchar
 } from 'drizzle-orm/pg-core'
@@ -59,3 +60,22 @@ export const proposals = pgTable('proposals', {
     .notNull()
     .defaultNow()
 })
+
+export const proposalSignatures = pgTable(
+  'proposal_signatures',
+  {
+    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+    proposalId: integer('proposal_id')
+      .notNull()
+      .references(() => proposals.id, { onDelete: 'cascade' }),
+    signerAccountAddress: varchar('signer_account_address', {
+      length: 255
+    }).notNull(),
+    signerKeyHash: varchar('signer_key_hash', { length: 255 }).notNull(),
+    signerKeyType: varchar('signer_key_type', { length: 32 }).notNull(),
+    signedAt: timestamp('signed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => [unique().on(t.proposalId, t.signerAccountAddress)]
+)

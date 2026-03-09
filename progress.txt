@@ -54,3 +54,17 @@
 - Badge component extended with destructive variant for failed/expired/invalid statuses
 - Schema migration 0004 for manifest, max_proposer_timestamp, created_by columns on proposals table
 - Tests: proposalRepo unit (4), proposal e2e (3) = 7 new tests, 51 total
+
+## Issue #9: Proposal lifecycle slice 2 — sign + signature progress + Ready transition (DONE)
+- POST /vaults/:vaultAddress/proposals/:proposalId/sign (auth-protected): sign a proposal
+- Server validates: proposal is in signable status (created/signing), signer has registered source, source key hash matches vault access rule signer, no duplicate signatures
+- Signer key matching: blake2b hash (last 29 bytes) of registered public key compared to on-chain signer localId
+- Status transitions: created → signing (first signature), signing → ready (threshold met)
+- ProposalRepo: addSignature (with unique constraint), getSignatures, updateStatus methods
+- ProposalsHandler: sign method with full validation chain, getSignatureProgress for detail enrichment
+- ProposalDetail response extended with signatureProgress: { collected, required, signatures[] }
+- Error types: SignerSourceMissingError (403), NotEligibleSignerError (403), AlreadySignedError (409), ProposalNotSignableError (422)
+- Client: ProposalService.sign method, proposal detail page with signature progress table + sign button
+- Sign button shown only for authenticated users on proposals in signable status
+- Schema migration 0005 for proposal_signatures table (proposal_id + signer_account_address unique constraint)
+- Tests: createPublicKeyHash unit (3), signing e2e (3: sign+status transition, duplicate rejection, missing source rejection) = 6 new tests, 57 total

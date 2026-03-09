@@ -137,6 +137,19 @@ export const ProposalListItemSchema = Schema.Struct({
   createdAt: Schema.String
 })
 
+export const ProposalSignatureSchema = Schema.Struct({
+  signerAccountAddress: Schema.String,
+  signerKeyHash: Schema.String,
+  signerKeyType: Schema.Literal('ed25519', 'secp256k1'),
+  signedAt: Schema.String
+})
+
+export const SignatureProgressSchema = Schema.Struct({
+  collected: Schema.Number,
+  required: Schema.Number,
+  signatures: Schema.Array(ProposalSignatureSchema)
+})
+
 export const ProposalDetailSchema = Schema.Struct({
   id: Schema.Number,
   vaultAddress: VaultAddress,
@@ -144,7 +157,12 @@ export const ProposalDetailSchema = Schema.Struct({
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
-  createdAt: Schema.String
+  createdAt: Schema.String,
+  signatureProgress: SignatureProgressSchema
+})
+
+export const SignProposalResponseSchema = Schema.Struct({
+  ok: Schema.Boolean
 })
 
 export class ProposalNotFoundError extends Schema.TaggedError<ProposalNotFoundError>()(
@@ -163,7 +181,41 @@ export class ProposalPreviewFailedError extends Schema.TaggedError<ProposalPrevi
   HttpApiSchema.annotations({ status: 422 })
 ) {}
 
+export class SignerSourceMissingError extends Schema.TaggedError<SignerSourceMissingError>()(
+  'SignerSourceMissingError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 403 })
+) {}
+
+export class NotEligibleSignerError extends Schema.TaggedError<NotEligibleSignerError>()(
+  'NotEligibleSignerError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 403 })
+) {}
+
+export class AlreadySignedError extends Schema.TaggedError<AlreadySignedError>()(
+  'AlreadySignedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}
+
+export class ProposalNotSignableError extends Schema.TaggedError<ProposalNotSignableError>()(
+  'ProposalNotSignableError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
 export type CreateProposalRequest = typeof CreateProposalRequestSchema.Type
 export type CreateProposalResponse = typeof CreateProposalResponseSchema.Type
 export type ProposalListItem = typeof ProposalListItemSchema.Type
 export type ProposalDetail = typeof ProposalDetailSchema.Type
+export type ProposalSignature = typeof ProposalSignatureSchema.Type
+export type SignatureProgress = typeof SignatureProgressSchema.Type

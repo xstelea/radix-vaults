@@ -1,6 +1,11 @@
+import { useState, useCallback } from 'react'
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import type { ProposalDetail } from '@radix-vaults/shared'
 import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
+import { Effect, Exit } from 'effect'
+import { toast } from 'sonner'
+import { sessionAtom } from '@/atom/auth'
 import { proposalDetailAtom } from '@/atom/proposals'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -12,6 +17,15 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { ProposalService } from '@/services/proposal'
 
 export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
   component: ProposalDetailPage
@@ -64,6 +78,8 @@ const statusVariant: Record<
   expired: 'destructive',
   invalid: 'destructive'
 }
+
+const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
 function ProposalDetailContent() {
   const { vaultId, proposalId } = Route.useParams()
@@ -152,6 +168,12 @@ function ProposalDetailContent() {
           </CardContent>
         </Card>
 
+        <SignatureProgressCard
+          proposal={proposal}
+          vaultAddress={vaultAddress}
+          onSigned={refresh}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Transaction Manifest</CardTitle>
@@ -168,4 +190,104 @@ function ProposalDetailContent() {
       </>
     ))
     .render()
+}
+
+function SignatureProgressCard({
+  proposal,
+  vaultAddress,
+  onSigned
+}: {
+  proposal: ProposalDetail
+  vaultAddress: VaultAddress
+  onSigned: () => void
+}) {
+  const sessionResult = useAtomValue(sessionAtom)
+  const [signing, setSigning] = useState(false)
+
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  const { signatureProgress } = proposal
+  const isSignable = SIGNABLE_STATUSES.has(proposal.status)
+
+  const handleSign = useCallback(async () => {
+    setSigning(true)
+    try {
+      const exit = await Effect.runPromiseExit(
+        ProposalService.pipe(
+          Effect.flatMap((svc) => svc.sign(vaultAddress, proposal.id)),
+          Effect.provide(ProposalService.Default)
+        )
+      )
+      Exit.match(exit, {
+        onSuccess: () => {
+          toast.success('Proposal signed successfully')
+          onSigned()
+        },
+        onFailure: (cause) => {
+          toast.error(`Signing failed: ${String(cause)}`)
+        }
+      })
+    } finally {
+      setSigning(false)
+    }
+  }, [vaultAddress, proposal.id, onSigned])
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Signature Progress</CardTitle>
+          <CardDescription>
+            {signatureProgress.collected} of {signatureProgress.required}{' '}
+            signatures collected
+          </CardDescription>
+        </div>
+        {isSignable && session && (
+          <Button onClick={handleSign} disabled={signing} size="sm">
+            {signing ? 'Signing...' : 'Sign Proposal'}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {signatureProgress.signatures.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Signer</TableHead>
+                <TableHead>Key Type</TableHead>
+                <TableHead>Key Hash</TableHead>
+                <TableHead>Signed At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {signatureProgress.signatures.map((sig) => (
+                <TableRow key={sig.signerAccountAddress}>
+                  <TableCell className="font-mono text-xs">
+                    {sig.signerAccountAddress.slice(0, 20)}...
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{sig.signerKeyType}</Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {sig.signerKeyHash.slice(0, 16)}...
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(sig.signedAt).toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No signatures yet. Eligible signers can sign this proposal.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
 }

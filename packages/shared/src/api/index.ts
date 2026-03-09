@@ -17,16 +17,21 @@ import {
 } from '../auth'
 import { VaultAddress } from '../vaultAddress'
 import {
+  AlreadySignedError,
   CreateProposalRequestSchema,
   CreateProposalResponseSchema,
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
+  NotEligibleSignerError,
   ProposalDetailSchema,
   ProposalListItemSchema,
   ProposalNotFoundError,
+  ProposalNotSignableError,
   ProposalPreviewFailedError,
   SetSignerSourceRequestSchema,
   SetSignerSourceResponseSchema,
+  SignerSourceMissingError,
+  SignProposalResponseSchema,
   TeamOverviewSchema,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
@@ -164,6 +169,26 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addSuccess(ProposalDetailSchema)
       .addError(VaultNotFoundErrorSchema, { status: 404 })
       .addError(ProposalNotFoundError)
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'sign',
+      '/vaults/:vaultAddress/proposals/:proposalId/sign'
+    )
+      .setPath(
+        Schema.Struct({
+          vaultAddress: VaultAddress,
+          proposalId: Schema.NumberFromString
+        })
+      )
+      .addSuccess(SignProposalResponseSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalNotFoundError)
+      .addError(ProposalNotSignableError)
+      .addError(SignerSourceMissingError)
+      .addError(NotEligibleSignerError)
+      .addError(AlreadySignedError)
+      .middleware(SessionMiddleware)
   ) {}
 
 // --- Health endpoint ---
