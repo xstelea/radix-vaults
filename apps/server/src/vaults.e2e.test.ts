@@ -66,11 +66,11 @@ const seedReadFlowData = Effect.gen(function* () {
   `
 
   yield* sql`
-    INSERT INTO proposals (vault_address, status)
+    INSERT INTO proposals (vault_address, status, manifest, max_proposer_timestamp, created_by)
     VALUES
-      ('account_tdx_2_1qalpha', 'created'),
-      ('account_tdx_2_1qalpha', 'submitted'),
-      ('account_tdx_2_1qbeta', 'signing')
+      ('account_tdx_2_1qalpha', 'created', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator'),
+      ('account_tdx_2_1qalpha', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator'),
+      ('account_tdx_2_1qbeta', 'signing', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator')
   `
 })
 
@@ -124,6 +124,36 @@ const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
     .handle('clearSignerSource', () => Effect.succeed({ ok: true as const }))
 )
 
+const MockProposalHandlersLive = HttpApiBuilder.group(
+  AppApi,
+  'proposals',
+  (handlers) =>
+    handlers
+      .handle('create', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+      .handle('list', () => Effect.succeed([]))
+      .handle('detail', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+)
+
 const makeServerLive = (
   port: number,
   pgClientLayer: Layer.Layer<SqlClient.SqlClient, unknown>
@@ -132,6 +162,7 @@ const makeServerLive = (
     Layer.provide(MockAuthHandlersLive),
     Layer.provide(VaultHandlersLive),
     Layer.provide(MockTeamHandlersLive),
+    Layer.provide(MockProposalHandlersLive),
     Layer.provide(HealthHandlersLive),
     Layer.provide(MockSessionMiddleware)
   )

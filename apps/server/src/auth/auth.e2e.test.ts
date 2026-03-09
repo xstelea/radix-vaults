@@ -89,6 +89,36 @@ const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
     .handle('clearSignerSource', () => Effect.succeed({ ok: true as const }))
 )
 
+const MockProposalHandlersLive = HttpApiBuilder.group(
+  AppApi,
+  'proposals',
+  (handlers) =>
+    handlers
+      .handle('create', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+      .handle('list', () => Effect.succeed([]))
+      .handle('detail', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+)
+
 const makeTestServer = (
   port: number,
   pgClientLayer: Layer.Layer<SqlClient.SqlClient, unknown>,
@@ -108,6 +138,7 @@ const makeTestServer = (
     Layer.provide(AuthHandlersLive),
     Layer.provide(VaultHandlersLive),
     Layer.provide(MockTeamHandlersLive),
+    Layer.provide(MockProposalHandlersLive),
     Layer.provide(HealthHandlersLive),
     Layer.provide(SessionMiddlewareLive)
   )

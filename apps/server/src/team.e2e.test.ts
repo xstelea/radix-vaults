@@ -171,6 +171,36 @@ const makeTeamHandlersLive = () =>
     Layer.provide(VaultsConfig.layer(TEAM_ACCOUNT))
   )
 
+const MockProposalHandlersLive = HttpApiBuilder.group(
+  AppApi,
+  'proposals',
+  (handlers) =>
+    handlers
+      .handle('create', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+      .handle('list', () => Effect.succeed([]))
+      .handle('detail', () =>
+        Effect.succeed({
+          id: 0,
+          vaultAddress: 'mock' as any,
+          status: 'created',
+          manifest: '',
+          maxProposerTimestamp: '',
+          createdBy: '',
+          createdAt: ''
+        })
+      )
+)
+
 const makeServerLive = (
   port: number,
   pgClientLayer: Layer.Layer<any, unknown>
@@ -179,6 +209,7 @@ const makeServerLive = (
     Layer.provide(MockAuthHandlersLive),
     Layer.provide(MockVaultHandlersLive),
     Layer.provide(makeTeamHandlersLive()),
+    Layer.provide(MockProposalHandlersLive),
     Layer.provide(HealthHandlersLive),
     Layer.provide(MockSessionMiddleware)
   )

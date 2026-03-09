@@ -17,8 +17,14 @@ import {
 } from '../auth'
 import { VaultAddress } from '../vaultAddress'
 import {
+  CreateProposalRequestSchema,
+  CreateProposalResponseSchema,
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
+  ProposalDetailSchema,
+  ProposalListItemSchema,
+  ProposalNotFoundError,
+  ProposalPreviewFailedError,
   SetSignerSourceRequestSchema,
   SetSignerSourceResponseSchema,
   TeamOverviewSchema,
@@ -130,6 +136,36 @@ export class TeamGroup extends HttpApiGroup.make('team')
       .middleware(SessionMiddleware)
   ) {}
 
+// --- Proposal endpoints ---
+export class ProposalsGroup extends HttpApiGroup.make('proposals')
+  .add(
+    HttpApiEndpoint.post('create', '/vaults/:vaultAddress/proposals')
+      .setPath(Schema.Struct({ vaultAddress: VaultAddress }))
+      .setPayload(CreateProposalRequestSchema)
+      .addSuccess(CreateProposalResponseSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalPreviewFailedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.get('list', '/vaults/:vaultAddress/proposals')
+      .setPath(Schema.Struct({ vaultAddress: VaultAddress }))
+      .addSuccess(Schema.Array(ProposalListItemSchema))
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+  )
+  .add(
+    HttpApiEndpoint.get('detail', '/vaults/:vaultAddress/proposals/:proposalId')
+      .setPath(
+        Schema.Struct({
+          vaultAddress: VaultAddress,
+          proposalId: Schema.NumberFromString
+        })
+      )
+      .addSuccess(ProposalDetailSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalNotFoundError)
+  ) {}
+
 // --- Health endpoint ---
 export class HealthGroup extends HttpApiGroup.make('health').add(
   HttpApiEndpoint.get('check', '/health').addSuccess(
@@ -142,4 +178,5 @@ export class AppApi extends HttpApi.make('radix-vaults')
   .add(AuthGroup)
   .add(VaultsGroup)
   .add(TeamGroup)
+  .add(ProposalsGroup)
   .add(HealthGroup) {}

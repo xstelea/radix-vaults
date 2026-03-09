@@ -100,3 +100,70 @@ export type MemberSignerSource = typeof MemberSignerSourceSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
 export type SetSignerSourceRequest = typeof SetSignerSourceRequestSchema.Type
 export type SetSignerSourceResponse = typeof SetSignerSourceResponseSchema.Type
+
+// --- Proposal schemas ---
+
+export const ProposalStatus = Schema.Literal(
+  'created',
+  'signing',
+  'ready',
+  'submitted',
+  'committed',
+  'failed',
+  'expired',
+  'invalid'
+)
+
+export const CreateProposalRequestSchema = Schema.Struct({
+  manifest: Schema.String.pipe(Schema.minLength(1)),
+  maxProposerTimestamp: Schema.String.pipe(Schema.minLength(1))
+})
+
+export const CreateProposalResponseSchema = Schema.Struct({
+  id: Schema.Number,
+  vaultAddress: VaultAddress,
+  status: Schema.String,
+  manifest: Schema.String,
+  maxProposerTimestamp: Schema.String,
+  createdBy: Schema.String,
+  createdAt: Schema.String
+})
+
+export const ProposalListItemSchema = Schema.Struct({
+  id: Schema.Number,
+  vaultAddress: VaultAddress,
+  status: Schema.String,
+  createdBy: Schema.String,
+  createdAt: Schema.String
+})
+
+export const ProposalDetailSchema = Schema.Struct({
+  id: Schema.Number,
+  vaultAddress: VaultAddress,
+  status: Schema.String,
+  manifest: Schema.String,
+  maxProposerTimestamp: Schema.String,
+  createdBy: Schema.String,
+  createdAt: Schema.String
+})
+
+export class ProposalNotFoundError extends Schema.TaggedError<ProposalNotFoundError>()(
+  'ProposalNotFoundError',
+  {
+    proposalId: Schema.Number
+  },
+  HttpApiSchema.annotations({ status: 404 })
+) {}
+
+export class ProposalPreviewFailedError extends Schema.TaggedError<ProposalPreviewFailedError>()(
+  'ProposalPreviewFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export type CreateProposalRequest = typeof CreateProposalRequestSchema.Type
+export type CreateProposalResponse = typeof CreateProposalResponseSchema.Type
+export type ProposalListItem = typeof ProposalListItemSchema.Type
+export type ProposalDetail = typeof ProposalDetailSchema.Type

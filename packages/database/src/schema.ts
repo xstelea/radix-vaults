@@ -2,6 +2,7 @@ import {
   boolean,
   integer,
   pgTable,
+  text,
   timestamp,
   uuid,
   varchar
@@ -49,6 +50,11 @@ export const proposals = pgTable('proposals', {
     .notNull()
     .references(() => vaults.accountAddress, { onDelete: 'cascade' }),
   status: varchar('status', { length: 32 }).notNull(),
+  manifest: text('manifest').notNull(),
+  maxProposerTimestamp: varchar('max_proposer_timestamp', {
+    length: 64
+  }).notNull(),
+  createdBy: varchar('created_by', { length: 255 }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow()

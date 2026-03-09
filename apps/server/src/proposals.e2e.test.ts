@@ -10,29 +10,27 @@ import {
   type AccountAddress,
   type HexString,
   AppApi,
+  CurrentSession,
+  ProposalNotFoundError,
+  ProposalPreviewFailedError,
   SessionMiddleware,
-  UnsupportedAccessRuleError,
   VaultAddress,
-  VaultAlreadyExistsError,
+  VaultNotFoundErrorSchema,
   VaultsConfig
 } from '@radix-vaults/shared'
+import { PreviewTransaction } from '@radix-effects/gateway'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
-import { Effect, Layer, Redacted } from 'effect'
+import { Data, Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from '@effect/vitest'
 import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import pg from 'pg'
 import { ORM } from './db/orm'
-import {
-  AccessRuleValidator,
-  UnsupportedRuleError,
-  type ParsedAccessRule
-} from './gateway/accessRuleValidator'
-import { ImportVaultRepo } from './handlers/importVaultRepo'
-import { VaultsHandler } from './handlers/vaults'
 import { ListVaultsRepo } from './handlers/listVaultsRepo'
+import { ProposalRepo } from './handlers/proposalRepo'
+import { ProposalsHandler } from './handlers/proposals'
 import { PgContainer } from './test/PgContainer'
 
 const resolveMigrationsFolder = () => {
@@ -63,11 +61,14 @@ const runMigrations = (connectionString: string) =>
     (pool) => Effect.promise(() => pool.end())
   )
 
+const TEST_USER = 'account_tdx_2_1testuser' as AccountAddress
+const VAULT_ADDRESS = 'account_tdx_2_1qtestvault'
+
 const MockSessionMiddleware = Layer.succeed(
   SessionMiddleware,
   Effect.succeed({
     sessionId: 'test',
-    accountAddress: 'account_tdx_2_1testuser' as AccountAddress
+    accountAddress: TEST_USER
   })
 )
 
@@ -88,8 +89,30 @@ const MockAuthHandlersLive = HttpApiBuilder.group(AppApi, 'auth', (handlers) =>
     .handle('logout', () => Effect.succeed({ ok: true as const }))
 )
 
-const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
-  handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
+const MockVaultHandlersLive = HttpApiBuilder.group(
+  AppApi,
+  'vaults',
+  (handlers) =>
+    handlers
+      .handle('list', () => Effect.succeed([]))
+      .handle('detail', () =>
+        Effect.succeed({
+          accountAddress: 'mock' as any,
+          name: 'mock',
+          pendingProposalCount: 0,
+          balanceXrd: '0'
+        })
+      )
+      .handle('signers', () =>
+        Effect.succeed({
+          vaultAddress: 'mock' as any,
+          threshold: 0,
+          signers: []
+        })
+      )
+      .handle('importVault', () =>
+        Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
+      )
 )
 
 const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
@@ -113,142 +136,118 @@ const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
     .handle('clearSignerSource', () => Effect.succeed({ ok: true as const }))
 )
 
-const MockProposalHandlersLive = HttpApiBuilder.group(
-  AppApi,
-  'proposals',
-  (handlers) =>
-    handlers
-      .handle('create', () =>
-        Effect.succeed({
-          id: 0,
-          vaultAddress: 'mock' as any,
-          status: 'created',
-          manifest: '',
-          maxProposerTimestamp: '',
-          createdBy: '',
-          createdAt: ''
-        })
-      )
-      .handle('list', () => Effect.succeed([]))
-      .handle('detail', () =>
-        Effect.succeed({
-          id: 0,
-          vaultAddress: 'mock' as any,
-          status: 'created',
-          manifest: '',
-          maxProposerTimestamp: '',
-          createdBy: '',
-          createdAt: ''
-        })
-      )
+const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
+  handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
 )
 
-// --- Mock AccessRuleValidator ---
-
-const VALID_VAULT = 'account_tdx_2_1qmultisig'
-const UNSUPPORTED_VAULT = 'account_tdx_2_1qunsupported'
-
-const validRule: ParsedAccessRule = {
-  type: 'CountOf',
-  count: 2,
-  signers: [
-    {
-      resourceAddress:
-        'resource_rdx1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxxed25sg',
-      localId: '{hash_pk1}'
-    },
-    {
-      resourceAddress:
-        'resource_rdx1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxxed25sg',
-      localId: '{hash_pk2}'
-    },
-    {
-      resourceAddress:
-        'resource_rdx1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxxed25sg',
-      localId: '{hash_pk3}'
-    }
-  ]
-}
-
-const MockAccessRuleValidator = Layer.succeed(
-  AccessRuleValidator,
-  AccessRuleValidator.make({
-    validate: (accountAddress) => {
-      if (accountAddress === VALID_VAULT) {
-        return Effect.succeed(validRule)
-      }
-      return Effect.fail(
-        new UnsupportedRuleError({
-          accountAddress,
-          reason: 'Unsupported access rule'
-        })
-      )
-    }
-  })
+// Mock PreviewTransaction that succeeds
+const MockPreviewTransactionSuccess = Layer.succeed(
+  PreviewTransaction,
+  PreviewTransaction.make((_input) =>
+    Effect.succeed({ receipt: { status: 'Succeeded' } } as any)
+  )
 )
 
-const makeVaultHandlersLive = () =>
-  HttpApiBuilder.group(AppApi, 'vaults', (handlers) =>
+// Mock PreviewTransaction that fails
+const MockPreviewTransactionFailure = Layer.succeed(
+  PreviewTransaction,
+  PreviewTransaction.make((_input) =>
+    Effect.fail(
+      new (Data.TaggedError('TransactionPreviewError') as any)({
+        message: 'Invalid manifest syntax'
+      })
+    )
+  )
+)
+
+const seedVault = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+  yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
+  yield* sql`TRUNCATE TABLE vaults CASCADE`
+  yield* sql`
+    INSERT INTO vaults (account_address, name)
+    VALUES (${VAULT_ADDRESS}, 'Test Vault')
+  `
+})
+
+const makeProposalHandlersLive = (
+  previewLayer: Layer.Layer<PreviewTransaction>
+) =>
+  HttpApiBuilder.group(AppApi, 'proposals', (handlers) =>
     handlers
-      .handle('list', () =>
-        Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.list()
-        })
+      .handle(
+        'create',
+        ({
+          path: { vaultAddress },
+          payload: { manifest, maxProposerTimestamp }
+        }) =>
+          Effect.gen(function* () {
+            const session = yield* CurrentSession
+            const proposalsHandler = yield* ProposalsHandler
+            return yield* proposalsHandler.create(
+              vaultAddress,
+              manifest,
+              maxProposerTimestamp,
+              session.accountAddress
+            )
+          }).pipe(
+            Effect.catchTags({
+              VaultNotFoundError: (e) =>
+                new VaultNotFoundErrorSchema({
+                  vaultAddress: e.vaultAddress
+                }),
+              ManifestPreviewFailedError: (e) =>
+                new ProposalPreviewFailedError({ message: e.message })
+            })
+          )
       )
-      .handle('detail', ({ path: { vaultAddress } }) =>
+      .handle('list', ({ path: { vaultAddress } }) =>
         Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.getDetail(vaultAddress)
-        })
-      )
-      .handle('signers', ({ path: { vaultAddress } }) =>
-        Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.getSigners(vaultAddress)
-        })
-      )
-      .handle('importVault', ({ payload: { accountAddress, name } }) =>
-        Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.importVault(accountAddress, name)
+          const proposalsHandler = yield* ProposalsHandler
+          return yield* proposalsHandler.list(vaultAddress)
         }).pipe(
           Effect.catchTags({
-            UnsupportedRuleError: (e) =>
-              new UnsupportedAccessRuleError({
-                accountAddress,
-                message: e.reason
-              }),
-            EntityNotFoundOnLedgerError: (e) =>
-              new UnsupportedAccessRuleError({
-                accountAddress: e.accountAddress as typeof accountAddress,
-                message: 'Account not found on ledger'
-              }),
-            VaultAlreadyExistsDbError: (e) =>
-              new VaultAlreadyExistsError({
-                accountAddress: e.accountAddress
+            VaultNotFoundError: (e) =>
+              new VaultNotFoundErrorSchema({
+                vaultAddress: e.vaultAddress
               })
           })
         )
       )
+      .handle('detail', ({ path: { vaultAddress, proposalId } }) =>
+        Effect.gen(function* () {
+          const proposalsHandler = yield* ProposalsHandler
+          return yield* proposalsHandler.getDetail(vaultAddress, proposalId)
+        }).pipe(
+          Effect.catchTags({
+            VaultNotFoundError: (e) =>
+              new VaultNotFoundErrorSchema({
+                vaultAddress: e.vaultAddress
+              }),
+            ProposalNotFoundDbError: (e) =>
+              new ProposalNotFoundError({ proposalId: e.proposalId })
+          })
+        )
+      )
   ).pipe(
-    Layer.provide(VaultsHandler.Default),
+    Layer.provide(ProposalsHandler.Default),
+    Layer.provide(ProposalRepo.Default),
     Layer.provide(ListVaultsRepo.Default),
-    Layer.provide(ImportVaultRepo.Default),
-    Layer.provide(MockAccessRuleValidator),
+    Layer.provide(previewLayer),
     Layer.provide(ORM.Default),
     Layer.provide(VaultsConfig.Live)
   )
 
 const makeServerLive = (
   port: number,
-  pgClientLayer: Layer.Layer<SqlClient.SqlClient, unknown>
+  pgClientLayer: Layer.Layer<SqlClient.SqlClient, unknown>,
+  previewLayer: Layer.Layer<PreviewTransaction>
 ) => {
   const ApiLive = HttpApiBuilder.api(AppApi).pipe(
     Layer.provide(MockAuthHandlersLive),
-    Layer.provide(makeVaultHandlersLive()),
+    Layer.provide(MockVaultHandlersLive),
     Layer.provide(MockTeamHandlersLive),
-    Layer.provide(MockProposalHandlersLive),
+    Layer.provide(makeProposalHandlersLive(previewLayer)),
     Layer.provide(HealthHandlersLive),
     Layer.provide(MockSessionMiddleware)
   )
@@ -260,19 +259,19 @@ const makeServerLive = (
   )
 }
 
-describe('vault import e2e', () => {
+describe('proposal lifecycle e2e', () => {
   it.scopedLive(
-    'imports a vault with supported CountOf access rule',
+    'creates a proposal, lists it, and retrieves detail',
     () =>
       Effect.gen(function* () {
         const container = yield* PgContainer
         const connectionUri = container.getConnectionUri()
-
         const pgClientLayer = PgClient.layer({
           url: Redacted.make(connectionUri)
         })
 
         yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
         process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
@@ -286,10 +285,10 @@ describe('vault import e2e', () => {
           })
         )
 
-        const port = 3410
-        yield* Layer.launch(makeServerLive(port, pgClientLayer)).pipe(
-          Effect.forkScoped
-        )
+        const port = 3430
+        yield* Layer.launch(
+          makeServerLive(port, pgClientLayer, MockPreviewTransactionSuccess)
+        ).pipe(Effect.forkScoped)
         yield* Effect.sleep('250 millis')
 
         const apiFlow = Effect.gen(function* () {
@@ -297,21 +296,40 @@ describe('vault import e2e', () => {
             baseUrl: `http://localhost:${port}`
           })
 
-          // Import vault
-          const imported = yield* client.vaults.importVault({
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          // Create a proposal
+          const created = yield* client.proposals.create({
+            path: { vaultAddress },
             payload: {
-              accountAddress: VaultAddress.make(VALID_VAULT),
-              name: 'My Multisig'
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2026-12-31T23:59:59'
             }
           })
-          expect(imported.accountAddress).toBe(VALID_VAULT)
-          expect(imported.name).toBe('My Multisig')
+          expect(created.id).toBe(1)
+          expect(created.status).toBe('created')
+          expect(created.manifest).toBe(
+            'CALL_METHOD Address("test") "deposit" ;'
+          )
+          expect(created.createdBy).toBe(TEST_USER)
 
-          // Verify it appears in vault list
-          const list = yield* client.vaults.list()
+          // List proposals
+          const list = yield* client.proposals.list({
+            path: { vaultAddress }
+          })
           expect(list).toHaveLength(1)
-          expect(list[0]?.name).toBe('My Multisig')
-          expect(list[0]?.accountAddress).toBe(VALID_VAULT)
+          expect(list[0]?.id).toBe(1)
+          expect(list[0]?.status).toBe('created')
+
+          // Get detail
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.id).toBe(1)
+          expect(detail.manifest).toBe(
+            'CALL_METHOD Address("test") "deposit" ;'
+          )
+          expect(detail.maxProposerTimestamp).toBe('2026-12-31T23:59:59')
         }).pipe(Effect.provide(FetchHttpClient.layer))
 
         yield* apiFlow
@@ -320,17 +338,17 @@ describe('vault import e2e', () => {
   )
 
   it.scopedLive(
-    'rejects unsupported access rule with 422',
+    'rejects proposal when preview fails with 422',
     () =>
       Effect.gen(function* () {
         const container = yield* PgContainer
         const connectionUri = container.getConnectionUri()
-
         const pgClientLayer = PgClient.layer({
           url: Redacted.make(connectionUri)
         })
 
         yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
         process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
@@ -344,10 +362,10 @@ describe('vault import e2e', () => {
           })
         )
 
-        const port = 3411
-        yield* Layer.launch(makeServerLive(port, pgClientLayer)).pipe(
-          Effect.forkScoped
-        )
+        const port = 3431
+        yield* Layer.launch(
+          makeServerLive(port, pgClientLayer, MockPreviewTransactionFailure)
+        ).pipe(Effect.forkScoped)
         yield* Effect.sleep('250 millis')
 
         const apiFlow = Effect.gen(function* () {
@@ -355,16 +373,25 @@ describe('vault import e2e', () => {
             baseUrl: `http://localhost:${port}`
           })
 
-          const result = yield* client.vaults
-            .importVault({
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const result = yield* client.proposals
+            .create({
+              path: { vaultAddress },
               payload: {
-                accountAddress: VaultAddress.make(UNSUPPORTED_VAULT),
-                name: 'Bad Vault'
+                manifest: 'INVALID MANIFEST',
+                maxProposerTimestamp: '2026-12-31T23:59:59'
               }
             })
             .pipe(Effect.either)
 
           expect(result._tag).toBe('Left')
+
+          // Verify no proposal was persisted
+          const list = yield* client.proposals.list({
+            path: { vaultAddress }
+          })
+          expect(list).toHaveLength(0)
         }).pipe(Effect.provide(FetchHttpClient.layer))
 
         yield* apiFlow
@@ -373,17 +400,17 @@ describe('vault import e2e', () => {
   )
 
   it.scopedLive(
-    'rejects duplicate import with 409',
+    'returns 404 for non-existent proposal detail',
     () =>
       Effect.gen(function* () {
         const container = yield* PgContainer
         const connectionUri = container.getConnectionUri()
-
         const pgClientLayer = PgClient.layer({
           url: Redacted.make(connectionUri)
         })
 
         yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
         process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
@@ -397,10 +424,10 @@ describe('vault import e2e', () => {
           })
         )
 
-        const port = 3412
-        yield* Layer.launch(makeServerLive(port, pgClientLayer)).pipe(
-          Effect.forkScoped
-        )
+        const port = 3432
+        yield* Layer.launch(
+          makeServerLive(port, pgClientLayer, MockPreviewTransactionSuccess)
+        ).pipe(Effect.forkScoped)
         yield* Effect.sleep('250 millis')
 
         const apiFlow = Effect.gen(function* () {
@@ -408,21 +435,11 @@ describe('vault import e2e', () => {
             baseUrl: `http://localhost:${port}`
           })
 
-          // First import succeeds
-          yield* client.vaults.importVault({
-            payload: {
-              accountAddress: VaultAddress.make(VALID_VAULT),
-              name: 'My Multisig'
-            }
-          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
-          // Second import fails
-          const result = yield* client.vaults
-            .importVault({
-              payload: {
-                accountAddress: VaultAddress.make(VALID_VAULT),
-                name: 'Duplicate'
-              }
+          const result = yield* client.proposals
+            .detail({
+              path: { vaultAddress, proposalId: 9999 }
             })
             .pipe(Effect.either)
 

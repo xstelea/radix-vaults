@@ -1,0 +1,171 @@
+import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import { VaultAddress } from '@radix-vaults/shared'
+import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
+import { proposalDetailAtom } from '@/atom/proposals'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+
+export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
+  component: ProposalDetailPage
+})
+
+function ProposalDetailPage() {
+  const { vaultId } = Route.useParams()
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-4">
+      <Link
+        to="/vaults/$vaultId"
+        params={{ vaultId }}
+        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+      >
+        Back to vault
+      </Link>
+
+      <ClientOnly
+        fallback={
+          <>
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-7 w-48" />
+                <Skeleton className="h-4 w-2/3" />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Skeleton className="h-40 w-full" />
+              </CardContent>
+            </Card>
+          </>
+        }
+      >
+        <ProposalDetailContent />
+      </ClientOnly>
+    </main>
+  )
+}
+
+const statusVariant: Record<
+  string,
+  'default' | 'secondary' | 'outline' | 'destructive'
+> = {
+  created: 'outline',
+  signing: 'secondary',
+  ready: 'default',
+  submitted: 'secondary',
+  committed: 'default',
+  failed: 'destructive',
+  expired: 'destructive',
+  invalid: 'destructive'
+}
+
+function ProposalDetailContent() {
+  const { vaultId, proposalId } = Route.useParams()
+  const vaultAddress = VaultAddress.make(vaultId)
+  const detailAtom = proposalDetailAtom({
+    vaultAddress,
+    proposalId: Number(proposalId)
+  })
+  const detailResult = useAtomValue(detailAtom)
+  const refresh = useAtomRefresh(detailAtom)
+
+  return Result.builder(detailResult)
+    .onInitialOrWaiting(() => (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-40 w-full" />
+        </CardContent>
+      </Card>
+    ))
+    .onFailure((cause) => (
+      <Card className="border-red-900/20 bg-red-50/80">
+        <CardHeader>
+          <CardTitle className="text-base">Could not load proposal</CardTitle>
+          <CardDescription className="text-red-900/90">
+            {String(cause)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={refresh}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    ))
+    .onSuccess((proposal) => (
+      <>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">
+                Proposal #{proposal.id}
+              </CardTitle>
+              <CardDescription className="font-mono text-xs">
+                {proposal.vaultAddress}
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={refresh}>
+              Refresh
+            </Button>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+              <CardContent className="py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                  Status
+                </p>
+                <div className="mt-1">
+                  <Badge variant={statusVariant[proposal.status] ?? 'outline'}>
+                    {proposal.status}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+              <CardContent className="py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                  Created By
+                </p>
+                <p className="mt-1 truncate font-mono text-xs">
+                  {proposal.createdBy}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+              <CardContent className="py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                  Max Proposer Timestamp
+                </p>
+                <p className="mt-1 text-sm">{proposal.maxProposerTimestamp}</p>
+              </CardContent>
+            </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Transaction Manifest</CardTitle>
+            <CardDescription>
+              Created {new Date(proposal.createdAt).toLocaleString()}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <pre className="overflow-x-auto rounded-md border border-emerald-200 bg-emerald-50/30 p-4 font-mono text-xs">
+              {proposal.manifest}
+            </pre>
+          </CardContent>
+        </Card>
+      </>
+    ))
+    .render()
+}

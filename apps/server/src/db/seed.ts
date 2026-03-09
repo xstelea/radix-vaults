@@ -29,11 +29,11 @@ export const seedTracerBulletData = Effect.gen(function* () {
   `
 
   yield* sql`
-    INSERT INTO proposals (vault_address, status)
+    INSERT INTO proposals (vault_address, status, manifest, max_proposer_timestamp, created_by)
     VALUES
-      ('account_tdx_2_1qalpha', 'created'),
-      ('account_tdx_2_1qalpha', 'submitted'),
-      ('account_tdx_2_1qbeta', 'signing')
+      ('account_tdx_2_1qalpha', 'created', 'CALL_METHOD Address("account_tdx_2_1qalpha") "deposit" ;', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator'),
+      ('account_tdx_2_1qalpha', 'submitted', 'CALL_METHOD Address("account_tdx_2_1qalpha") "withdraw" ;', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator'),
+      ('account_tdx_2_1qbeta', 'signing', 'CALL_METHOD Address("account_tdx_2_1qbeta") "deposit" ;', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator')
   `
 
   yield* Effect.logInfo('Seeded tracer bullet vault data')

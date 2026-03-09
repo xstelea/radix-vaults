@@ -36,3 +36,21 @@
 - Dashboard "Team" button linking to team page
 - Schema migration 0003 for member_signer_sources table
 - Tests: mismatch computation unit (6), signer source repo (4), team e2e (3) = 13 new tests, 44 total
+
+## Issue #8: Proposal lifecycle slice 1 — create + list + detail (DONE)
+- POST /vaults/:vaultAddress/proposals (auth-protected): create proposal with manifest + max proposer timestamp
+- Server compile/validate/preview via Gateway PreviewTransaction before persistence
+- PreviewTransaction called with assume_all_signature_proofs + use_free_credit + skip_epoch_check flags
+- ProposalPreviewFailedError (422) when manifest fails compile/preview
+- GET /vaults/:vaultAddress/proposals: list proposals for a vault (desc creation order)
+- GET /vaults/:vaultAddress/proposals/:proposalId: proposal detail with full manifest
+- ProposalRepo: insert/listByVault/getById with Effect.Service pattern
+- ProposalsHandler: orchestrates vault existence check → preview → persist
+- Proposal status starts at 'created', schema supports full lifecycle (signing, ready, submitted, etc.)
+- Client: ProposalService + proposalListAtom/proposalDetailAtom
+- Client: /vaults/$vaultId vault detail page extended with proposals list section + "New Proposal" button
+- Client: /vaults/$vaultId/proposals/new route with manifest textarea + datetime picker
+- Client: /vaults/$vaultId/proposals/$proposalId route with status badge, metadata, manifest display
+- Badge component extended with destructive variant for failed/expired/invalid statuses
+- Schema migration 0004 for manifest, max_proposer_timestamp, created_by columns on proposals table
+- Tests: proposalRepo unit (4), proposal e2e (3) = 7 new tests, 51 total
