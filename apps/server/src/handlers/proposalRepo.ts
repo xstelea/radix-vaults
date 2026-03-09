@@ -107,6 +107,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 createdBy: row.createdBy,
                 transactionIntentHash: row.transactionIntentHash,
                 submittedAt: row.submittedAt?.toISOString() ?? null,
+                statusReason: row.statusReason ?? null,
                 createdAt: row.createdAt.toISOString()
               })
             }),
@@ -187,6 +188,17 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(eq(proposals.id, proposalId))
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
+      const setTerminalStatus = (
+        proposalId: number,
+        status: 'expired' | 'invalid',
+        statusReason: string
+      ) =>
+        db
+          .update(proposals)
+          .set({ status, statusReason })
+          .where(eq(proposals.id, proposalId))
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
       return {
         insert,
         listByVault,
@@ -194,7 +206,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         addSignature,
         getSignatures,
         updateStatus,
-        setSubmitted
+        setSubmitted,
+        setTerminalStatus
       } as const
     })
   }

@@ -13,6 +13,8 @@ import {
   AppApi,
   CurrentSession,
   NotEligibleSignerError,
+  ProposalExpiredError,
+  ProposalInvalidError,
   ProposalNotFoundError,
   ProposalNotReadyError,
   ProposalNotSignableError,
@@ -361,6 +363,8 @@ const makeProposalHandlersLive = (
               new ProposalNotFoundError({ proposalId: e.proposalId }),
             ProposalNotSignableHandlerError: (e) =>
               new ProposalNotSignableError({ message: e.message }),
+            ProposalExpiredHandlerError: (e) =>
+              new ProposalExpiredError({ message: e.message }),
             SignerSourceMissingHandlerError: (e) =>
               new SignerSourceMissingError({ message: e.message }),
             NotEligibleSignerHandlerError: (e) =>
@@ -382,6 +386,10 @@ const makeProposalHandlersLive = (
               new ProposalNotFoundError({ proposalId: e.proposalId }),
             ProposalNotReadyHandlerError: (e) =>
               new ProposalNotReadyError({ message: e.message }),
+            ProposalExpiredHandlerError: (e) =>
+              new ProposalExpiredError({ message: e.message }),
+            ProposalInvalidHandlerError: (e) =>
+              new ProposalInvalidError({ message: e.message }),
             ProposalSubmitFailedHandlerError: (e) =>
               new ProposalSubmitFailedError({ message: e.message })
           })
@@ -1569,6 +1577,496 @@ describe('proposal lifecycle e2e', () => {
         }).pipe(Effect.provide(FetchHttpClient.layer))
 
         yield* apiFlow
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'marks proposal expired and rejects sign when max proposer timestamp has passed',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        const port = 3449
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          // Create proposal with an already-expired timestamp
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2020-01-01T00:00:00'
+            }
+          })
+
+          // Try to sign — should fail because proposal is expired
+          const signResult = yield* client.proposals
+            .sign({
+              path: { vaultAddress, proposalId: 1 }
+            })
+            .pipe(Effect.either)
+
+          expect(signResult._tag).toBe('Left')
+
+          // Verify detail shows expired status with reason
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('expired')
+          expect(detail.statusReason).toContain('expired')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'marks proposal expired and rejects submit when max proposer timestamp has passed',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+        yield* seedSignerSource(TEST_USER_2, TEST_PUBLIC_KEY_2, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        // Create proposal with future timestamp, sign to ready, then submit with expired check
+        // We'll use SQL to directly set status to 'ready' and insert signatures, then change timestamp
+        const port = 3450
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Create proposal with far-future timestamp and sign it to ready
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2099-12-31T23:59:59'
+            }
+          })
+
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow
+
+        // Sign as USER2 to reach ready
+        const sessionLayer2 = Layer.succeed(
+          SessionMiddleware,
+          Effect.succeed({
+            sessionId: 'test2',
+            accountAddress: TEST_USER_2
+          })
+        )
+        const port2 = 3451
+        yield* Layer.launch(
+          makeServerLive(
+            port2,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            sessionLayer2
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow2 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow2
+
+        // Now change the max_proposer_timestamp to a past date via SQL
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`UPDATE proposals SET max_proposer_timestamp = '2020-01-01T00:00:00' WHERE id = 1`
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // Try to submit — should fail because proposal is expired
+        const apiFlow3 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const submitResult = yield* client.proposals
+            .submit({
+              path: { vaultAddress, proposalId: 1 }
+            })
+            .pipe(Effect.either)
+
+          expect(submitResult._tag).toBe('Left')
+
+          // Verify detail shows expired status
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('expired')
+          expect(detail.statusReason).toContain('expired')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow3
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'marks proposal invalid when signer threshold drifts at submit time',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+        yield* seedSignerSource(TEST_USER_2, TEST_PUBLIC_KEY_2, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        // Start with 2-of-2 rule, sign to ready
+        const port = 3452
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2099-12-31T23:59:59'
+            }
+          })
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow
+
+        // Sign as USER2 to reach ready
+        const sessionLayer2 = Layer.succeed(
+          SessionMiddleware,
+          Effect.succeed({
+            sessionId: 'test2',
+            accountAddress: TEST_USER_2
+          })
+        )
+        const port2 = 3453
+        yield* Layer.launch(
+          makeServerLive(
+            port2,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            sessionLayer2
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow2 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow2
+
+        // Now start a new server where the access rule requires 3 signers (drift)
+        const driftedAccessRule: ParsedAccessRule = {
+          type: 'CountOf',
+          count: 3,
+          signers: [
+            ...DEFAULT_ACCESS_RULE.signers,
+            {
+              resourceAddress: ED25519_RESOURCE,
+              localId: '<aabbccdd>'
+            }
+          ]
+        }
+        const driftedAccessRuleLayer =
+          makeMockAccessRuleValidator(driftedAccessRule)
+
+        const port3 = 3454
+        yield* Layer.launch(
+          makeServerLive(
+            port3,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            driftedAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Try to submit — should fail because threshold drifted (2 sigs, 3 required)
+        const apiFlow3 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port3}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const submitResult = yield* client.proposals
+            .submit({
+              path: { vaultAddress, proposalId: 1 }
+            })
+            .pipe(Effect.either)
+
+          expect(submitResult._tag).toBe('Left')
+
+          // Verify detail shows invalid status with reason
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('invalid')
+          expect(detail.statusReason).toContain('drift')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow3
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'marks proposal invalid when manifest preview fails at submit time',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+        yield* seedSignerSource(TEST_USER_2, TEST_PUBLIC_KEY_2, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        // Create + sign with success preview
+        const port = 3455
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2099-12-31T23:59:59'
+            }
+          })
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow
+
+        // Sign as USER2 to reach ready
+        const sessionLayer2 = Layer.succeed(
+          SessionMiddleware,
+          Effect.succeed({
+            sessionId: 'test2',
+            accountAddress: TEST_USER_2
+          })
+        )
+        const port2 = 3456
+        yield* Layer.launch(
+          makeServerLive(
+            port2,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            sessionLayer2
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow2 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow2
+
+        // Start server with FAILING preview — simulates manifest no longer valid
+        const port3 = 3457
+        yield* Layer.launch(
+          makeServerLive(
+            port3,
+            pgClientLayer,
+            MockPreviewTransactionFailure,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Try to submit — should fail because preview fails, marking invalid
+        const apiFlow3 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port3}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const submitResult = yield* client.proposals
+            .submit({
+              path: { vaultAddress, proposalId: 1 }
+            })
+            .pipe(Effect.either)
+
+          expect(submitResult._tag).toBe('Left')
+
+          // Verify detail shows invalid status with reason
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('invalid')
+          expect(detail.statusReason).toContain('no longer valid')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow3
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )

@@ -168,6 +168,21 @@ function ProposalDetailContent() {
           </CardContent>
         </Card>
 
+        {proposal.statusReason && (
+          <Card className="border-red-900/20 bg-red-50/80">
+            <CardHeader>
+              <CardTitle className="text-base text-red-900">
+                {proposal.status === 'expired'
+                  ? 'Proposal Expired'
+                  : 'Proposal Invalid'}
+              </CardTitle>
+              <CardDescription className="text-red-900/80">
+                {proposal.statusReason}
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
         <SignatureProgressCard
           proposal={proposal}
           vaultAddress={vaultAddress}

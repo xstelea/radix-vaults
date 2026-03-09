@@ -95,3 +95,18 @@
 - "Check Status" button shown only for authenticated users on proposals in 'submitted' status
 - Toast feedback: success/failed/pending status communicated clearly to user
 - Tests: refresh e2e (3: committed transition + detail verification, failed transition + detail verification, non-submitted rejection) = 3 new tests, 63 total
+
+## Issue #15: Proposal validity hardening — expired/invalid lifecycle states (DONE)
+- Submit-time checks mark proposals 'invalid' when signer/threshold drift or manifest preview fails
+- Expiry detection: isExpired() compares maxProposerTimestamp against current time at sign and submit time
+- Sign expired proposal → marks status='expired' with statusReason, returns ProposalExpiredError (422)
+- Submit expired proposal → marks status='expired' with statusReason, returns ProposalExpiredError (422)
+- Submit with threshold drift → marks status='invalid' with statusReason, returns ProposalInvalidError (422)
+- Submit with preview failure → marks status='invalid' with statusReason, returns ProposalInvalidError (422)
+- ProposalRepo: setTerminalStatus(proposalId, status, reason) atomically sets status + statusReason
+- ProposalDetail response extended with statusReason (nullable) — surfaces reason on detail view
+- GetProposal remains read-only: no hidden mutation, returns stored status as-is
+- New error types: ProposalExpiredError (422), ProposalInvalidError (422) added to sign/submit API endpoints
+- Client: StatusReasonCard component shows expired/invalid reason in red card when statusReason is present
+- Schema migration 0007 for status_reason text column on proposals table
+- Tests: expired sign (1), expired submit (1), invalid drift (1), invalid preview (1) = 4 new tests, 67 total

@@ -71,7 +71,24 @@ export class ProposalStatusCheckFailedHandlerError extends Data.TaggedError(
   message: string
 }> {}
 
+export class ProposalExpiredHandlerError extends Data.TaggedError(
+  'ProposalExpiredHandlerError'
+)<{
+  message: string
+}> {}
+
+export class ProposalInvalidHandlerError extends Data.TaggedError(
+  'ProposalInvalidHandlerError'
+)<{
+  message: string
+}> {}
+
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
+
+const isExpired = (maxProposerTimestamp: string): boolean => {
+  const deadline = new Date(maxProposerTimestamp)
+  return !isNaN(deadline.getTime()) && deadline.getTime() < Date.now()
+}
 
 const ED25519_RESOURCE_SUFFIX = 'ed25sg'
 
@@ -187,7 +204,11 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             proposalId
           )
 
-          return { ...proposal, signatureProgress }
+          return {
+            ...proposal,
+            signatureProgress,
+            statusReason: proposal.statusReason
+          }
         })
 
       const sign = (
@@ -199,6 +220,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         | VaultNotFoundError
         | ProposalNotFoundDbError
         | ProposalNotSignableHandlerError
+        | ProposalExpiredHandlerError
         | SignerSourceMissingHandlerError
         | NotEligibleSignerHandlerError
         | AlreadySignedHandlerError
@@ -211,6 +233,13 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             return yield* new ProposalNotSignableHandlerError({
               message: `Proposal is in '${proposal.status}' status and cannot be signed`
             })
+          }
+
+          // Check expiry before allowing signature
+          if (isExpired(proposal.maxProposerTimestamp)) {
+            const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
+            yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
+            return yield* new ProposalExpiredHandlerError({ message: reason })
           }
 
           // Look up signer source for authenticated member
@@ -287,6 +316,8 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         | VaultNotFoundError
         | ProposalNotFoundDbError
         | ProposalNotReadyHandlerError
+        | ProposalExpiredHandlerError
+        | ProposalInvalidHandlerError
         | ProposalSubmitFailedHandlerError
       > =>
         Effect.gen(function* () {
@@ -310,7 +341,14 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Re-check signer threshold
+          // Check expiry before submitting
+          if (isExpired(proposal.maxProposerTimestamp)) {
+            const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
+            yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
+            return yield* new ProposalExpiredHandlerError({ message: reason })
+          }
+
+          // Re-check signer threshold — mark invalid on drift
           const signatures = yield* proposalRepo.getSignatures(proposalId)
           const accessRule = yield* accessRuleValidator
             .validate(vaultAddress)
@@ -322,12 +360,12 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
               : accessRule.signers.length
 
           if (signatures.length < threshold) {
-            return yield* new ProposalNotReadyHandlerError({
-              message: `Insufficient signatures: ${signatures.length} of ${threshold} required`
-            })
+            const reason = `Signer/threshold drift: ${signatures.length} signatures collected but ${threshold} now required`
+            yield* proposalRepo.setTerminalStatus(proposalId, 'invalid', reason)
+            return yield* new ProposalInvalidHandlerError({ message: reason })
           }
 
-          // Re-preview manifest before submitting
+          // Re-preview manifest — mark invalid on failure
           yield* previewFn({
             payload: {
               manifest: proposal.manifest,
@@ -338,12 +376,18 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
               }
             }
           }).pipe(
-            Effect.catchAll(
-              (e) =>
-                new ProposalSubmitFailedHandlerError({
-                  message: `Preview failed before submit: ${e._tag ?? String(e)}`
-                })
-            )
+            Effect.catchAll((e) => {
+              const reason = `Manifest no longer valid: ${e._tag ?? String(e)}`
+              return proposalRepo
+                .setTerminalStatus(proposalId, 'invalid', reason)
+                .pipe(
+                  Effect.flatMap(() =>
+                    Effect.fail(
+                      new ProposalInvalidHandlerError({ message: reason })
+                    )
+                  )
+                )
+            })
           )
 
           // Build signer list from collected signatures

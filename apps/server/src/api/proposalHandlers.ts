@@ -4,6 +4,8 @@ import {
   AppApi,
   CurrentSession,
   NotEligibleSignerError,
+  ProposalExpiredError,
+  ProposalInvalidError,
   ProposalNotFoundError,
   ProposalNotReadyError,
   ProposalNotSignableError,
@@ -98,6 +100,8 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
               new ProposalNotFoundError({ proposalId: e.proposalId }),
             ProposalNotSignableHandlerError: (e) =>
               new ProposalNotSignableError({ message: e.message }),
+            ProposalExpiredHandlerError: (e) =>
+              new ProposalExpiredError({ message: e.message }),
             SignerSourceMissingHandlerError: (e) =>
               new SignerSourceMissingError({ message: e.message }),
             NotEligibleSignerHandlerError: (e) =>
@@ -119,6 +123,10 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
               new ProposalNotFoundError({ proposalId: e.proposalId }),
             ProposalNotReadyHandlerError: (e) =>
               new ProposalNotReadyError({ message: e.message }),
+            ProposalExpiredHandlerError: (e) =>
+              new ProposalExpiredError({ message: e.message }),
+            ProposalInvalidHandlerError: (e) =>
+              new ProposalInvalidError({ message: e.message }),
             ProposalSubmitFailedHandlerError: (e) =>
               new ProposalSubmitFailedError({ message: e.message })
           })

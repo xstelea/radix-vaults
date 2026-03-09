@@ -58,6 +58,7 @@ export const proposals = pgTable('proposals', {
   createdBy: varchar('created_by', { length: 255 }).notNull(),
   transactionIntentHash: varchar('transaction_intent_hash', { length: 255 }),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  statusReason: text('status_reason'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow()

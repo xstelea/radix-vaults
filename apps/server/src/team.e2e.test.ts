@@ -199,7 +199,8 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
           createdAt: '',
           signatureProgress: { collected: 0, required: 0, signatures: [] },
           transactionIntentHash: null,
-          submittedAt: null
+          submittedAt: null,
+          statusReason: null
         })
       )
       .handle('sign', () => Effect.succeed({ ok: true as const }))
@@ -210,7 +211,8 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
         Effect.succeed({
           status: 'submitted',
           transactionIntentHash: null,
-          submittedAt: null
+          submittedAt: null,
+          statusReason: null
         })
       )
 )

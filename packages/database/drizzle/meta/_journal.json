@@ -50,6 +50,13 @@
       "when": 1773049641105,
       "tag": "0006_yellow_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773400000000,
+      "tag": "0007_proposal_status_reason",
+      "breakpoints": true
     }
   ]
 }

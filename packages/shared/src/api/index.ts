@@ -24,6 +24,8 @@ import {
   ImportVaultResponseSchema,
   NotEligibleSignerError,
   ProposalDetailSchema,
+  ProposalExpiredError,
+  ProposalInvalidError,
   ProposalListItemSchema,
   ProposalNotFoundError,
   ProposalNotReadyError,
@@ -191,6 +193,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(VaultNotFoundErrorSchema, { status: 404 })
       .addError(ProposalNotFoundError)
       .addError(ProposalNotSignableError)
+      .addError(ProposalExpiredError)
       .addError(SignerSourceMissingError)
       .addError(NotEligibleSignerError)
       .addError(AlreadySignedError)
@@ -211,6 +214,8 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(VaultNotFoundErrorSchema, { status: 404 })
       .addError(ProposalNotFoundError)
       .addError(ProposalNotReadyError)
+      .addError(ProposalExpiredError)
+      .addError(ProposalInvalidError)
       .addError(ProposalSubmitFailedError)
       .middleware(SessionMiddleware)
   )

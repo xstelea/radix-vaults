@@ -160,7 +160,8 @@ export const ProposalDetailSchema = Schema.Struct({
   createdAt: Schema.String,
   signatureProgress: SignatureProgressSchema,
   transactionIntentHash: Schema.NullOr(Schema.String),
-  submittedAt: Schema.NullOr(Schema.String)
+  submittedAt: Schema.NullOr(Schema.String),
+  statusReason: Schema.NullOr(Schema.String)
 })
 
 export const SignProposalResponseSchema = Schema.Struct({
@@ -246,6 +247,22 @@ export class ProposalNotSubmittedError extends Schema.TaggedError<ProposalNotSub
 
 export class ProposalStatusCheckFailedError extends Schema.TaggedError<ProposalStatusCheckFailedError>()(
   'ProposalStatusCheckFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ProposalExpiredError extends Schema.TaggedError<ProposalExpiredError>()(
+  'ProposalExpiredError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ProposalInvalidError extends Schema.TaggedError<ProposalInvalidError>()(
+  'ProposalInvalidError',
   {
     message: Schema.String
   },

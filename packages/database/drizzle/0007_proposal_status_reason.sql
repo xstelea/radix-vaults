@@ -1,0 +1,1 @@
+ALTER TABLE "proposals" ADD COLUMN "status_reason" text;
