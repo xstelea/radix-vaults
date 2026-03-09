@@ -181,24 +181,11 @@ function ProposalDetailContent() {
         />
 
         {proposal.transactionIntentHash && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Transaction</CardTitle>
-              <CardDescription>
-                {proposal.submittedAt
-                  ? `Submitted ${new Date(proposal.submittedAt).toLocaleString()}`
-                  : 'Submission recorded'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
-                Intent Hash
-              </p>
-              <p className="mt-1 break-all font-mono text-xs">
-                {proposal.transactionIntentHash}
-              </p>
-            </CardContent>
-          </Card>
+          <TransactionInfoCard
+            proposal={proposal}
+            vaultAddress={vaultAddress}
+            onStatusRefreshed={refresh}
+          />
         )}
 
         <Card>
@@ -378,6 +365,89 @@ function SubmitCard({
           {submitting ? 'Submitting...' : 'Submit Transaction'}
         </Button>
       </CardHeader>
+    </Card>
+  )
+}
+
+function TransactionInfoCard({
+  proposal,
+  vaultAddress,
+  onStatusRefreshed
+}: {
+  proposal: ProposalDetail
+  vaultAddress: VaultAddress
+  onStatusRefreshed: () => void
+}) {
+  const sessionResult = useAtomValue(sessionAtom)
+  const [checking, setChecking] = useState(false)
+
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  const canCheckStatus = proposal.status === 'submitted' && session
+
+  const handleCheckStatus = useCallback(async () => {
+    setChecking(true)
+    try {
+      const exit = await Effect.runPromiseExit(
+        ProposalService.pipe(
+          Effect.flatMap((svc) => svc.refreshStatus(vaultAddress, proposal.id)),
+          Effect.provide(ProposalService.Default)
+        )
+      )
+      Exit.match(exit, {
+        onSuccess: (result) => {
+          if (result.status === 'committed') {
+            toast.success('Transaction committed successfully')
+          } else if (result.status === 'failed') {
+            toast.error('Transaction failed on-chain')
+          } else {
+            toast('Transaction still pending')
+          }
+          onStatusRefreshed()
+        },
+        onFailure: (cause) => {
+          toast.error(`Status check failed: ${String(cause)}`)
+        }
+      })
+    } finally {
+      setChecking(false)
+    }
+  }, [vaultAddress, proposal.id, onStatusRefreshed])
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Transaction</CardTitle>
+          <CardDescription>
+            {proposal.submittedAt
+              ? `Submitted ${new Date(proposal.submittedAt).toLocaleString()}`
+              : 'Submission recorded'}
+          </CardDescription>
+        </div>
+        {canCheckStatus && (
+          <Button
+            variant="outline"
+            onClick={handleCheckStatus}
+            disabled={checking}
+            size="sm"
+          >
+            {checking ? 'Checking...' : 'Check Status'}
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+          Intent Hash
+        </p>
+        <p className="mt-1 break-all font-mono text-xs">
+          {proposal.transactionIntentHash}
+        </p>
+      </CardContent>
     </Card>
   )
 }

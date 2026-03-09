@@ -31,6 +31,10 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         submit: (vaultAddress: VaultAddress, proposalId: number) =>
           client.proposals.submit({
             path: { vaultAddress, proposalId }
+          }),
+        refreshStatus: (vaultAddress: VaultAddress, proposalId: number) =>
+          client.proposals.refreshStatus({
+            path: { vaultAddress, proposalId }
           })
       }
     })

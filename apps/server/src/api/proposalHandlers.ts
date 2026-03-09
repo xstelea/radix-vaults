@@ -7,7 +7,9 @@ import {
   ProposalNotFoundError,
   ProposalNotReadyError,
   ProposalNotSignableError,
+  ProposalNotSubmittedError,
   ProposalPreviewFailedError,
+  ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
   SignerSourceMissingError,
   VaultNotFoundErrorSchema,
@@ -19,6 +21,7 @@ import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
+import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 import { ProposalRepo } from '../handlers/proposalRepo'
@@ -121,6 +124,23 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           })
         )
       )
+      .handle('refreshStatus', ({ path: { vaultAddress, proposalId } }) =>
+        Effect.gen(function* () {
+          const proposalsHandler = yield* ProposalsHandler
+          return yield* proposalsHandler.refreshStatus(vaultAddress, proposalId)
+        }).pipe(
+          Effect.catchTags({
+            VaultNotFoundError: (e) =>
+              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
+            ProposalNotFoundDbError: (e) =>
+              new ProposalNotFoundError({ proposalId: e.proposalId }),
+            ProposalNotSubmittedHandlerError: (e) =>
+              new ProposalNotSubmittedError({ message: e.message }),
+            ProposalStatusCheckFailedHandlerError: (e) =>
+              new ProposalStatusCheckFailedError({ message: e.message })
+          })
+        )
+      )
 ).pipe(
   Layer.provide(ProposalsHandler.Default),
   Layer.provide(ProposalRepo.Default),
@@ -128,6 +148,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
   Layer.provide(AccessRuleValidator.Default),
   Layer.provide(SignerSourceRepo.Default),
   Layer.provide(TransactionSubmitter.Default),
+  Layer.provide(TransactionStatusChecker.Default),
   Layer.provide(PreviewTransaction.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),

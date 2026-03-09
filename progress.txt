@@ -82,3 +82,16 @@
 - Client: TransactionInfoCard shows intent hash + submission timestamp when present
 - Schema migration 0006 for transaction_intent_hash and submitted_at columns on proposals table
 - Tests: submit e2e (3: submit success + status/hash verification, idempotent duplicate submit, non-ready rejection) = 3 new tests, 60 total
+
+## Issue #11: Proposal lifecycle slice 4 — manual submitted-status refresh (DONE)
+- POST /vaults/:vaultAddress/proposals/:proposalId/refresh-status (auth-protected): refresh submitted proposal status
+- TransactionStatusChecker Effect Service: queries Gateway API for transaction intent status, mockable via Layer
+- Handler validates: proposal must be in 'submitted' status (or already terminal)
+- Idempotent: if proposal already 'committed' or 'failed', returns current state without re-querying Gateway
+- Status mapping: CommittedSuccess → 'committed', CommittedFailure/Rejected → 'failed', Pending/Unknown → no change
+- Error types: ProposalNotSubmittedError (422), ProposalStatusCheckFailedError (422)
+- Shared schema: RefreshStatusResponseSchema with status + transactionIntentHash + submittedAt
+- Client: ProposalService.refreshStatus method, TransactionInfoCard component with "Check Status" button
+- "Check Status" button shown only for authenticated users on proposals in 'submitted' status
+- Toast feedback: success/failed/pending status communicated clearly to user
+- Tests: refresh e2e (3: committed transition + detail verification, failed transition + detail verification, non-submitted rejection) = 3 new tests, 63 total

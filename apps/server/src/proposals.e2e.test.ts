@@ -16,7 +16,9 @@ import {
   ProposalNotFoundError,
   ProposalNotReadyError,
   ProposalNotSignableError,
+  ProposalNotSubmittedError,
   ProposalPreviewFailedError,
+  ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
   SessionMiddleware,
   SignerSourceMissingError,
@@ -36,6 +38,7 @@ import pg from 'pg'
 import { ORM } from './db/orm'
 import { AccessRuleValidator } from './gateway/accessRuleValidator'
 import type { ParsedAccessRule } from './gateway/accessRuleValidator'
+import { TransactionStatusChecker } from './gateway/transactionStatusChecker'
 import { TransactionSubmitter } from './gateway/transactionSubmitter'
 import { ListVaultsRepo } from './handlers/listVaultsRepo'
 import { ProposalRepo } from './handlers/proposalRepo'
@@ -204,6 +207,30 @@ const MockTransactionSubmitterFailure = Layer.succeed(
   )
 )
 
+// Mock TransactionStatusChecker that returns CommittedSuccess
+const MockTransactionStatusCheckerCommitted = Layer.succeed(
+  TransactionStatusChecker,
+  TransactionStatusChecker.make((_input) =>
+    Effect.succeed({ intentStatus: 'CommittedSuccess' as const })
+  )
+)
+
+// Mock TransactionStatusChecker that returns CommittedFailure
+const MockTransactionStatusCheckerFailed = Layer.succeed(
+  TransactionStatusChecker,
+  TransactionStatusChecker.make((_input) =>
+    Effect.succeed({ intentStatus: 'CommittedFailure' as const })
+  )
+)
+
+// Mock TransactionStatusChecker that returns Pending
+const MockTransactionStatusCheckerPending = Layer.succeed(
+  TransactionStatusChecker,
+  TransactionStatusChecker.make((_input) =>
+    Effect.succeed({ intentStatus: 'Pending' as const })
+  )
+)
+
 // Mock AccessRuleValidator: 2-of-2 multisig with two ed25519 signers
 const makeMockAccessRuleValidator = (accessRule: ParsedAccessRule) =>
   Layer.succeed(
@@ -258,7 +285,8 @@ const seedSignerSource = (
 const makeProposalHandlersLive = (
   previewLayer: Layer.Layer<PreviewTransaction>,
   accessRuleLayer: Layer.Layer<AccessRuleValidator>,
-  transactionSubmitterLayer: Layer.Layer<TransactionSubmitter> = MockTransactionSubmitterSuccess
+  transactionSubmitterLayer: Layer.Layer<TransactionSubmitter> = MockTransactionSubmitterSuccess,
+  transactionStatusCheckerLayer: Layer.Layer<TransactionStatusChecker> = MockTransactionStatusCheckerPending
 ) =>
   HttpApiBuilder.group(AppApi, 'proposals', (handlers) =>
     handlers
@@ -359,12 +387,30 @@ const makeProposalHandlersLive = (
           })
         )
       )
+      .handle('refreshStatus', ({ path: { vaultAddress, proposalId } }) =>
+        Effect.gen(function* () {
+          const proposalsHandler = yield* ProposalsHandler
+          return yield* proposalsHandler.refreshStatus(vaultAddress, proposalId)
+        }).pipe(
+          Effect.catchTags({
+            VaultNotFoundError: (e) =>
+              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
+            ProposalNotFoundDbError: (e) =>
+              new ProposalNotFoundError({ proposalId: e.proposalId }),
+            ProposalNotSubmittedHandlerError: (e) =>
+              new ProposalNotSubmittedError({ message: e.message }),
+            ProposalStatusCheckFailedHandlerError: (e) =>
+              new ProposalStatusCheckFailedError({ message: e.message })
+          })
+        )
+      )
   ).pipe(
     Layer.provide(ProposalsHandler.Default),
     Layer.provide(ProposalRepo.Default),
     Layer.provide(ListVaultsRepo.Default),
     Layer.provide(SignerSourceRepo.Default),
     Layer.provide(transactionSubmitterLayer),
+    Layer.provide(transactionStatusCheckerLayer),
     Layer.provide(accessRuleLayer),
     Layer.provide(previewLayer),
     Layer.provide(ORM.Default),
@@ -377,7 +423,8 @@ const makeServerLive = (
   previewLayer: Layer.Layer<PreviewTransaction>,
   accessRuleLayer: Layer.Layer<AccessRuleValidator>,
   sessionLayer?: Layer.Layer<SessionMiddleware>,
-  transactionSubmitterLayer?: Layer.Layer<TransactionSubmitter>
+  transactionSubmitterLayer?: Layer.Layer<TransactionSubmitter>,
+  transactionStatusCheckerLayer?: Layer.Layer<TransactionStatusChecker>
 ) => {
   const ApiLive = HttpApiBuilder.api(AppApi).pipe(
     Layer.provide(MockAuthHandlersLive),
@@ -387,7 +434,8 @@ const makeServerLive = (
       makeProposalHandlersLive(
         previewLayer,
         accessRuleLayer,
-        transactionSubmitterLayer
+        transactionSubmitterLayer,
+        transactionStatusCheckerLayer
       )
     ),
     Layer.provide(HealthHandlersLive),
@@ -1169,6 +1217,350 @@ describe('proposal lifecycle e2e', () => {
           // Try to submit — should fail because proposal is not ready
           const result = yield* client.proposals
             .submit({
+              path: { vaultAddress, proposalId: 1 }
+            })
+            .pipe(Effect.either)
+
+          expect(result._tag).toBe('Left')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'refreshes submitted proposal status to committed when Gateway reports success',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+        yield* seedSignerSource(TEST_USER_2, TEST_PUBLIC_KEY_2, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        // Start server with TEST_USER session
+        const port = 3442
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Create + sign as USER1
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2026-12-31T23:59:59'
+            }
+          })
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow
+
+        // Sign as USER2 to reach threshold
+        const sessionLayer2 = Layer.succeed(
+          SessionMiddleware,
+          Effect.succeed({
+            sessionId: 'test2',
+            accountAddress: TEST_USER_2
+          })
+        )
+        const port2 = 3443
+        yield* Layer.launch(
+          makeServerLive(
+            port2,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            sessionLayer2
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Sign as USER2 + submit
+        const apiFlow2 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          yield* client.proposals.submit({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow2
+
+        // Start a new server with CommittedSuccess status checker
+        const port3 = 3444
+        yield* Layer.launch(
+          makeServerLive(
+            port3,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            undefined,
+            undefined,
+            MockTransactionStatusCheckerCommitted
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Refresh status — should transition to committed
+        const apiFlow3 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port3}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const result = yield* client.proposals.refreshStatus({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(result.status).toBe('committed')
+          expect(result.transactionIntentHash).toBe('txid_test_abc123def456')
+          expect(result.submittedAt).toBeTruthy()
+
+          // Verify proposal detail also reflects committed
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('committed')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow3
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'refreshes submitted proposal status to failed when Gateway reports failure',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        yield* seedSignerSource(TEST_USER, TEST_PUBLIC_KEY_1, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+        yield* seedSignerSource(TEST_USER_2, TEST_PUBLIC_KEY_2, 'ed25519').pipe(
+          Effect.provide(pgClientLayer)
+        )
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        const port = 3445
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Create + sign as USER1
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2026-12-31T23:59:59'
+            }
+          })
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow
+
+        // Sign as USER2 + submit
+        const sessionLayer2 = Layer.succeed(
+          SessionMiddleware,
+          Effect.succeed({
+            sessionId: 'test2',
+            accountAddress: TEST_USER_2
+          })
+        )
+        const port2 = 3446
+        yield* Layer.launch(
+          makeServerLive(
+            port2,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            sessionLayer2
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow2 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port2}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          yield* client.proposals.sign({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          yield* client.proposals.submit({
+            path: { vaultAddress, proposalId: 1 }
+          })
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+        yield* apiFlow2
+
+        // Start server with Failed status checker
+        const port3 = 3447
+        yield* Layer.launch(
+          makeServerLive(
+            port3,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer,
+            undefined,
+            undefined,
+            MockTransactionStatusCheckerFailed
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        // Refresh status — should transition to failed
+        const apiFlow3 = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port3}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          const result = yield* client.proposals.refreshStatus({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(result.status).toBe('failed')
+
+          // Verify detail also reflects failed
+          const detail = yield* client.proposals.detail({
+            path: { vaultAddress, proposalId: 1 }
+          })
+          expect(detail.status).toBe('failed')
+        }).pipe(Effect.provide(FetchHttpClient.layer))
+
+        yield* apiFlow3
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'rejects refresh-status for non-submitted proposal with 422',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        const previousTeamAccountAddress = process.env.TEAM_ACCOUNT_ADDRESS
+        process.env.TEAM_ACCOUNT_ADDRESS = 'account_tdx_2_1qteam'
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            if (previousTeamAccountAddress === undefined) {
+              delete process.env.TEAM_ACCOUNT_ADDRESS
+            } else {
+              process.env.TEAM_ACCOUNT_ADDRESS = previousTeamAccountAddress
+            }
+          })
+        )
+
+        const port = 3448
+        yield* Layer.launch(
+          makeServerLive(
+            port,
+            pgClientLayer,
+            MockPreviewTransactionSuccess,
+            defaultAccessRuleLayer
+          )
+        ).pipe(Effect.forkScoped)
+        yield* Effect.sleep('250 millis')
+
+        const apiFlow = Effect.gen(function* () {
+          const client = yield* HttpApiClient.make(AppApi, {
+            baseUrl: `http://localhost:${port}`
+          })
+          const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
+
+          // Create proposal (status = created, not submitted)
+          yield* client.proposals.create({
+            path: { vaultAddress },
+            payload: {
+              manifest: 'CALL_METHOD Address("test") "deposit" ;',
+              maxProposerTimestamp: '2026-12-31T23:59:59'
+            }
+          })
+
+          // Try to refresh — should fail because proposal is not submitted
+          const result = yield* client.proposals
+            .refreshStatus({
               path: { vaultAddress, proposalId: 1 }
             })
             .pipe(Effect.either)

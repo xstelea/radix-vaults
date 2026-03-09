@@ -3,6 +3,7 @@ import type {
   CreateProposalResponse,
   ProposalDetail,
   ProposalListItem,
+  RefreshStatusResponse,
   SubmitProposalResponse,
   VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
@@ -10,6 +11,7 @@ import { PreviewTransaction } from '@radix-effects/gateway'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { Data, Effect } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo, type VaultNotFoundError } from './listVaultsRepo'
 import { ProposalRepo, type ProposalNotFoundDbError } from './proposalRepo'
@@ -57,6 +59,18 @@ export class ProposalSubmitFailedHandlerError extends Data.TaggedError(
   message: string
 }> {}
 
+export class ProposalNotSubmittedHandlerError extends Data.TaggedError(
+  'ProposalNotSubmittedHandlerError'
+)<{
+  message: string
+}> {}
+
+export class ProposalStatusCheckFailedHandlerError extends Data.TaggedError(
+  'ProposalStatusCheckFailedHandlerError'
+)<{
+  message: string
+}> {}
+
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
 const ED25519_RESOURCE_SUFFIX = 'ed25sg'
@@ -82,6 +96,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const accessRuleValidator = yield* AccessRuleValidator
       const signerSourceRepo = yield* SignerSourceRepo
       const transactionSubmitter = yield* TransactionSubmitter
+      const transactionStatusChecker = yield* TransactionStatusChecker
 
       const create = (
         vaultAddress: VaultAddressType,
@@ -367,7 +382,80 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { intentHash, status: 'submitted' as const }
         })
 
-      return { create, list, getDetail, sign, submit } as const
+      const refreshStatus = (
+        vaultAddress: VaultAddressType,
+        proposalId: number
+      ): Effect.Effect<
+        RefreshStatusResponse,
+        | VaultNotFoundError
+        | ProposalNotFoundDbError
+        | ProposalNotSubmittedHandlerError
+        | ProposalStatusCheckFailedHandlerError
+      > =>
+        Effect.gen(function* () {
+          yield* listVaultsRepo.ensureExists(vaultAddress)
+          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+
+          // Idempotent: if already in terminal state, return current
+          if (proposal.status === 'committed' || proposal.status === 'failed') {
+            return {
+              status: proposal.status,
+              transactionIntentHash: proposal.transactionIntentHash,
+              submittedAt: proposal.submittedAt
+            }
+          }
+
+          if (
+            proposal.status !== 'submitted' ||
+            !proposal.transactionIntentHash
+          ) {
+            return yield* new ProposalNotSubmittedHandlerError({
+              message: `Proposal is in '${proposal.status}' status — only submitted proposals can be refreshed`
+            })
+          }
+
+          const { intentStatus } = yield* transactionStatusChecker({
+            intentHash: proposal.transactionIntentHash
+          }).pipe(
+            Effect.catchTag('TransactionStatusCheckError', (e) =>
+              Effect.fail(
+                new ProposalStatusCheckFailedHandlerError({
+                  message: e.message
+                })
+              )
+            )
+          )
+
+          if (intentStatus === 'CommittedSuccess') {
+            yield* proposalRepo.updateStatus(proposalId, 'committed')
+            return {
+              status: 'committed' as const,
+              transactionIntentHash: proposal.transactionIntentHash,
+              submittedAt: proposal.submittedAt
+            }
+          }
+
+          if (
+            intentStatus === 'CommittedFailure' ||
+            intentStatus === 'Rejected'
+          ) {
+            yield* proposalRepo.updateStatus(proposalId, 'failed')
+            return {
+              status: 'failed' as const,
+              transactionIntentHash: proposal.transactionIntentHash,
+              submittedAt: proposal.submittedAt
+            }
+          }
+
+          // Pending or Unknown — no status change
+          return {
+            status: proposal.status,
+            transactionIntentHash: proposal.transactionIntentHash,
+            submittedAt: proposal.submittedAt
+          }
+        })
+
+      return { create, list, getDetail, sign, submit, refreshStatus } as const
     })
   }
 ) {}

@@ -148,6 +148,13 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
       .handle('submit', () =>
         Effect.succeed({ intentHash: 'mock', status: 'submitted' })
       )
+      .handle('refreshStatus', () =>
+        Effect.succeed({
+          status: 'submitted',
+          transactionIntentHash: null,
+          submittedAt: null
+        })
+      )
 )
 
 // --- Mock AccessRuleValidator ---

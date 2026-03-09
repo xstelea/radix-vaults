@@ -28,8 +28,11 @@ import {
   ProposalNotFoundError,
   ProposalNotReadyError,
   ProposalNotSignableError,
+  ProposalNotSubmittedError,
   ProposalPreviewFailedError,
+  ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
+  RefreshStatusResponseSchema,
   SetSignerSourceRequestSchema,
   SetSignerSourceResponseSchema,
   SignerSourceMissingError,
@@ -209,6 +212,24 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(ProposalNotFoundError)
       .addError(ProposalNotReadyError)
       .addError(ProposalSubmitFailedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'refreshStatus',
+      '/vaults/:vaultAddress/proposals/:proposalId/refresh-status'
+    )
+      .setPath(
+        Schema.Struct({
+          vaultAddress: VaultAddress,
+          proposalId: Schema.NumberFromString
+        })
+      )
+      .addSuccess(RefreshStatusResponseSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalNotFoundError)
+      .addError(ProposalNotSubmittedError)
+      .addError(ProposalStatusCheckFailedError)
       .middleware(SessionMiddleware)
   ) {}
 

@@ -236,6 +236,28 @@ export class ProposalSubmitFailedError extends Schema.TaggedError<ProposalSubmit
   HttpApiSchema.annotations({ status: 422 })
 ) {}
 
+export class ProposalNotSubmittedError extends Schema.TaggedError<ProposalNotSubmittedError>()(
+  'ProposalNotSubmittedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ProposalStatusCheckFailedError extends Schema.TaggedError<ProposalStatusCheckFailedError>()(
+  'ProposalStatusCheckFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export const RefreshStatusResponseSchema = Schema.Struct({
+  status: Schema.String,
+  transactionIntentHash: Schema.NullOr(Schema.String),
+  submittedAt: Schema.NullOr(Schema.String)
+})
+
 export type CreateProposalRequest = typeof CreateProposalRequestSchema.Type
 export type CreateProposalResponse = typeof CreateProposalResponseSchema.Type
 export type ProposalListItem = typeof ProposalListItemSchema.Type
@@ -243,3 +265,4 @@ export type ProposalDetail = typeof ProposalDetailSchema.Type
 export type ProposalSignature = typeof ProposalSignatureSchema.Type
 export type SignatureProgress = typeof SignatureProgressSchema.Type
 export type SubmitProposalResponse = typeof SubmitProposalResponseSchema.Type
+export type RefreshStatusResponse = typeof RefreshStatusResponseSchema.Type
