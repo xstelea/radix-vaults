@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VaultsAddRouteImport } from './routes/vaults.add'
 import { Route as VaultsVaultIdRouteImport } from './routes/vaults.$vaultId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VaultsAddRoute = VaultsAddRouteImport.update({
+  id: '/vaults/add',
+  path: '/vaults/add',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VaultsVaultIdRoute = VaultsVaultIdRouteImport.update({
@@ -26,27 +32,31 @@ const VaultsVaultIdRoute = VaultsVaultIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
+  '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
+  '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
+  '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/vaults/$vaultId'
+  fullPaths: '/' | '/vaults/$vaultId' | '/vaults/add'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/vaults/$vaultId'
-  id: '__root__' | '/' | '/vaults/$vaultId'
+  to: '/' | '/vaults/$vaultId' | '/vaults/add'
+  id: '__root__' | '/' | '/vaults/$vaultId' | '/vaults/add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   VaultsVaultIdRoute: typeof VaultsVaultIdRoute
+  VaultsAddRoute: typeof VaultsAddRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vaults/add': {
+      id: '/vaults/add'
+      path: '/vaults/add'
+      fullPath: '/vaults/add'
+      preLoaderRoute: typeof VaultsAddRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vaults/$vaultId': {
@@ -71,16 +88,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   VaultsVaultIdRoute: VaultsVaultIdRoute,
+  VaultsAddRoute: VaultsAddRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

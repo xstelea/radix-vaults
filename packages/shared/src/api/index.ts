@@ -17,6 +17,10 @@ import {
 } from '../auth'
 import { VaultAddress } from '../vaultAddress'
 import {
+  ImportVaultRequestSchema,
+  ImportVaultResponseSchema,
+  UnsupportedAccessRuleError,
+  VaultAlreadyExistsError,
   VaultDetailSchema,
   VaultListItemSchema,
   VaultNotFoundErrorSchema,
@@ -98,6 +102,14 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
       .setPath(Schema.Struct({ vaultAddress: VaultAddress }))
       .addSuccess(VaultSignersSchema)
       .addError(VaultNotFoundErrorSchema, { status: 404 })
+  )
+  .add(
+    HttpApiEndpoint.post('importVault', '/vaults/import')
+      .setPayload(ImportVaultRequestSchema)
+      .addSuccess(ImportVaultResponseSchema)
+      .addError(UnsupportedAccessRuleError)
+      .addError(VaultAlreadyExistsError)
+      .middleware(SessionMiddleware)
   ) {}
 
 // --- Health endpoint ---

@@ -1,7 +1,16 @@
 import { HttpApiBuilder } from '@effect/platform'
-import { AppApi, VaultsConfig } from '@radix-vaults/shared'
+import {
+  AppApi,
+  UnsupportedAccessRuleError,
+  VaultAlreadyExistsError,
+  VaultsConfig
+} from '@radix-vaults/shared'
+import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
+import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
+import { ImportVaultRepo } from '../handlers/importVaultRepo'
 import { VaultsHandler } from '../handlers/vaults'
 import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 
@@ -28,9 +37,36 @@ export const VaultHandlersLive = HttpApiBuilder.group(
           return yield* vaults.getSigners(vaultAddress)
         })
       )
+      .handle('importVault', ({ payload: { accountAddress, name } }) =>
+        Effect.gen(function* () {
+          const vaults = yield* VaultsHandler
+          return yield* vaults.importVault(accountAddress, name)
+        }).pipe(
+          Effect.catchTags({
+            UnsupportedRuleError: (e) =>
+              new UnsupportedAccessRuleError({
+                accountAddress,
+                message: e.reason
+              }),
+            EntityNotFoundOnLedgerError: (e) =>
+              new UnsupportedAccessRuleError({
+                accountAddress: e.accountAddress as typeof accountAddress,
+                message: 'Account not found on ledger'
+              }),
+            VaultAlreadyExistsDbError: (e) =>
+              new VaultAlreadyExistsError({
+                accountAddress: e.accountAddress
+              })
+          })
+        )
+      )
 ).pipe(
   Layer.provide(VaultsHandler.Default),
   Layer.provide(ListVaultsRepo.Default),
+  Layer.provide(ImportVaultRepo.Default),
+  Layer.provide(AccessRuleValidator.Default),
+  Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),
-  Layer.provide(VaultsConfig.Live)
+  Layer.provide(VaultsConfig.Live),
+  Layer.provide(GatewayApiClientLayer)
 )

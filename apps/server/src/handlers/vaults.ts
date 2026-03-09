@@ -1,9 +1,19 @@
 import type {
+  ImportVaultResponse,
   VaultAddress as VaultAddressType,
   VaultDetail,
   VaultSigners
 } from '@radix-vaults/shared'
 import { Effect } from 'effect'
+import {
+  AccessRuleValidator,
+  type UnsupportedRuleError,
+  type EntityNotFoundOnLedgerError
+} from '../gateway/accessRuleValidator'
+import {
+  ImportVaultRepo,
+  type VaultAlreadyExistsDbError
+} from './importVaultRepo'
 import { ListVaultsRepo } from './listVaultsRepo'
 
 export class VaultsHandler extends Effect.Service<VaultsHandler>()(
@@ -11,6 +21,8 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
   {
     effect: Effect.gen(function* () {
       const listVaultsRepo = yield* ListVaultsRepo
+      const importVaultRepo = yield* ImportVaultRepo
+      const accessRuleValidator = yield* AccessRuleValidator
 
       const list = () => listVaultsRepo.list().pipe(Effect.orDie)
 
@@ -37,10 +49,29 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
           } satisfies VaultSigners
         })
 
+      const importVault = (
+        accountAddress: VaultAddressType,
+        name: string
+      ): Effect.Effect<
+        ImportVaultResponse,
+        | UnsupportedRuleError
+        | EntityNotFoundOnLedgerError
+        | VaultAlreadyExistsDbError
+      > =>
+        Effect.gen(function* () {
+          yield* accessRuleValidator.validate(accountAddress)
+          const vault = yield* importVaultRepo.insert(accountAddress, name)
+          return {
+            accountAddress: vault.accountAddress,
+            name: vault.name
+          } satisfies ImportVaultResponse
+        })
+
       return {
         list,
         getDetail,
-        getSigners
+        getSigners,
+        importVault
       } as const
     })
   }

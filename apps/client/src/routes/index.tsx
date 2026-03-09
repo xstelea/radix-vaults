@@ -29,15 +29,20 @@ function HomePage() {
               Public vault read surface with pending proposal counts.
             </CardDescription>
           </div>
-          <ClientOnly
-            fallback={
-              <Button variant="outline" disabled>
-                Refresh
-              </Button>
-            }
-          >
-            <RefreshVaultsButton />
-          </ClientOnly>
+          <div className="flex gap-2">
+            <Link to="/vaults/add">
+              <Button variant="outline">Import Vault</Button>
+            </Link>
+            <ClientOnly
+              fallback={
+                <Button variant="outline" disabled>
+                  Refresh
+                </Button>
+              }
+            >
+              <RefreshVaultsButton />
+            </ClientOnly>
+          </div>
         </CardHeader>
       </Card>
       <ClientOnly fallback={<DashboardSkeleton />}>

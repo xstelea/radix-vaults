@@ -14,3 +14,13 @@
 - Client: wallet connect button + radix dapp toolkit integration
 - Tests: challengeStore (4), rola verification (3), auth e2e (4), plus existing tests (8) = 19 total
 - Schema migration 0002 for challenges + sessions tables
+
+## Issue #5: Import vault end-to-end (DONE)
+- POST /vaults/import endpoint (auth-protected) with access rule validation
+- AccessRuleValidator service: fetches entity details from Gateway API, parses owner role
+- Supported access rule formats: CountOf (M-of-N multisig) and AllOf (all signers required)
+- ImportVaultRepo: inserts vault into DB with duplicate detection (409)
+- UnsupportedAccessRuleError (422) for non-multisig accounts
+- Client: /vaults/add route with import form (address + display name)
+- Dashboard "Import Vault" button linking to add page
+- Tests: access rule parser unit (9), import e2e (3) = 12 new tests, 31 total

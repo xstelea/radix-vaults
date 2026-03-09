@@ -35,7 +35,36 @@ export class VaultNotFoundErrorSchema extends Schema.TaggedError<VaultNotFoundEr
   HttpApiSchema.annotations({ status: 404 })
 ) {}
 
+export const ImportVaultRequestSchema = Schema.Struct({
+  accountAddress: VaultAddress,
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255))
+})
+
+export const ImportVaultResponseSchema = Schema.Struct({
+  accountAddress: VaultAddress,
+  name: Schema.String
+})
+
+export class UnsupportedAccessRuleError extends Schema.TaggedError<UnsupportedAccessRuleError>()(
+  'UnsupportedAccessRuleError',
+  {
+    accountAddress: VaultAddress,
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class VaultAlreadyExistsError extends Schema.TaggedError<VaultAlreadyExistsError>()(
+  'VaultAlreadyExistsError',
+  {
+    accountAddress: VaultAddress
+  },
+  HttpApiSchema.annotations({ status: 409 })
+) {}
+
 export type VaultListItem = typeof VaultListItemSchema.Type
 export type VaultDetail = typeof VaultDetailSchema.Type
 export type VaultSigners = typeof VaultSignersSchema.Type
 export type Signer = typeof SignerSchema.Type
+export type ImportVaultRequest = typeof ImportVaultRequestSchema.Type
+export type ImportVaultResponse = typeof ImportVaultResponseSchema.Type

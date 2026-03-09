@@ -13,7 +13,11 @@ export class VaultService extends Effect.Service<VaultService>()(
         getDetail: (vaultAddress: VaultAddress) =>
           client.vaults.detail({ path: { vaultAddress } }),
         getSigners: (vaultAddress: VaultAddress) =>
-          client.vaults.signers({ path: { vaultAddress } })
+          client.vaults.signers({ path: { vaultAddress } }),
+        importVault: (accountAddress: VaultAddress, name: string) =>
+          client.vaults.importVault({
+            payload: { accountAddress, name }
+          })
       }
     })
   }
