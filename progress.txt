@@ -68,3 +68,17 @@
 - Sign button shown only for authenticated users on proposals in signable status
 - Schema migration 0005 for proposal_signatures table (proposal_id + signer_account_address unique constraint)
 - Tests: createPublicKeyHash unit (3), signing e2e (3: sign+status transition, duplicate rejection, missing source rejection) = 6 new tests, 57 total
+
+## Issue #10: Proposal lifecycle slice 3 — submit ready proposal + tx result (DONE)
+- POST /vaults/:vaultAddress/proposals/:proposalId/submit (auth-protected): submit a ready proposal
+- Submit validates: proposal is 'ready', re-checks signer threshold against on-chain access rule, re-previews manifest
+- Idempotent: if proposal already has transactionIntentHash (submitted/committed), returns existing hash
+- TransactionSubmitter Effect Service: abstracts transaction building + submission, mockable via Layer (real implementation deferred to #14 Bootstrap CLI)
+- ProposalRepo: setSubmitted method writes transactionIntentHash + submittedAt + status='submitted'
+- Status transition: ready → submitted
+- ProposalDetail response extended with transactionIntentHash (nullable) and submittedAt (nullable)
+- Error types: ProposalNotReadyError (422), ProposalSubmitFailedError (422)
+- Client: ProposalService.submit method, SubmitCard component (shown for ready proposals + authenticated users)
+- Client: TransactionInfoCard shows intent hash + submission timestamp when present
+- Schema migration 0006 for transaction_intent_hash and submitted_at columns on proposals table
+- Tests: submit e2e (3: submit success + status/hash verification, idempotent duplicate submit, non-ready rejection) = 3 new tests, 60 total

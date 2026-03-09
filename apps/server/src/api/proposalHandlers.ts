@@ -5,8 +5,10 @@ import {
   CurrentSession,
   NotEligibleSignerError,
   ProposalNotFoundError,
+  ProposalNotReadyError,
   ProposalNotSignableError,
   ProposalPreviewFailedError,
+  ProposalSubmitFailedError,
   SignerSourceMissingError,
   VaultNotFoundErrorSchema,
   VaultsConfig
@@ -17,6 +19,7 @@ import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
+import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 import { ProposalRepo } from '../handlers/proposalRepo'
 import { ProposalsHandler } from '../handlers/proposals'
@@ -101,12 +104,30 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           })
         )
       )
+      .handle('submit', ({ path: { vaultAddress, proposalId } }) =>
+        Effect.gen(function* () {
+          const proposalsHandler = yield* ProposalsHandler
+          return yield* proposalsHandler.submit(vaultAddress, proposalId)
+        }).pipe(
+          Effect.catchTags({
+            VaultNotFoundError: (e) =>
+              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
+            ProposalNotFoundDbError: (e) =>
+              new ProposalNotFoundError({ proposalId: e.proposalId }),
+            ProposalNotReadyHandlerError: (e) =>
+              new ProposalNotReadyError({ message: e.message }),
+            ProposalSubmitFailedHandlerError: (e) =>
+              new ProposalSubmitFailedError({ message: e.message })
+          })
+        )
+      )
 ).pipe(
   Layer.provide(ProposalsHandler.Default),
   Layer.provide(ProposalRepo.Default),
   Layer.provide(ListVaultsRepo.Default),
   Layer.provide(AccessRuleValidator.Default),
   Layer.provide(SignerSourceRepo.Default),
+  Layer.provide(TransactionSubmitter.Default),
   Layer.provide(PreviewTransaction.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),

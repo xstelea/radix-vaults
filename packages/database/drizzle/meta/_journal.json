@@ -43,6 +43,13 @@
       "when": 1773300000000,
       "tag": "0005_proposal_signatures",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773049641105,
+      "tag": "0006_yellow_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

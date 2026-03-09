@@ -174,6 +174,33 @@ function ProposalDetailContent() {
           onSigned={refresh}
         />
 
+        <SubmitCard
+          proposal={proposal}
+          vaultAddress={vaultAddress}
+          onSubmitted={refresh}
+        />
+
+        {proposal.transactionIntentHash && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Transaction</CardTitle>
+              <CardDescription>
+                {proposal.submittedAt
+                  ? `Submitted ${new Date(proposal.submittedAt).toLocaleString()}`
+                  : 'Submission recorded'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                Intent Hash
+              </p>
+              <p className="mt-1 break-all font-mono text-xs">
+                {proposal.transactionIntentHash}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Transaction Manifest</CardTitle>
@@ -288,6 +315,69 @@ function SignatureProgressCard({
           </p>
         )}
       </CardContent>
+    </Card>
+  )
+}
+
+function SubmitCard({
+  proposal,
+  vaultAddress,
+  onSubmitted
+}: {
+  proposal: ProposalDetail
+  vaultAddress: VaultAddress
+  onSubmitted: () => void
+}) {
+  const sessionResult = useAtomValue(sessionAtom)
+  const [submitting, setSubmitting] = useState(false)
+
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  if (proposal.status !== 'ready' || !session) return null
+
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    try {
+      const exit = await Effect.runPromiseExit(
+        ProposalService.pipe(
+          Effect.flatMap((svc) => svc.submit(vaultAddress, proposal.id)),
+          Effect.provide(ProposalService.Default)
+        )
+      )
+      Exit.match(exit, {
+        onSuccess: (result) => {
+          toast.success(
+            `Proposal submitted! Intent hash: ${result.intentHash.slice(0, 16)}...`
+          )
+          onSubmitted()
+        },
+        onFailure: (cause) => {
+          toast.error(`Submit failed: ${String(cause)}`)
+        }
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Card className="border-emerald-600/20 bg-emerald-50/80">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Ready to Submit</CardTitle>
+          <CardDescription>
+            All required signatures collected. Submit the transaction to the
+            network.
+          </CardDescription>
+        </div>
+        <Button onClick={handleSubmit} disabled={submitting} size="sm">
+          {submitting ? 'Submitting...' : 'Submit Transaction'}
+        </Button>
+      </CardHeader>
     </Card>
   )
 }

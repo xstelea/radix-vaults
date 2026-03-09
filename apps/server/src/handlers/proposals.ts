@@ -3,12 +3,14 @@ import type {
   CreateProposalResponse,
   ProposalDetail,
   ProposalListItem,
+  SubmitProposalResponse,
   VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
 import { PreviewTransaction } from '@radix-effects/gateway'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { Data, Effect } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo, type VaultNotFoundError } from './listVaultsRepo'
 import { ProposalRepo, type ProposalNotFoundDbError } from './proposalRepo'
 import { SignerSourceRepo } from './signerSourceRepo'
@@ -43,6 +45,18 @@ export class ProposalNotSignableHandlerError extends Data.TaggedError(
   message: string
 }> {}
 
+export class ProposalNotReadyHandlerError extends Data.TaggedError(
+  'ProposalNotReadyHandlerError'
+)<{
+  message: string
+}> {}
+
+export class ProposalSubmitFailedHandlerError extends Data.TaggedError(
+  'ProposalSubmitFailedHandlerError'
+)<{
+  message: string
+}> {}
+
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
 const ED25519_RESOURCE_SUFFIX = 'ed25sg'
@@ -67,6 +81,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const previewFn = yield* PreviewTransaction
       const accessRuleValidator = yield* AccessRuleValidator
       const signerSourceRepo = yield* SignerSourceRepo
+      const transactionSubmitter = yield* TransactionSubmitter
 
       const create = (
         vaultAddress: VaultAddressType,
@@ -249,7 +264,110 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ok: true as const }
         })
 
-      return { create, list, getDetail, sign } as const
+      const submit = (
+        vaultAddress: VaultAddressType,
+        proposalId: number
+      ): Effect.Effect<
+        SubmitProposalResponse,
+        | VaultNotFoundError
+        | ProposalNotFoundDbError
+        | ProposalNotReadyHandlerError
+        | ProposalSubmitFailedHandlerError
+      > =>
+        Effect.gen(function* () {
+          yield* listVaultsRepo.ensureExists(vaultAddress)
+          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+
+          // Idempotent: if already submitted, return existing hash
+          if (
+            proposal.transactionIntentHash &&
+            (proposal.status === 'submitted' || proposal.status === 'committed')
+          ) {
+            return {
+              intentHash: proposal.transactionIntentHash,
+              status: proposal.status
+            }
+          }
+
+          if (proposal.status !== 'ready') {
+            return yield* new ProposalNotReadyHandlerError({
+              message: `Proposal is in '${proposal.status}' status and cannot be submitted (must be 'ready')`
+            })
+          }
+
+          // Re-check signer threshold
+          const signatures = yield* proposalRepo.getSignatures(proposalId)
+          const accessRule = yield* accessRuleValidator
+            .validate(vaultAddress)
+            .pipe(Effect.orDie)
+
+          const threshold =
+            accessRule.type === 'CountOf'
+              ? accessRule.count
+              : accessRule.signers.length
+
+          if (signatures.length < threshold) {
+            return yield* new ProposalNotReadyHandlerError({
+              message: `Insufficient signatures: ${signatures.length} of ${threshold} required`
+            })
+          }
+
+          // Re-preview manifest before submitting
+          yield* previewFn({
+            payload: {
+              manifest: proposal.manifest,
+              flags: {
+                assume_all_signature_proofs: true,
+                use_free_credit: true,
+                skip_epoch_check: true
+              }
+            }
+          }).pipe(
+            Effect.catchAll(
+              (e) =>
+                new ProposalSubmitFailedHandlerError({
+                  message: `Preview failed before submit: ${e._tag ?? String(e)}`
+                })
+            )
+          )
+
+          // Build signer list from collected signatures
+          const signerSourceList = yield* signerSourceRepo.list()
+          const signers = signatures
+            .map((sig) => {
+              const source = signerSourceList.find(
+                (s) => s.accountAddress === sig.signerAccountAddress
+              )
+              return source
+                ? {
+                    publicKey: source.publicKey,
+                    keyType: source.keyType as 'ed25519' | 'secp256k1'
+                  }
+                : null
+            })
+            .filter((s): s is NonNullable<typeof s> => s !== null)
+
+          // Submit via TransactionSubmitter
+          const { intentHash } = yield* transactionSubmitter({
+            manifest: proposal.manifest,
+            signers
+          }).pipe(
+            Effect.catchTag('TransactionSubmitError', (e) =>
+              Effect.fail(
+                new ProposalSubmitFailedHandlerError({
+                  message: e.message
+                })
+              )
+            )
+          )
+
+          // Persist submission
+          yield* proposalRepo.setSubmitted(proposalId, intentHash)
+
+          return { intentHash, status: 'submitted' as const }
+        })
+
+      return { create, list, getDetail, sign, submit } as const
     })
   }
 ) {}

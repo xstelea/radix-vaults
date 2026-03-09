@@ -26,12 +26,15 @@ import {
   ProposalDetailSchema,
   ProposalListItemSchema,
   ProposalNotFoundError,
+  ProposalNotReadyError,
   ProposalNotSignableError,
   ProposalPreviewFailedError,
+  ProposalSubmitFailedError,
   SetSignerSourceRequestSchema,
   SetSignerSourceResponseSchema,
   SignerSourceMissingError,
   SignProposalResponseSchema,
+  SubmitProposalResponseSchema,
   TeamOverviewSchema,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
@@ -188,6 +191,24 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(SignerSourceMissingError)
       .addError(NotEligibleSignerError)
       .addError(AlreadySignedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'submit',
+      '/vaults/:vaultAddress/proposals/:proposalId/submit'
+    )
+      .setPath(
+        Schema.Struct({
+          vaultAddress: VaultAddress,
+          proposalId: Schema.NumberFromString
+        })
+      )
+      .addSuccess(SubmitProposalResponseSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalNotFoundError)
+      .addError(ProposalNotReadyError)
+      .addError(ProposalSubmitFailedError)
       .middleware(SessionMiddleware)
   ) {}
 

@@ -105,6 +105,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
                 createdBy: row.createdBy,
+                transactionIntentHash: row.transactionIntentHash,
+                submittedAt: row.submittedAt?.toISOString() ?? null,
                 createdAt: row.createdAt.toISOString()
               })
             }),
@@ -171,13 +173,28 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(eq(proposals.id, proposalId))
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
+      const setSubmitted = (
+        proposalId: number,
+        transactionIntentHash: string
+      ) =>
+        db
+          .update(proposals)
+          .set({
+            status: 'submitted',
+            transactionIntentHash,
+            submittedAt: new Date()
+          })
+          .where(eq(proposals.id, proposalId))
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
       return {
         insert,
         listByVault,
         getById,
         addSignature,
         getSignatures,
-        updateStatus
+        updateStatus,
+        setSubmitted
       } as const
     })
   }

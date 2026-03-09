@@ -158,11 +158,18 @@ export const ProposalDetailSchema = Schema.Struct({
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
   createdAt: Schema.String,
-  signatureProgress: SignatureProgressSchema
+  signatureProgress: SignatureProgressSchema,
+  transactionIntentHash: Schema.NullOr(Schema.String),
+  submittedAt: Schema.NullOr(Schema.String)
 })
 
 export const SignProposalResponseSchema = Schema.Struct({
   ok: Schema.Boolean
+})
+
+export const SubmitProposalResponseSchema = Schema.Struct({
+  intentHash: Schema.String,
+  status: Schema.String
 })
 
 export class ProposalNotFoundError extends Schema.TaggedError<ProposalNotFoundError>()(
@@ -213,9 +220,26 @@ export class ProposalNotSignableError extends Schema.TaggedError<ProposalNotSign
   HttpApiSchema.annotations({ status: 422 })
 ) {}
 
+export class ProposalNotReadyError extends Schema.TaggedError<ProposalNotReadyError>()(
+  'ProposalNotReadyError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ProposalSubmitFailedError extends Schema.TaggedError<ProposalSubmitFailedError>()(
+  'ProposalSubmitFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
 export type CreateProposalRequest = typeof CreateProposalRequestSchema.Type
 export type CreateProposalResponse = typeof CreateProposalResponseSchema.Type
 export type ProposalListItem = typeof ProposalListItemSchema.Type
 export type ProposalDetail = typeof ProposalDetailSchema.Type
 export type ProposalSignature = typeof ProposalSignatureSchema.Type
 export type SignatureProgress = typeof SignatureProgressSchema.Type
+export type SubmitProposalResponse = typeof SubmitProposalResponseSchema.Type
