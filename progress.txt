@@ -110,3 +110,17 @@
 - Client: StatusReasonCard component shows expired/invalid reason in red card when statusReason is present
 - Schema migration 0007 for status_reason text column on proposals table
 - Tests: expired sign (1), expired submit (1), invalid drift (1), invalid preview (1) = 4 new tests, 67 total
+
+## Issue #14: Bootstrap CLI — team account + badge resource creation (DONE)
+- New `apps/cli` package: standalone CLI to bootstrap on-chain multisig team account + badge resource
+- `config.ts`: BootstrapConfigSchema (networkId, signers[], threshold, badgeRecipients[], badgeName) with Effect Schema validation
+- `manifests.ts`: builders for 3 transaction manifests:
+  - `buildCreateTeamAccountManifest`: CALL_FUNCTION Account.create_advanced with CountOf/AllOf multisig owner role using virtual signature badges
+  - `buildCreateBadgeResourceManifest`: CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY with multisig owner, 0 divisibility
+  - `buildDistributeBadgesManifest`: withdraw from fee payer + try_deposit_or_abort to each recipient
+  - `deriveSignatureBadgeLocalId`: blake2b last 26 bytes for on-chain NonFungibleGlobalId derivation
+- `transactionService.ts`: Effect.Service wrapping Radix Engine Toolkit (TransactionBuilder + notarize + compile) and Gateway API (submit + poll + getCreatedEntities)
+- `bootstrap.ts`: 3-step orchestration: (1) create team account, (2) create badge resource deposited to fee payer, (3) distribute badges to recipients
+- `main.ts`: CLI entry point reading config JSON, outputting TEAM_ACCOUNT_ADDRESS and TEAM_MEMBER_BADGE_ADDRESS
+- Network-aware addresses: stokenet (networkId=2) and mainnet (networkId=1) resource/package addresses
+- Tests: config validation (6), manifest builders (8), bootstrap flow with mocked TransactionService (3) = 17 new tests, 84 total

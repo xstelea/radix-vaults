@@ -1,0 +1,26 @@
+{
+  "name": "@radix-vaults/cli",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "tsx src/main.ts",
+    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "lint": "oxlint .",
+    "test": "vitest run",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@radix-effects/gateway": "catalog:",
+    "@radixdlt/radix-engine-toolkit": "^1.0.5",
+    "@noble/hashes": "^2.0.1",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "oxlint": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
