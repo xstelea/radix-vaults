@@ -92,6 +92,27 @@ const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
   handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
 )
 
+const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
+  handlers
+    .handle('overview', () =>
+      Effect.succeed({
+        teamAccountAddress: 'mock' as any,
+        threshold: 0,
+        signers: [],
+        memberSignerSources: [],
+        hasMismatch: false
+      })
+    )
+    .handle('setSignerSource', () =>
+      Effect.succeed({
+        accountAddress: 'mock',
+        publicKey: 'mock',
+        keyType: 'ed25519' as const
+      })
+    )
+    .handle('clearSignerSource', () => Effect.succeed({ ok: true as const }))
+)
+
 // --- Mock AccessRuleValidator ---
 
 const VALID_VAULT = 'account_tdx_2_1qmultisig'
@@ -196,6 +217,7 @@ const makeServerLive = (
   const ApiLive = HttpApiBuilder.api(AppApi).pipe(
     Layer.provide(MockAuthHandlersLive),
     Layer.provide(makeVaultHandlersLive()),
+    Layer.provide(MockTeamHandlersLive),
     Layer.provide(HealthHandlersLive),
     Layer.provide(MockSessionMiddleware)
   )

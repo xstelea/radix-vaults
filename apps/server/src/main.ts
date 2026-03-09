@@ -14,6 +14,7 @@ import { ORM } from './db/orm'
 import { PgClientLive } from './db/pgClient'
 import { seedTracerBulletData } from './db/seed'
 import { AuthHandlersLive } from './api/authHandlers'
+import { TeamHandlersLive } from './api/teamHandlers'
 import { VaultHandlersLive } from './api/vaultHandlers'
 import { SessionMiddlewareLive } from './api/sessionMiddleware'
 
@@ -38,6 +39,7 @@ const AuthServicesLive = Layer.mergeAll(
 const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(AuthHandlersLive),
   Layer.provide(VaultHandlersLive),
+  Layer.provide(TeamHandlersLive),
   Layer.provide(HealthHandlersLive),
   Layer.provide(SessionMiddlewareLive)
 )

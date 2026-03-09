@@ -24,3 +24,15 @@
 - Client: /vaults/add route with import form (address + display name)
 - Dashboard "Import Vault" button linking to add page
 - Tests: access rule parser unit (9), import e2e (3) = 12 new tests, 31 total
+
+## Issue #7: Team baseline — signer sources + mismatch visibility (DONE)
+- GET /team endpoint: returns team account signers, registered member signer sources, mismatch indicator
+- PUT /team/signer-source (auth-protected): set current member's Ed25519/Secp256k1 signer source
+- DELETE /team/signer-source (auth-protected): clear current member's signer source
+- SignerSourceRepo: upsert/clear with account_address PK (one source per member)
+- TeamHandler: fetches team account access rule via AccessRuleValidator, computes count+type mismatch
+- Mismatch detection: compares on-chain signer count per key type vs registered source count per key type
+- Client: /team route with team overview, on-chain signer table, registered sources table, set/clear form
+- Dashboard "Team" button linking to team page
+- Schema migration 0003 for member_signer_sources table
+- Tests: mismatch computation unit (6), signer source repo (4), team e2e (3) = 13 new tests, 44 total

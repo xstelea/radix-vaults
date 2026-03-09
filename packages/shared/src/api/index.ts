@@ -19,6 +19,9 @@ import { VaultAddress } from '../vaultAddress'
 import {
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
+  SetSignerSourceRequestSchema,
+  SetSignerSourceResponseSchema,
+  TeamOverviewSchema,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
   VaultDetailSchema,
@@ -112,6 +115,21 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
       .middleware(SessionMiddleware)
   ) {}
 
+// --- Team endpoints ---
+export class TeamGroup extends HttpApiGroup.make('team')
+  .add(HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema))
+  .add(
+    HttpApiEndpoint.put('setSignerSource', '/team/signer-source')
+      .setPayload(SetSignerSourceRequestSchema)
+      .addSuccess(SetSignerSourceResponseSchema)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.del('clearSignerSource', '/team/signer-source')
+      .addSuccess(Schema.Struct({ ok: Schema.Boolean }))
+      .middleware(SessionMiddleware)
+  ) {}
+
 // --- Health endpoint ---
 export class HealthGroup extends HttpApiGroup.make('health').add(
   HttpApiEndpoint.get('check', '/health').addSuccess(
@@ -123,4 +141,5 @@ export class HealthGroup extends HttpApiGroup.make('health').add(
 export class AppApi extends HttpApi.make('radix-vaults')
   .add(AuthGroup)
   .add(VaultsGroup)
+  .add(TeamGroup)
   .add(HealthGroup) {}

@@ -34,6 +34,15 @@ export const sessions = pgTable('sessions', {
     .defaultNow()
 })
 
+export const memberSignerSources = pgTable('member_signer_sources', {
+  accountAddress: varchar('account_address', { length: 255 }).primaryKey(),
+  publicKey: varchar('public_key', { length: 255 }).notNull(),
+  keyType: varchar('key_type', { length: 32 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+})
+
 export const proposals = pgTable('proposals', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
   vaultAddress: varchar('vault_address', { length: 255 })

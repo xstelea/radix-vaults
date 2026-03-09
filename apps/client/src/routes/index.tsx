@@ -30,6 +30,9 @@ function HomePage() {
             </CardDescription>
           </div>
           <div className="flex gap-2">
+            <Link to="/team">
+              <Button variant="outline">Team</Button>
+            </Link>
             <Link to="/vaults/add">
               <Button variant="outline">Import Vault</Button>
             </Link>

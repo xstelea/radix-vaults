@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VaultsAddRouteImport } from './routes/vaults.add'
 import { Route as VaultsVaultIdRouteImport } from './routes/vaults.$vaultId'
 
+const TeamRoute = TeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,36 +37,47 @@ const VaultsVaultIdRoute = VaultsVaultIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
   '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
   '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/team': typeof TeamRoute
   '/vaults/$vaultId': typeof VaultsVaultIdRoute
   '/vaults/add': typeof VaultsAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/vaults/$vaultId' | '/vaults/add'
+  fullPaths: '/' | '/team' | '/vaults/$vaultId' | '/vaults/add'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/vaults/$vaultId' | '/vaults/add'
-  id: '__root__' | '/' | '/vaults/$vaultId' | '/vaults/add'
+  to: '/' | '/team' | '/vaults/$vaultId' | '/vaults/add'
+  id: '__root__' | '/' | '/team' | '/vaults/$vaultId' | '/vaults/add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TeamRoute: typeof TeamRoute
   VaultsVaultIdRoute: typeof VaultsVaultIdRoute
   VaultsAddRoute: typeof VaultsAddRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/team': {
+      id: '/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof TeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TeamRoute: TeamRoute,
   VaultsVaultIdRoute: VaultsVaultIdRoute,
   VaultsAddRoute: VaultsAddRoute,
 }
