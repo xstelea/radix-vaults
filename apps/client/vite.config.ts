@@ -16,21 +16,5 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart(),
     viteReact()
-  ],
-  server: {
-    proxy: {
-      '/auth': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      },
-      '/vaults': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      },
-      '/health': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      }
-    }
-  }
+  ]
 })

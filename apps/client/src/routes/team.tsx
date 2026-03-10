@@ -7,7 +7,7 @@ import { teamOverviewAtom } from '@/atom/team'
 import { TeamService } from '@/services/team'
 import { AppApiClient } from '@/lib/apiClient'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -31,14 +31,15 @@ export const Route = createFileRoute('/team')({
 
 function TeamPage() {
   return (
-    <main className="mx-auto max-w-4xl space-y-4">
+    <main className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <Link
-          to="/"
-          className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-        >
-          Back to dashboard
-        </Link>
+        <nav className="text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground font-medium">Team</span>
+        </nav>
         <ClientOnly
           fallback={
             <Button variant="outline" disabled>
@@ -110,9 +111,9 @@ function TeamContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Threshold
                 </p>
                 <p className="mt-1 text-lg font-semibold">
@@ -120,9 +121,9 @@ function TeamContent() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   On-chain Signers
                 </p>
                 <p className="mt-1 text-lg font-semibold">
@@ -173,7 +174,7 @@ function TeamContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             {overview.memberSignerSources.length === 0 ? (
-              <p className="text-sm text-emerald-900/70">
+              <p className="text-sm text-muted-foreground">
                 No signer sources registered yet.
               </p>
             ) : (
@@ -283,10 +284,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
       <CardContent>
         <form onSubmit={handleSet} className="space-y-4">
           <div className="space-y-2">
-            <label
-              htmlFor="publicKey"
-              className="text-sm font-medium text-emerald-950"
-            >
+            <label htmlFor="publicKey" className="text-sm font-medium">
               Public Key
             </label>
             <input
@@ -296,15 +294,12 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
               placeholder="Hex-encoded public key..."
               value={publicKey}
               onChange={(e) => setPublicKey(e.target.value)}
-              className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
           </div>
 
           <div className="space-y-2">
-            <label
-              htmlFor="keyType"
-              className="text-sm font-medium text-emerald-950"
-            >
+            <label htmlFor="keyType" className="text-sm font-medium">
               Key Type
             </label>
             <select
@@ -313,7 +308,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
               onChange={(e) =>
                 setKeyType(e.target.value as 'ed25519' | 'secp256k1')
               }
-              className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             >
               <option value="ed25519">Ed25519</option>
               <option value="secp256k1">Secp256k1</option>

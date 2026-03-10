@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   createRootRoute,
   HeadContent,
@@ -6,7 +7,8 @@ import {
 } from '@tanstack/react-router'
 import { RegistryProvider } from '@effect-atom/atom-react'
 import { Toaster } from 'sonner'
-import ConnectButton from '@/components/ConnectButton'
+import { Sidebar } from '@/components/Sidebar'
+import { AppHeader } from '@/components/AppHeader'
 import appCss from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -35,14 +37,19 @@ export const Route = createRootRoute({
 })
 
 function RootComponent() {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   return (
     <RegistryProvider>
       <Toaster />
       <div className="app-shell">
-        <header className="mx-auto flex max-w-4xl items-center justify-end px-4 py-3">
-          <ConnectButton />
-        </header>
-        <Outlet />
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <div className="main-content">
+          <AppHeader onMenuClick={() => setSidebarOpen(true)} />
+          <div className="p-6">
+            <Outlet />
+          </div>
+        </div>
       </div>
     </RegistryProvider>
   )

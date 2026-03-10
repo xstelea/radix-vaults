@@ -3,22 +3,22 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700/60 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         default:
-          'bg-emerald-900 text-emerald-50 shadow-sm hover:bg-emerald-800',
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary/85',
         secondary:
-          'bg-emerald-100 text-emerald-950 shadow-sm hover:bg-emerald-200',
+          'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         outline:
-          'border border-emerald-900/20 bg-white/70 text-emerald-950 hover:bg-emerald-50',
-        ghost: 'text-emerald-900 hover:bg-emerald-100'
+          'border border-input bg-white text-foreground hover:bg-accent hover:text-accent-foreground',
+        ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground'
       },
       size: {
         default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3',
-        lg: 'h-10 rounded-md px-8'
+        sm: 'h-8 rounded-lg px-3',
+        lg: 'h-10 rounded-lg px-8'
       }
     },
     defaultVariants: {

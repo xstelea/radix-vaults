@@ -8,7 +8,7 @@ import { proposalListAtom } from '@/atom/proposals'
 import { vaultReadAtom } from '@/atom/vaults'
 import { ProposalService } from '@/services/proposal'
 import { AppApiClient } from '@/lib/apiClient'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -80,14 +80,22 @@ function NewProposalPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4">
-      <Link
-        to="/vaults/$vaultId"
-        params={{ vaultId }}
-        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-      >
-        Back to vault
-      </Link>
+    <main className="max-w-5xl space-y-6">
+      <nav className="text-sm text-muted-foreground">
+        <Link to="/" className="hover:text-foreground">
+          Home
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/vaults/$vaultId"
+          params={{ vaultId }}
+          className="hover:text-foreground"
+        >
+          Vault
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-foreground font-medium">New Proposal</span>
+      </nav>
 
       <Card>
         <CardHeader>
@@ -100,10 +108,7 @@ function NewProposalPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label
-                htmlFor="manifest"
-                className="text-sm font-medium text-emerald-950"
-              >
+              <label htmlFor="manifest" className="text-sm font-medium">
                 Transaction Manifest
               </label>
               <textarea
@@ -113,14 +118,14 @@ function NewProposalPage() {
                 placeholder={`CALL_METHOD\n  Address("...")\n  "deposit_batch"\n  Expression("ENTIRE_WORKTOP")\n;`}
                 value={manifest}
                 onChange={(e) => setManifest(e.target.value)}
-                className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 font-mono text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
             <div className="space-y-2">
               <label
                 htmlFor="maxProposerTimestamp"
-                className="text-sm font-medium text-emerald-950"
+                className="text-sm font-medium"
               >
                 Max Proposer Timestamp
               </label>
@@ -130,7 +135,7 @@ function NewProposalPage() {
                 required
                 value={maxProposerTimestamp}
                 onChange={(e) => setMaxProposerTimestamp(e.target.value)}
-                className="w-full rounded-md border border-emerald-200 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 The latest time at which this proposal can be submitted.

@@ -1,8 +1,8 @@
-import { HttpApiBuilder } from '@effect/platform'
+import { HttpApiBuilder, HttpMiddleware } from '@effect/platform'
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { AppApi, AuthConfig } from '@radix-vaults/shared'
 import { GetFungibleBalance } from '@radix-effects/gateway'
-import { Effect, Layer, Logger } from 'effect'
+import { Config, Effect, Layer, Logger } from 'effect'
 import { createServer } from 'node:http'
 import { BadgeChecker } from './auth/badgeChecker'
 import { ChallengeStore } from './auth/challengeStore'
@@ -19,6 +19,14 @@ import { VaultHandlersLive } from './api/vaultHandlers'
 import { SessionMiddlewareLive } from './api/sessionMiddleware'
 
 const port = Number(process.env.SERVER_PORT ?? '3001')
+
+const logDefects = HttpMiddleware.make((httpApp) =>
+  httpApp.pipe(
+    Effect.tapErrorCause((cause) =>
+      Effect.logError('Unhandled server error', cause)
+    )
+  )
+)
 
 const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
   handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
@@ -45,7 +53,21 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(SessionMiddlewareLive)
 )
 
-const ServerLive = HttpApiBuilder.serve().pipe(
+const ServerLive = HttpApiBuilder.serve(logDefects).pipe(
+  Layer.provide(
+    Layer.unwrapEffect(
+      Effect.gen(function* () {
+        const allowedOrigins = yield* Config.array(
+          Config.string('ALLOWED_ORIGINS')
+        ).pipe(Config.withDefault(['http://localhost:3000']), Effect.orDie)
+
+        return HttpApiBuilder.middlewareCors({
+          allowedOrigins,
+          credentials: true
+        })
+      })
+    )
+  ),
   Layer.provide(ApiLive),
   Layer.provide(AuthServicesLive),
   Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),

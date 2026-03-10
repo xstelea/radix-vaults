@@ -14,7 +14,7 @@ const SECP256K1_RESOURCE_SUFFIX = 'ecdsa'
 const keyTypeFromResource = (
   resourceAddress: string
 ): 'ed25519' | 'secp256k1' =>
-  resourceAddress.endsWith(ED25519_RESOURCE_SUFFIX) ? 'ed25519' : 'secp256k1'
+  resourceAddress.includes(ED25519_RESOURCE_SUFFIX) ? 'ed25519' : 'secp256k1'
 
 export const computeMismatch = (
   onChainSigners: ReadonlyArray<{ resourceAddress: string; localId: string }>,

@@ -6,7 +6,16 @@ import { rolaVerificationAtom, disconnectSyncAtom } from '@/atom/wallet'
 const WalletContent: React.FC = () => {
   useAtomMount(rolaVerificationAtom)
   useAtomMount(disconnectSyncAtom)
-  return <radix-connect-button />
+  return (
+    <radix-connect-button
+      style={
+        {
+          '--radix-connect-button-width': '36px',
+          '--radix-connect-button-border-radius': '6px'
+        } as React.CSSProperties
+      }
+    />
+  )
 }
 
 export default function ConnectButton() {

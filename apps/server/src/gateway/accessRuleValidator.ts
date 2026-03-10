@@ -44,12 +44,22 @@ const parseNonFungible = (item: unknown): ParsedSigner | null => {
 
   const { resource_address, local_id } = nf as {
     resource_address?: string
-    local_id?: string
+    local_id?: unknown
   }
-  if (typeof resource_address !== 'string' || typeof local_id !== 'string')
-    return null
+  if (typeof resource_address !== 'string' || !local_id) return null
 
-  return { resourceAddress: resource_address, localId: local_id }
+  const localId =
+    typeof local_id === 'string'
+      ? local_id
+      : typeof local_id === 'object' &&
+          local_id !== null &&
+          'simple_rep' in local_id &&
+          typeof (local_id as { simple_rep: unknown }).simple_rep === 'string'
+        ? (local_id as { simple_rep: string }).simple_rep
+        : null
+  if (!localId) return null
+
+  return { resourceAddress: resource_address, localId }
 }
 
 const parseSignerList = (list: unknown): ParsedSigner[] | null => {
