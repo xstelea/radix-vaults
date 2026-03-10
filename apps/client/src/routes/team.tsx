@@ -3,6 +3,7 @@ import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { sessionAtom } from '@/atom/auth'
 import { teamOverviewAtom } from '@/atom/team'
 import { TeamService } from '@/services/team'
 import { AppApiClient } from '@/lib/apiClient'
@@ -215,10 +216,19 @@ function TeamContent() {
 }
 
 function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
   const [publicKey, setPublicKey] = useState('')
   const [keyType, setKeyType] = useState<'ed25519' | 'secp256k1'>('ed25519')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  if (!session) return null
 
   const handleSet = async (e: React.FormEvent) => {
     e.preventDefault()
