@@ -1,87 +1,29 @@
 import type {
   AccountAddress,
-  CreateProposalResponse,
-  ProposalDetail,
-  ProposalListItem,
-  RefreshStatusResponse,
-  SubmitProposalResponse,
   VaultAddress as VaultAddressType
+} from '@radix-vaults/shared'
+import {
+  AlreadySignedError,
+  NotEligibleSignerError,
+  ProposalExpiredError,
+  ProposalInvalidError,
+  ProposalNotReadyError,
+  ProposalNotSignableError,
+  ProposalNotSubmittedError,
+  ProposalPreviewFailedError,
+  ProposalStatusCheckFailedError,
+  ProposalSubmitFailedError,
+  SignerSourceMissingError
 } from '@radix-vaults/shared'
 import { PreviewTransaction } from '@radix-effects/gateway'
 import { blake2b } from '@noble/hashes/blake2.js'
-import { Data, Effect } from 'effect'
+import { Effect } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
-import { ListVaultsRepo, type VaultNotFoundError } from './listVaultsRepo'
-import { ProposalRepo, type ProposalNotFoundDbError } from './proposalRepo'
+import { ListVaultsRepo } from './listVaultsRepo'
+import { ProposalRepo } from './proposalRepo'
 import { SignerSourceRepo } from './signerSourceRepo'
-
-export class ManifestPreviewFailedError extends Data.TaggedError(
-  'ManifestPreviewFailedError'
-)<{
-  message: string
-}> {}
-
-export class SignerSourceMissingHandlerError extends Data.TaggedError(
-  'SignerSourceMissingHandlerError'
-)<{
-  message: string
-}> {}
-
-export class NotEligibleSignerHandlerError extends Data.TaggedError(
-  'NotEligibleSignerHandlerError'
-)<{
-  message: string
-}> {}
-
-export class AlreadySignedHandlerError extends Data.TaggedError(
-  'AlreadySignedHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalNotSignableHandlerError extends Data.TaggedError(
-  'ProposalNotSignableHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalNotReadyHandlerError extends Data.TaggedError(
-  'ProposalNotReadyHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalSubmitFailedHandlerError extends Data.TaggedError(
-  'ProposalSubmitFailedHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalNotSubmittedHandlerError extends Data.TaggedError(
-  'ProposalNotSubmittedHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalStatusCheckFailedHandlerError extends Data.TaggedError(
-  'ProposalStatusCheckFailedHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalExpiredHandlerError extends Data.TaggedError(
-  'ProposalExpiredHandlerError'
-)<{
-  message: string
-}> {}
-
-export class ProposalInvalidHandlerError extends Data.TaggedError(
-  'ProposalInvalidHandlerError'
-)<{
-  message: string
-}> {}
 
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
@@ -120,10 +62,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         manifest: string,
         maxProposerTimestamp: string,
         createdBy: string
-      ): Effect.Effect<
-        CreateProposalResponse,
-        VaultNotFoundError | ManifestPreviewFailedError
-      > =>
+      ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
 
@@ -139,7 +78,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }).pipe(
             Effect.catchAll(
               (e) =>
-                new ManifestPreviewFailedError({
+                new ProposalPreviewFailedError({
                   message: `Preview failed: ${e._tag ?? String(e)}`
                 })
             )
@@ -153,9 +92,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           })
         })
 
-      const list = (
-        vaultAddress: VaultAddressType
-      ): Effect.Effect<ReadonlyArray<ProposalListItem>, VaultNotFoundError> =>
+      const list = (vaultAddress: VaultAddressType) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           return yield* proposalRepo.listByVault(vaultAddress)
@@ -189,13 +126,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }
         })
 
-      const getDetail = (
-        vaultAddress: VaultAddressType,
-        proposalId: number
-      ): Effect.Effect<
-        ProposalDetail,
-        VaultNotFoundError | ProposalNotFoundDbError
-      > =>
+      const getDetail = (vaultAddress: VaultAddressType, proposalId: number) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
@@ -215,22 +146,13 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         vaultAddress: VaultAddressType,
         proposalId: number,
         signerAccountAddress: AccountAddress
-      ): Effect.Effect<
-        { ok: true },
-        | VaultNotFoundError
-        | ProposalNotFoundDbError
-        | ProposalNotSignableHandlerError
-        | ProposalExpiredHandlerError
-        | SignerSourceMissingHandlerError
-        | NotEligibleSignerHandlerError
-        | AlreadySignedHandlerError
-      > =>
+      ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
 
           if (!SIGNABLE_STATUSES.has(proposal.status)) {
-            return yield* new ProposalNotSignableHandlerError({
+            return yield* new ProposalNotSignableError({
               message: `Proposal is in '${proposal.status}' status and cannot be signed`
             })
           }
@@ -239,7 +161,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           if (isExpired(proposal.maxProposerTimestamp)) {
             const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
             yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
-            return yield* new ProposalExpiredHandlerError({ message: reason })
+            return yield* new ProposalExpiredError({ message: reason })
           }
 
           // Look up signer source for authenticated member
@@ -248,7 +170,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             (s) => s.accountAddress === signerAccountAddress
           )
           if (!signerSource) {
-            return yield* new SignerSourceMissingHandlerError({
+            return yield* new SignerSourceMissingError({
               message:
                 'You must register a signer source before signing proposals'
             })
@@ -264,7 +186,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             (s) => s.localId === `<${signerKeyHash}>`
           )
           if (!matchingSigner) {
-            return yield* new NotEligibleSignerHandlerError({
+            return yield* new NotEligibleSignerError({
               message:
                 'Your registered signer source does not match any vault signer'
             })
@@ -285,7 +207,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             .pipe(
               Effect.catchTag('DuplicateSignatureDbError', () =>
                 Effect.fail(
-                  new AlreadySignedHandlerError({
+                  new AlreadySignedError({
                     message: 'You have already signed this proposal'
                   })
                 )
@@ -308,18 +230,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ok: true as const }
         })
 
-      const submit = (
-        vaultAddress: VaultAddressType,
-        proposalId: number
-      ): Effect.Effect<
-        SubmitProposalResponse,
-        | VaultNotFoundError
-        | ProposalNotFoundDbError
-        | ProposalNotReadyHandlerError
-        | ProposalExpiredHandlerError
-        | ProposalInvalidHandlerError
-        | ProposalSubmitFailedHandlerError
-      > =>
+      const submit = (vaultAddress: VaultAddressType, proposalId: number) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
@@ -336,7 +247,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }
 
           if (proposal.status !== 'ready') {
-            return yield* new ProposalNotReadyHandlerError({
+            return yield* new ProposalNotReadyError({
               message: `Proposal is in '${proposal.status}' status and cannot be submitted (must be 'ready')`
             })
           }
@@ -345,7 +256,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           if (isExpired(proposal.maxProposerTimestamp)) {
             const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
             yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
-            return yield* new ProposalExpiredHandlerError({ message: reason })
+            return yield* new ProposalExpiredError({ message: reason })
           }
 
           // Re-check signer threshold — mark invalid on drift
@@ -362,7 +273,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           if (signatures.length < threshold) {
             const reason = `Signer/threshold drift: ${signatures.length} signatures collected but ${threshold} now required`
             yield* proposalRepo.setTerminalStatus(proposalId, 'invalid', reason)
-            return yield* new ProposalInvalidHandlerError({ message: reason })
+            return yield* new ProposalInvalidError({ message: reason })
           }
 
           // Re-preview manifest — mark invalid on failure
@@ -382,9 +293,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
                 .setTerminalStatus(proposalId, 'invalid', reason)
                 .pipe(
                   Effect.flatMap(() =>
-                    Effect.fail(
-                      new ProposalInvalidHandlerError({ message: reason })
-                    )
+                    Effect.fail(new ProposalInvalidError({ message: reason }))
                   )
                 )
             })
@@ -413,7 +322,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }).pipe(
             Effect.catchTag('TransactionSubmitError', (e) =>
               Effect.fail(
-                new ProposalSubmitFailedHandlerError({
+                new ProposalSubmitFailedError({
                   message: e.message
                 })
               )
@@ -429,13 +338,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const refreshStatus = (
         vaultAddress: VaultAddressType,
         proposalId: number
-      ): Effect.Effect<
-        RefreshStatusResponse,
-        | VaultNotFoundError
-        | ProposalNotFoundDbError
-        | ProposalNotSubmittedHandlerError
-        | ProposalStatusCheckFailedHandlerError
-      > =>
+      ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
@@ -453,7 +356,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             proposal.status !== 'submitted' ||
             !proposal.transactionIntentHash
           ) {
-            return yield* new ProposalNotSubmittedHandlerError({
+            return yield* new ProposalNotSubmittedError({
               message: `Proposal is in '${proposal.status}' status — only submitted proposals can be refreshed`
             })
           }
@@ -463,7 +366,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }).pipe(
             Effect.catchTag('TransactionStatusCheckError', (e) =>
               Effect.fail(
-                new ProposalStatusCheckFailedHandlerError({
+                new ProposalStatusCheckFailedError({
                   message: e.message
                 })
               )

@@ -9,21 +9,10 @@ import { SqlClient } from '@effect/sql'
 import {
   type AccountAddress,
   type HexString,
-  AlreadySignedError,
   AppApi,
   CurrentSession,
-  NotEligibleSignerError,
-  ProposalExpiredError,
-  ProposalInvalidError,
   ProposalNotFoundError,
-  ProposalNotReadyError,
-  ProposalNotSignableError,
-  ProposalNotSubmittedError,
-  ProposalPreviewFailedError,
-  ProposalStatusCheckFailedError,
-  ProposalSubmitFailedError,
   SessionMiddleware,
-  SignerSourceMissingError,
   VaultAddress,
   VaultNotFoundErrorSchema,
   VaultsConfig
@@ -312,9 +301,7 @@ const makeProposalHandlersLive = (
               VaultNotFoundError: (e) =>
                 new VaultNotFoundErrorSchema({
                   vaultAddress: e.vaultAddress
-                }),
-              ManifestPreviewFailedError: (e) =>
-                new ProposalPreviewFailedError({ message: e.message })
+                })
             })
           )
       )
@@ -360,17 +347,7 @@ const makeProposalHandlersLive = (
             VaultNotFoundError: (e) =>
               new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId }),
-            ProposalNotSignableHandlerError: (e) =>
-              new ProposalNotSignableError({ message: e.message }),
-            ProposalExpiredHandlerError: (e) =>
-              new ProposalExpiredError({ message: e.message }),
-            SignerSourceMissingHandlerError: (e) =>
-              new SignerSourceMissingError({ message: e.message }),
-            NotEligibleSignerHandlerError: (e) =>
-              new NotEligibleSignerError({ message: e.message }),
-            AlreadySignedHandlerError: (e) =>
-              new AlreadySignedError({ message: e.message })
+              new ProposalNotFoundError({ proposalId: e.proposalId })
           })
         )
       )
@@ -383,15 +360,7 @@ const makeProposalHandlersLive = (
             VaultNotFoundError: (e) =>
               new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId }),
-            ProposalNotReadyHandlerError: (e) =>
-              new ProposalNotReadyError({ message: e.message }),
-            ProposalExpiredHandlerError: (e) =>
-              new ProposalExpiredError({ message: e.message }),
-            ProposalInvalidHandlerError: (e) =>
-              new ProposalInvalidError({ message: e.message }),
-            ProposalSubmitFailedHandlerError: (e) =>
-              new ProposalSubmitFailedError({ message: e.message })
+              new ProposalNotFoundError({ proposalId: e.proposalId })
           })
         )
       )
@@ -404,11 +373,7 @@ const makeProposalHandlersLive = (
             VaultNotFoundError: (e) =>
               new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId }),
-            ProposalNotSubmittedHandlerError: (e) =>
-              new ProposalNotSubmittedError({ message: e.message }),
-            ProposalStatusCheckFailedHandlerError: (e) =>
-              new ProposalStatusCheckFailedError({ message: e.message })
+              new ProposalNotFoundError({ proposalId: e.proposalId })
           })
         )
       )
