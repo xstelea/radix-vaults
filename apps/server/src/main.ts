@@ -1,4 +1,8 @@
-import { HttpApiBuilder, HttpMiddleware } from '@effect/platform'
+import {
+  HttpApiBuilder,
+  HttpMiddleware,
+  HttpServerRequest
+} from '@effect/platform'
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { AppApi, AuthConfig } from '@radix-vaults/shared'
 import { GetFungibleBalance } from '@radix-effects/gateway'
@@ -56,8 +60,14 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(SessionMiddlewareLive)
 )
 
+const loggerSkipOptions = HttpMiddleware.make((httpApp) =>
+  Effect.flatMap(HttpServerRequest.HttpServerRequest, (req) =>
+    req.method === 'OPTIONS' ? httpApp : HttpMiddleware.logger(httpApp)
+  )
+)
+
 const ServerLive = HttpApiBuilder.serve(
-  flow(logDefects, HttpMiddleware.logger)
+  flow(logDefects, loggerSkipOptions)
 ).pipe(
   Layer.provide(
     Layer.unwrapEffect(
