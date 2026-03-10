@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
 import { proposalDetailAtom } from '@/atom/proposals'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -32,17 +32,27 @@ export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
 })
 
 function ProposalDetailPage() {
-  const { vaultId } = Route.useParams()
+  const { vaultId, proposalId } = Route.useParams()
 
   return (
-    <main className="mx-auto max-w-4xl space-y-4">
-      <Link
-        to="/vaults/$vaultId"
-        params={{ vaultId }}
-        className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-      >
-        Back to vault
-      </Link>
+    <main className="max-w-5xl space-y-6">
+      <nav className="text-sm text-muted-foreground">
+        <Link to="/" className="hover:text-foreground">
+          Home
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/vaults/$vaultId"
+          params={{ vaultId }}
+          className="hover:text-foreground"
+        >
+          Vault
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-foreground font-medium">
+          Proposal #{proposalId}
+        </span>
+      </nav>
 
       <ClientOnly
         fallback={
@@ -135,9 +145,9 @@ function ProposalDetailContent() {
             </Button>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Status
                 </p>
                 <div className="mt-1">
@@ -147,9 +157,9 @@ function ProposalDetailContent() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Created By
                 </p>
                 <p className="mt-1 truncate font-mono text-xs">
@@ -157,9 +167,9 @@ function ProposalDetailContent() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Max Proposer Timestamp
                 </p>
                 <p className="mt-1 text-sm">{proposal.maxProposerTimestamp}</p>
@@ -211,7 +221,7 @@ function ProposalDetailContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <pre className="overflow-x-auto rounded-md border border-emerald-200 bg-emerald-50/30 p-4 font-mono text-xs">
+            <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-4 font-mono text-xs">
               {proposal.manifest}
             </pre>
           </CardContent>
@@ -367,7 +377,7 @@ function SubmitCard({
   }
 
   return (
-    <Card className="border-emerald-600/20 bg-emerald-50/80">
+    <Card className="border-green-200 bg-green-50/80">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Ready to Submit</CardTitle>
@@ -456,7 +466,7 @@ function TransactionInfoCard({
         )}
       </CardHeader>
       <CardContent>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Intent Hash
         </p>
         <p className="mt-1 break-all font-mono text-xs">

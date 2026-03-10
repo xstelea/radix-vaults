@@ -22,20 +22,23 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/vaults/$vaultId')({
+export const Route = createFileRoute('/vaults/$vaultId/')({
   component: VaultDetailPage
 })
 
 function VaultDetailPage() {
+  const { vaultId } = Route.useParams()
+
   return (
-    <main className="mx-auto max-w-4xl space-y-4">
+    <main className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-4">
-        <Link
-          to="/"
-          className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-        >
-          Back to dashboard
-        </Link>
+        <nav className="text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground font-medium">Vault</span>
+        </nav>
         <ClientOnly
           fallback={
             <Button variant="outline" disabled>
@@ -115,9 +118,9 @@ function VaultReadContent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Balance (XRD)
                 </p>
                 <p className="mt-1 text-lg font-semibold">
@@ -125,9 +128,9 @@ function VaultReadContent() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Pending
                 </p>
                 <p className="mt-1 text-lg font-semibold">
@@ -135,9 +138,9 @@ function VaultReadContent() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-emerald-900/10 bg-emerald-50/60 shadow-none">
+            <Card className="border-border bg-accent/30 shadow-none">
               <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-900/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Threshold
                 </p>
                 <p className="mt-1 text-lg font-semibold">
@@ -258,7 +261,7 @@ function ProposalListSection() {
                       <Link
                         to="/vaults/$vaultId/proposals/$proposalId"
                         params={{ vaultId, proposalId: String(p.id) }}
-                        className="font-medium text-emerald-700 underline-offset-4 hover:underline"
+                        className="font-medium text-primary underline-offset-4 hover:underline"
                       >
                         #{p.id}
                       </Link>

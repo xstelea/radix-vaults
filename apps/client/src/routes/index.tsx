@@ -20,7 +20,7 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   return (
-    <main className="mx-auto max-w-4xl space-y-4">
+    <main className="max-w-5xl space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
@@ -29,23 +29,15 @@ function HomePage() {
               Public vault read surface with pending proposal counts.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
-            <Link to="/team">
-              <Button variant="outline">Team</Button>
-            </Link>
-            <Link to="/vaults/add">
-              <Button variant="outline">Import Vault</Button>
-            </Link>
-            <ClientOnly
-              fallback={
-                <Button variant="outline" disabled>
-                  Refresh
-                </Button>
-              }
-            >
-              <RefreshVaultsButton />
-            </ClientOnly>
-          </div>
+          <ClientOnly
+            fallback={
+              <Button variant="outline" disabled>
+                Refresh
+              </Button>
+            }
+          >
+            <RefreshVaultsButton />
+          </ClientOnly>
         </CardHeader>
       </Card>
       <ClientOnly fallback={<DashboardSkeleton />}>
@@ -107,13 +99,13 @@ function VaultsList() {
               to="/vaults/$vaultId"
               params={{ vaultId: vault.accountAddress }}
             >
-              <Card className="transition hover:-translate-y-0.5 hover:border-emerald-900/25 hover:shadow-[0_18px_42px_rgba(8,28,21,0.12)]">
+              <Card className="transition hover:-translate-y-0.5 hover:shadow-md hover:border-border">
                 <CardContent className="flex items-center justify-between gap-3 py-5">
                   <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold text-emerald-950">
+                    <h2 className="truncate text-base font-semibold">
                       {vault.name}
                     </h2>
-                    <p className="mt-1 truncate font-mono text-xs text-emerald-900/70">
+                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
                       {vault.accountAddress}
                     </p>
                   </div>
