@@ -17,6 +17,42 @@ export const proposalListAtom = Atom.family((vaultAddress: VaultAddress) =>
     .pipe(Atom.withLabel(`proposalListAtom(${vaultAddress})`), Atom.keepAlive)
 )
 
+export const createProposal = (
+  vaultAddress: VaultAddress,
+  manifest: string,
+  maxProposerTimestamp: string
+) =>
+  ProposalService.pipe(
+    Effect.andThen((svc) =>
+      svc.create(vaultAddress, manifest, maxProposerTimestamp)
+    ),
+    Effect.provide(ProposalService.Default)
+  )
+
+export const signProposal = (vaultAddress: VaultAddress, proposalId: number) =>
+  ProposalService.pipe(
+    Effect.andThen((svc) => svc.sign(vaultAddress, proposalId)),
+    Effect.provide(ProposalService.Default)
+  )
+
+export const submitProposal = (
+  vaultAddress: VaultAddress,
+  proposalId: number
+) =>
+  ProposalService.pipe(
+    Effect.andThen((svc) => svc.submit(vaultAddress, proposalId)),
+    Effect.provide(ProposalService.Default)
+  )
+
+export const refreshProposalStatus = (
+  vaultAddress: VaultAddress,
+  proposalId: number
+) =>
+  ProposalService.pipe(
+    Effect.andThen((svc) => svc.refreshStatus(vaultAddress, proposalId)),
+    Effect.provide(ProposalService.Default)
+  )
+
 export const proposalDetailAtom = Atom.family(
   ({
     vaultAddress,

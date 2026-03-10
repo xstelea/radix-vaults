@@ -4,9 +4,11 @@ import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
-import { teamOverviewAtom } from '@/atom/team'
-import { TeamService } from '@/services/team'
-import { AppApiClient } from '@/lib/apiClient'
+import {
+  clearSignerSource,
+  setSignerSource,
+  teamOverviewAtom
+} from '@/atom/team'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -235,15 +237,9 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
     setSubmitting(true)
 
-    const program = Effect.gen(function* () {
-      const svc = yield* TeamService
-      return yield* svc.setSignerSource(publicKey.trim(), keyType)
-    }).pipe(
-      Effect.provide(TeamService.Default),
-      Effect.provide(AppApiClient.Default)
+    const exit = await Effect.runPromiseExit(
+      setSignerSource(publicKey.trim(), keyType)
     )
-
-    const exit = await Effect.runPromiseExit(program)
     setSubmitting(false)
 
     Exit.match(exit, {
@@ -261,15 +257,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
     setSubmitting(true)
 
-    const program = Effect.gen(function* () {
-      const svc = yield* TeamService
-      return yield* svc.clearSignerSource()
-    }).pipe(
-      Effect.provide(TeamService.Default),
-      Effect.provide(AppApiClient.Default)
-    )
-
-    const exit = await Effect.runPromiseExit(program)
+    const exit = await Effect.runPromiseExit(clearSignerSource())
     setSubmitting(false)
 
     Exit.match(exit, {

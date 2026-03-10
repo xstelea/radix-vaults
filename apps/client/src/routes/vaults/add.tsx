@@ -4,9 +4,7 @@ import { VaultAddress } from '@radix-vaults/shared'
 import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { vaultsListAtom } from '@/atom/vaults'
-import { VaultService } from '@/services/vault'
-import { AppApiClient } from '@/lib/apiClient'
+import { importVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -33,18 +31,9 @@ function AddVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const program = Effect.gen(function* () {
-      const svc = yield* VaultService
-      return yield* svc.importVault(
-        VaultAddress.make(accountAddress.trim()),
-        name.trim()
-      )
-    }).pipe(
-      Effect.provide(VaultService.Default),
-      Effect.provide(AppApiClient.Default)
+    const exit = await Effect.runPromiseExit(
+      importVault(VaultAddress.make(accountAddress.trim()), name.trim())
     )
-
-    const exit = await Effect.runPromiseExit(program)
 
     setSubmitting(false)
 

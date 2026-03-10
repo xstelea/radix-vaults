@@ -6,7 +6,12 @@ import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Effect, Exit } from 'effect'
 import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
-import { proposalDetailAtom } from '@/atom/proposals'
+import {
+  proposalDetailAtom,
+  refreshProposalStatus,
+  signProposal,
+  submitProposal
+} from '@/atom/proposals'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +30,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { ProposalService } from '@/services/proposal'
 
 export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
   component: ProposalDetailPage
@@ -256,10 +260,7 @@ function SignatureProgressCard({
     setSigning(true)
     try {
       const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.sign(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
+        signProposal(vaultAddress, proposal.id)
       )
       Exit.match(exit, {
         onSuccess: () => {
@@ -355,10 +356,7 @@ function SubmitCard({
     setSubmitting(true)
     try {
       const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.submit(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
+        submitProposal(vaultAddress, proposal.id)
       )
       Exit.match(exit, {
         onSuccess: (result) => {
@@ -418,10 +416,7 @@ function TransactionInfoCard({
     setChecking(true)
     try {
       const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.refreshStatus(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
+        refreshProposalStatus(vaultAddress, proposal.id)
       )
       Exit.match(exit, {
         onSuccess: (result) => {

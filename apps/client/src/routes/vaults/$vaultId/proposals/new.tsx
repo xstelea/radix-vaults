@@ -4,10 +4,8 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { proposalListAtom } from '@/atom/proposals'
+import { createProposal, proposalListAtom } from '@/atom/proposals'
 import { vaultReadAtom } from '@/atom/vaults'
-import { ProposalService } from '@/services/proposal'
-import { AppApiClient } from '@/lib/apiClient'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -38,19 +36,9 @@ function NewProposalPage() {
     setError(null)
     setSubmitting(true)
 
-    const program = Effect.gen(function* () {
-      const svc = yield* ProposalService
-      return yield* svc.create(
-        vaultAddress,
-        manifest.trim(),
-        maxProposerTimestamp.trim()
-      )
-    }).pipe(
-      Effect.provide(ProposalService.Default),
-      Effect.provide(AppApiClient.Default)
+    const exit = await Effect.runPromiseExit(
+      createProposal(vaultAddress, manifest.trim(), maxProposerTimestamp.trim())
     )
-
-    const exit = await Effect.runPromiseExit(program)
 
     setSubmitting(false)
 

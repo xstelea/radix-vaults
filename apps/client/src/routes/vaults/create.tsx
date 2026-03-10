@@ -3,9 +3,7 @@ import { useAtomRefresh } from '@effect-atom/atom-react'
 import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { vaultsListAtom } from '@/atom/vaults'
-import { VaultService } from '@/services/vault'
-import { AppApiClient } from '@/lib/apiClient'
+import { createVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -32,15 +30,9 @@ function CreateVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const program = Effect.gen(function* () {
-      const svc = yield* VaultService
-      return yield* svc.createVault(name.trim(), threshold)
-    }).pipe(
-      Effect.provide(VaultService.Default),
-      Effect.provide(AppApiClient.Default)
+    const exit = await Effect.runPromiseExit(
+      createVault(name.trim(), threshold)
     )
-
-    const exit = await Effect.runPromiseExit(program)
 
     setSubmitting(false)
 

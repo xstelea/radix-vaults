@@ -15,6 +15,18 @@ export const vaultsListAtom = runtime
   )
   .pipe(Atom.withLabel('vaultsListAtom'), Atom.keepAlive)
 
+export const createVault = (name: string, threshold: number) =>
+  VaultService.pipe(
+    Effect.andThen((svc) => svc.createVault(name, threshold)),
+    Effect.provide(VaultService.Default)
+  )
+
+export const importVault = (accountAddress: VaultAddress, name: string) =>
+  VaultService.pipe(
+    Effect.andThen((svc) => svc.importVault(accountAddress, name)),
+    Effect.provide(VaultService.Default)
+  )
+
 export const vaultReadAtom = Atom.family((vaultAddress: VaultAddress) =>
   runtime
     .atom(
