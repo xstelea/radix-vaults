@@ -2,7 +2,8 @@ import { HttpApiBuilder, HttpMiddleware } from '@effect/platform'
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { AppApi, AuthConfig } from '@radix-vaults/shared'
 import { GetFungibleBalance } from '@radix-effects/gateway'
-import { Config, Effect, Layer, Logger } from 'effect'
+import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
+import { flow } from 'effect/Function'
 import { createServer } from 'node:http'
 import { BadgeChecker } from './auth/badgeChecker'
 import { ChallengeStore } from './auth/challengeStore'
@@ -29,7 +30,9 @@ const logDefects = HttpMiddleware.make((httpApp) =>
 )
 
 const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
-  handlers.handle('check', () => Effect.succeed({ status: 'ok' }))
+  handlers.handle('check', () =>
+    HttpMiddleware.withLoggerDisabled(Effect.succeed({ status: 'ok' }))
+  )
 )
 
 const AuthServicesLive = Layer.mergeAll(
@@ -53,7 +56,9 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(SessionMiddlewareLive)
 )
 
-const ServerLive = HttpApiBuilder.serve(logDefects).pipe(
+const ServerLive = HttpApiBuilder.serve(
+  flow(logDefects, HttpMiddleware.logger)
+).pipe(
   Layer.provide(
     Layer.unwrapEffect(
       Effect.gen(function* () {
@@ -81,9 +86,24 @@ const startup = Effect.gen(function* () {
   yield* Layer.launch(ServerLive)
 })
 
+const LoggerLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const level = yield* Config.string('LOG_LEVEL').pipe(
+      Config.withDefault('Info')
+    )
+    const format = yield* Config.string('LOG_FORMAT').pipe(
+      Config.withDefault('pretty')
+    )
+    return Layer.merge(
+      format === 'json' ? Logger.json : Logger.pretty,
+      Logger.minimumLogLevel(LogLevel.fromLiteral(level as LogLevel.Literal))
+    )
+  })
+)
+
 NodeRuntime.runMain(
   startup.pipe(
     Effect.provide(DatabaseMigrations.Default),
-    Effect.provide(Logger.pretty)
+    Effect.provide(LoggerLive)
   )
 )

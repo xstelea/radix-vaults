@@ -65,6 +65,13 @@ export const AuthHandlersLive = HttpApiBuilder.group(
 
           const session = yield* sessionStore.create(signedChallenge.address)
 
+          yield* Effect.logInfo('Auth: login').pipe(
+            Effect.annotateLogs({
+              accountAddress: signedChallenge.address,
+              sessionId: session.id
+            })
+          )
+
           yield* HttpApiBuilder.securitySetCookie(sessionCookie, session.id, {
             httpOnly: true,
             sameSite: 'strict',
@@ -89,6 +96,11 @@ export const AuthHandlersLive = HttpApiBuilder.group(
           const session = yield* CurrentSession
           const sessionStore = yield* SessionStore
           yield* sessionStore.destroy(session.sessionId)
+
+          yield* Effect.logInfo('Auth: logout').pipe(
+            Effect.annotateLogs({ accountAddress: session.accountAddress })
+          )
+
           yield* HttpApiBuilder.securitySetCookie(sessionCookie, '', {
             httpOnly: true,
             sameSite: 'strict',
