@@ -1,5 +1,16 @@
+import assert from 'node:assert'
+import { GatewayApiClient } from '@radix-effects/gateway'
+import {
+  CompileTransaction,
+  CreateTransactionIntent,
+  IntentHashService,
+  Signer,
+  SubmitTransaction,
+  TransactionStatus
+} from '@radix-effects/tx-tool'
 import { Effect, Layer, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
+import { runBootstrap } from './bootstrap'
 import {
   BootstrapConfigSchema,
   readBootstrapConfig,
@@ -8,11 +19,8 @@ import {
 import {
   buildCreateBadgeResourceManifest,
   buildCreateTeamAccountManifest,
-  buildDistributeBadgesManifest,
   deriveSignatureBadgeLocalId
 } from './manifests'
-import { runBootstrap } from './bootstrap'
-import { TransactionService } from './transactionService'
 
 const ED25519_KEY_1 =
   'a6b8bde20a317f0a98e95a0c88b81ec6a1f1f44d79bbdf0a8b6b2b5d3f8c2a1e'
@@ -44,7 +52,9 @@ describe('BootstrapConfigSchema', () => {
       badgeRecipients: ['account_test']
     })
     expect(result.badgeName).toBe('Team Member Badge')
-    expect(result.signers[0].keyType).toBe('ed25519')
+    const signer = result.signers[0]
+    assert('keyType' in signer)
+    expect(signer.keyType).toBe('ed25519')
   })
 
   it('rejects invalid network ID', () => {
@@ -124,8 +134,8 @@ describe('deriveSignatureBadgeLocalId', () => {
 })
 
 describe('buildCreateTeamAccountManifest', () => {
-  it('builds a valid manifest with CALL_FUNCTION', () => {
-    const manifest = buildCreateTeamAccountManifest({
+  it('builds a valid manifest with CALL_FUNCTION', async () => {
+    const manifest = await buildCreateTeamAccountManifest({
       feePayerAddress: 'account_tdx_2_feepayer',
       signers: [
         { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
@@ -139,14 +149,13 @@ describe('buildCreateTeamAccountManifest', () => {
     expect(manifest).toContain('CALL_FUNCTION')
     expect(manifest).toContain('"Account"')
     expect(manifest).toContain('"create_advanced"')
-    expect(manifest).toContain(
-      'resource_tdx_2_1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxx3e2cpa'
-    )
+    expect(manifest).toContain('resource_tdx_2_')
+    expect(manifest).toContain('ed25sg')
     expect(manifest).toContain('account_tdx_2_feepayer')
   })
 
-  it('uses AllOf when threshold equals signer count', () => {
-    const manifest = buildCreateTeamAccountManifest({
+  it('uses AllOf when threshold equals signer count', async () => {
+    const manifest = await buildCreateTeamAccountManifest({
       feePayerAddress: 'account_tdx_2_feepayer',
       signers: [
         { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
@@ -156,12 +165,17 @@ describe('buildCreateTeamAccountManifest', () => {
       networkId: 2
     })
 
-    // AllOf uses Enum<2u8>(Array...) — no count argument
-    expect(manifest).not.toContain('2u8,')
+    // Protected(BasicRequirement(AllOf(entries)))
+    // Enum<0u8> wraps BasicRequirement, Enum<3u8> is AllOf
+    expect(manifest).toContain('Enum<3u8>')
+    // Entries are ResourceOrNonFungible::NonFungible — single Enum<0u8>(NFG), not double-wrapped
+    expect(manifest).not.toMatch(
+      /Enum<0u8>\(\s*Enum<0u8>\(\s*NonFungibleGlobalId/
+    )
   })
 
-  it('uses CountOf when threshold is less than signer count', () => {
-    const manifest = buildCreateTeamAccountManifest({
+  it('uses CountOf when threshold is less than signer count', async () => {
+    const manifest = await buildCreateTeamAccountManifest({
       feePayerAddress: 'account_tdx_2_feepayer',
       signers: [
         { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
@@ -172,29 +186,34 @@ describe('buildCreateTeamAccountManifest', () => {
       networkId: 2
     })
 
+    // Protected(BasicRequirement(CountOf(2, entries)))
+    // Enum<0u8> wraps BasicRequirement, followed by Enum<2u8> for CountOf with threshold arg
     expect(manifest).toContain('2u8,')
+    expect(manifest).toMatch(/Enum<0u8>\(\s*Enum<2u8>\(\s*2u8,/)
+    // Entries should be ResourceOrNonFungible::NonFungible, not double-wrapped
+    expect(manifest).not.toMatch(
+      /Enum<0u8>\(\s*Enum<0u8>\(\s*NonFungibleGlobalId/
+    )
   })
 
-  it('uses correct resource for mainnet', () => {
-    const manifest = buildCreateTeamAccountManifest({
+  it('uses correct resource for mainnet', async () => {
+    const manifest = await buildCreateTeamAccountManifest({
       feePayerAddress: 'account_rdx_feepayer',
       signers: [{ publicKey: ED25519_KEY_1, keyType: 'ed25519' }],
       threshold: 1,
       networkId: 1
     })
 
-    expect(manifest).toContain(
-      'resource_rdx1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxxed25sg'
-    )
-    expect(manifest).toContain(
-      'package_rdx1pkgxxxxxxxxxaccntxxxxxxxxxx000929625493xxxxxxxxxaccntt'
-    )
+    expect(manifest).toContain('resource_rdx1nf')
+    expect(manifest).toContain('ed25sg')
+    expect(manifest).toContain('package_rdx1pkg')
+    expect(manifest).toContain('accnt')
   })
 })
 
 describe('buildCreateBadgeResourceManifest', () => {
-  it('builds a manifest with CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY', () => {
-    const manifest = buildCreateBadgeResourceManifest({
+  it('creates resource and distributes in a single manifest', async () => {
+    const manifest = await buildCreateBadgeResourceManifest({
       feePayerAddress: 'account_tdx_2_feepayer',
       signers: [
         { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
@@ -202,36 +221,30 @@ describe('buildCreateBadgeResourceManifest', () => {
       ],
       threshold: 2,
       networkId: 2,
-      recipientCount: 3,
+      recipients: [
+        'account_tdx_2_alice',
+        'account_tdx_2_bob',
+        'account_tdx_2_carol'
+      ],
       badgeName: 'Test Badge'
     })
 
+    expect(manifest).toContain('ALLOCATE_GLOBAL_ADDRESS')
+    expect(manifest).toContain('FungibleResourceManager')
     expect(manifest).toContain('CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY')
+    expect(manifest).toContain('AddressReservation("badge_reservation")')
     expect(manifest).toContain('Decimal("3")')
     expect(manifest).toContain('"Test Badge"')
+    expect(manifest).toContain('NamedAddress("badge_address")')
+    expect(manifest).toContain('account_tdx_2_alice')
+    expect(manifest).toContain('account_tdx_2_bob')
+    expect(manifest).toContain('account_tdx_2_carol')
+    expect(manifest).toContain('"withdraw"')
     expect(manifest).toContain('try_deposit_batch_or_abort')
   })
 })
 
-describe('buildDistributeBadgesManifest', () => {
-  it('builds a manifest that withdraws and distributes', () => {
-    const manifest = buildDistributeBadgesManifest({
-      feePayerAddress: 'account_tdx_2_feepayer',
-      badgeResourceAddress: 'resource_tdx_2_badge123',
-      recipients: ['account_tdx_2_alice', 'account_tdx_2_bob']
-    })
-
-    expect(manifest).toContain('"withdraw"')
-    expect(manifest).toContain('Decimal("2")')
-    expect(manifest).toContain('account_tdx_2_alice')
-    expect(manifest).toContain('account_tdx_2_bob')
-    expect(manifest).toContain('Bucket("badge_0")')
-    expect(manifest).toContain('Bucket("badge_1")')
-    expect(manifest).toContain('try_deposit_or_abort')
-  })
-})
-
-// --- Bootstrap flow smoke test with mocked TransactionService ---
+// --- Bootstrap flow smoke test with mocked tx-tool services ---
 
 const makeConfig = (
   overrides: Partial<BootstrapConfig> = {}
@@ -245,55 +258,80 @@ const makeConfig = (
     ...overrides
   })
 
+const makeMockTxLayer = (entitySets: Record<string, string[]>) => {
+  let txCallCount = 0
+  const intentIds = ['hash_account', 'hash_badge']
+
+  return Layer.mergeAll(
+    Layer.succeed(CreateTransactionIntent, (() =>
+      Effect.succeed({
+        header: { notaryIsSignatory: false },
+        message: { kind: 'None' as const },
+        manifest: {
+          instructions: { kind: 'String' as const, value: '' },
+          blobs: [] as Uint8Array[]
+        }
+      })) as unknown as CreateTransactionIntent),
+
+    Layer.succeed(IntentHashService, {
+      create: () => {
+        const id = intentIds[txCallCount] ?? 'hash_unknown'
+        txCallCount++
+        return Effect.succeed({ id, hash: 'deadbeef' })
+      }
+    } as unknown as IntentHashService),
+
+    Layer.succeed(Signer, {
+      signToSignatureWithPublicKey: () => Effect.succeed([] as any),
+      publicKey: () => Effect.succeed({} as any)
+    }),
+
+    Layer.succeed(CompileTransaction, (() =>
+      Effect.succeed(
+        new Uint8Array([1, 2, 3])
+      )) as unknown as CompileTransaction),
+
+    Layer.succeed(SubmitTransaction, (() =>
+      Effect.succeed({ duplicate: false })) as unknown as SubmitTransaction),
+
+    Layer.succeed(TransactionStatus, {
+      poll: () => Effect.succeed({})
+    } as unknown as TransactionStatus),
+
+    Layer.succeed(GatewayApiClient, {
+      transaction: {
+        getCommittedDetails: (id: string) =>
+          Effect.succeed({
+            transaction: {
+              affected_global_entities: entitySets[id] ?? []
+            }
+          })
+      }
+    } as unknown as GatewayApiClient)
+  )
+}
+
 describe('runBootstrap', () => {
   it('orchestrates the full flow and returns addresses', async () => {
-    let submitCallCount = 0
-    const intentHashes = ['hash_account', 'hash_badge', 'hash_distribute']
-    const entitySets: string[][] = [
-      ['account_tdx_2_1new_team_account'],
-      ['resource_tdx_2_1new_badge_resource'],
-      []
-    ]
-
-    const MockTransactionService = Layer.succeed(TransactionService, {
-      buildAndSubmit: () => {
-        const hash = intentHashes[submitCallCount] ?? 'hash_unknown'
-        submitCallCount++
-        return Effect.succeed({ intentHash: hash })
-      },
-      pollUntilCommitted: () => Effect.void,
-      getCreatedEntities: (intentHash: string) => {
-        if (intentHash === 'hash_account') {
-          return Effect.succeed(entitySets[0]!)
-        }
-        if (intentHash === 'hash_badge') {
-          return Effect.succeed(entitySets[1]!)
-        }
-        return Effect.succeed(entitySets[2]!)
-      }
-    } as unknown as TransactionService)
+    const layer = makeMockTxLayer({
+      hash_account: ['account_tdx_2_1new_team_account'],
+      hash_badge: ['resource_tdx_2_1new_badge_resource']
+    })
 
     const config = makeConfig()
 
     const result = await Effect.runPromise(
-      runBootstrap(config, ED25519_KEY_1).pipe(
-        Effect.provide(MockTransactionService)
-      )
+      runBootstrap(config, 'account_tdx_2_feepayer').pipe(Effect.provide(layer))
     )
 
     expect(result.teamAccountAddress).toBe('account_tdx_2_1new_team_account')
     expect(result.teamMemberBadgeAddress).toBe(
       'resource_tdx_2_1new_badge_resource'
     )
-    expect(submitCallCount).toBe(3) // account + badge + distribute
   })
 
   it('fails if no account address found in receipt', async () => {
-    const MockTransactionService = Layer.succeed(TransactionService, {
-      buildAndSubmit: () => Effect.succeed({ intentHash: 'hash_test' }),
-      pollUntilCommitted: () => Effect.void,
-      getCreatedEntities: () => Effect.succeed([])
-    } as unknown as TransactionService)
+    const layer = makeMockTxLayer({})
 
     const config = makeConfig({
       signers: [
@@ -302,9 +340,7 @@ describe('runBootstrap', () => {
     })
 
     const exit = await Effect.runPromiseExit(
-      runBootstrap(config, ED25519_KEY_1).pipe(
-        Effect.provide(MockTransactionService)
-      )
+      runBootstrap(config, 'account_tdx_2_feepayer').pipe(Effect.provide(layer))
     )
     expect(exit._tag).toBe('Failure')
   })

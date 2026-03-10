@@ -1,32 +1,28 @@
+import { RadixEngineToolkit } from '@radixdlt/radix-engine-toolkit'
 import { blake2b } from '@noble/hashes/blake2.js'
+import type { Signer } from './config'
 
-const NETWORK_ADDRESSES = {
-  1: {
-    ed25519BadgeResource:
-      'resource_rdx1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxxed25sg',
+export type NetworkId = number
+
+type NetworkAddresses = {
+  ed25519BadgeResource: string
+  secp256k1BadgeResource: string
+  accountPackage: string
+  resourcePackage: string
+}
+
+export const getNetworkAddresses = async (
+  networkId: NetworkId
+): Promise<NetworkAddresses> => {
+  const known = await RadixEngineToolkit.Utils.knownAddresses(networkId)
+  return {
+    ed25519BadgeResource: known.resourceAddresses.ed25519SignatureVirtualBadge,
     secp256k1BadgeResource:
-      'resource_rdx1nfxxxxxxxxxxsecpsgxxxxxxxxx004638826440xxxxxxxxxsecpsg',
-    accountPackage:
-      'package_rdx1pkgxxxxxxxxxaccntxxxxxxxxxx000929625493xxxxxxxxxaccntt',
-    resourcePackage:
-      'package_rdx1pkgxxxxxxxxxresaborxxxxxxxx000538856144xxxxxxxxxnvmhds'
-  },
-  2: {
-    ed25519BadgeResource:
-      'resource_tdx_2_1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxx3e2cpa',
-    secp256k1BadgeResource:
-      'resource_tdx_2_1nfxxxxxxxxxxsecpsgxxxxxxxxx004638826440xxxxxxxxx5r08kq',
-    accountPackage:
-      'package_tdx_2_1pkgxxxxxxxxxaccntxxxxxxxxxx000929625493xxxxxxxxxtpu8hm',
-    resourcePackage:
-      'package_tdx_2_1pkgxxxxxxxxxresrcxxxxxxxxxxxxxxx000538436477xxxxxxxxxnvmhds'
+      known.resourceAddresses.secp256k1SignatureVirtualBadge,
+    accountPackage: known.packageAddresses.accountPackage,
+    resourcePackage: known.packageAddresses.resourcePackage
   }
-} as const
-
-export type NetworkId = keyof typeof NETWORK_ADDRESSES
-
-export const getNetworkAddresses = (networkId: NetworkId) =>
-  NETWORK_ADDRESSES[networkId]
+}
 
 function hexToBytes(hex: string): Uint8Array {
   const bytes = new Uint8Array(hex.length / 2)
@@ -47,81 +43,88 @@ export function deriveSignatureBadgeLocalId(publicKeyHex: string): string {
 }
 
 function badgeResourceForKeyType(
-  networkId: NetworkId,
+  addrs: NetworkAddresses,
   keyType: 'ed25519' | 'secp256k1'
 ): string {
-  const addrs = getNetworkAddresses(networkId)
   return keyType === 'ed25519'
     ? addrs.ed25519BadgeResource
     : addrs.secp256k1BadgeResource
 }
 
+export function resolveSignerNFG(
+  signer: Signer,
+  addrs: NetworkAddresses
+): { resource: string; localId: string } {
+  if ('virtualBadge' in signer) {
+    const colonIdx = signer.virtualBadge.lastIndexOf(':')
+    const resource = signer.virtualBadge.slice(0, colonIdx)
+    const localId = signer.virtualBadge.slice(colonIdx + 2, -1) // strip [ and ]
+    return { resource, localId }
+  }
+  return {
+    resource: badgeResourceForKeyType(addrs, signer.keyType),
+    localId: deriveSignatureBadgeLocalId(signer.publicKey)
+  }
+}
+
 function buildSignerEntries(
-  signers: ReadonlyArray<{
-    publicKey: string
-    keyType: 'ed25519' | 'secp256k1'
-  }>,
-  networkId: NetworkId
+  signers: ReadonlyArray<Signer>,
+  addrs: NetworkAddresses
 ): string {
   return signers
     .map((s) => {
-      const resource = badgeResourceForKeyType(networkId, s.keyType)
-      const localId = deriveSignatureBadgeLocalId(s.publicKey)
+      const { resource, localId } = resolveSignerNFG(s, addrs)
       return [
-        '                    Enum<0u8>(',
         '                        Enum<0u8>(',
         `                            NonFungibleGlobalId("${resource}:[${localId}]")`,
-        '                        )',
-        '                    )'
+        '                        )'
       ].join('\n')
     })
     .join(',\n')
 }
 
 function buildMultisigAccessRule(
-  signers: ReadonlyArray<{
-    publicKey: string
-    keyType: 'ed25519' | 'secp256k1'
-  }>,
+  signers: ReadonlyArray<Signer>,
   threshold: number,
-  networkId: NetworkId
+  addrs: NetworkAddresses
 ): string {
-  const entries = buildSignerEntries(signers, networkId)
+  const entries = buildSignerEntries(signers, addrs)
   if (threshold === signers.length) {
-    // AllOf
+    // Protected(BasicRequirement(AllOf(entries)))
     return `Enum<2u8>(
-            Enum<2u8>(
-                Array<Enum>(
+            Enum<0u8>(
+                Enum<3u8>(
+                    Array<Enum>(
 ${entries}
+                    )
                 )
             )
         )`
   }
-  // CountOf (n-of-m)
+  // Protected(BasicRequirement(CountOf(threshold, entries)))
   return `Enum<2u8>(
-            Enum<1u8>(
-                ${threshold}u8,
-                Array<Enum>(
+            Enum<0u8>(
+                Enum<2u8>(
+                    ${threshold}u8,
+                    Array<Enum>(
 ${entries}
+                    )
                 )
             )
         )`
 }
 
-export function buildCreateTeamAccountManifest(input: {
+export async function buildCreateTeamAccountManifest(input: {
   feePayerAddress: string
-  signers: ReadonlyArray<{
-    publicKey: string
-    keyType: 'ed25519' | 'secp256k1'
-  }>
+  signers: ReadonlyArray<Signer>
   threshold: number
   networkId: NetworkId
-}): string {
-  const { accountPackage } = getNetworkAddresses(input.networkId)
+}): Promise<string> {
+  const addrs = await getNetworkAddresses(input.networkId)
   const accessRule = buildMultisigAccessRule(
     input.signers,
     input.threshold,
-    input.networkId
+    addrs
   )
 
   return `CALL_METHOD
@@ -130,7 +133,7 @@ export function buildCreateTeamAccountManifest(input: {
     Decimal("20")
 ;
 CALL_FUNCTION
-    Address("${accountPackage}")
+    Address("${addrs.accountPackage}")
     "Account"
     "create_advanced"
     Enum<2u8>(
@@ -140,77 +143,37 @@ CALL_FUNCTION
 ;`
 }
 
-export function buildCreateBadgeResourceManifest(input: {
+export async function buildCreateBadgeResourceManifest(input: {
   feePayerAddress: string
-  signers: ReadonlyArray<{
-    publicKey: string
-    keyType: 'ed25519' | 'secp256k1'
-  }>
+  signers: ReadonlyArray<Signer>
   threshold: number
   networkId: NetworkId
-  recipientCount: number
+  recipients: ReadonlyArray<string>
   badgeName: string
-}): string {
+}): Promise<string> {
+  const addrs = await getNetworkAddresses(input.networkId)
   const accessRule = buildMultisigAccessRule(
     input.signers,
     input.threshold,
-    input.networkId
+    addrs
   )
 
-  return `CALL_METHOD
-    Address("${input.feePayerAddress}")
-    "lock_fee"
-    Decimal("30")
-;
-CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
-    Enum<2u8>(
-        ${accessRule}
-    )
-    true
-    0u8
-    Decimal("${input.recipientCount}")
-    Tuple(
-        Enum<0u8>()
-        Enum<0u8>()
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>()))
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>()))
-        Enum<0u8>()
-        Enum<0u8>()
-    )
-    Tuple(
-        Map<String, Tuple>(
-            "name" => Tuple(Enum<1u8>(Enum<0u8>("${input.badgeName}")), true)
-        )
-        Map<String, Enum>()
-    )
-    Enum<0u8>()
-;
-CALL_METHOD
-    Address("${input.feePayerAddress}")
-    "try_deposit_batch_or_abort"
-    Expression("ENTIRE_WORKTOP")
-    Enum<0u8>()
-;`
-}
-
-export function buildDistributeBadgesManifest(input: {
-  feePayerAddress: string
-  badgeResourceAddress: string
-  recipients: ReadonlyArray<string>
-}): string {
-  const totalAmount = input.recipients.length
-  const withdrawAndDeposit = input.recipients
+  // NamedAddress works in CALL_METHOD args but not in TAKE_FROM_WORKTOP
+  // (which requires ResourceAddress). So: deposit all to fee payer first,
+  // then withdraw+deposit 1 at a time per recipient.
+  const distribute = input.recipients
     .map(
-      (recipient, i) =>
-        `TAKE_FROM_WORKTOP
-    Address("${input.badgeResourceAddress}")
+      (recipient) =>
+        `CALL_METHOD
+    Address("${input.feePayerAddress}")
+    "withdraw"
+    NamedAddress("badge_address")
     Decimal("1")
-    Bucket("badge_${i}")
 ;
 CALL_METHOD
     Address("${recipient}")
-    "try_deposit_or_abort"
-    Bucket("badge_${i}")
+    "try_deposit_batch_or_abort"
+    Expression("ENTIRE_WORKTOP")
     Enum<0u8>()
 ;`
     )
@@ -221,11 +184,40 @@ CALL_METHOD
     "lock_fee"
     Decimal("30")
 ;
+ALLOCATE_GLOBAL_ADDRESS
+    Address("${addrs.resourcePackage}")
+    "FungibleResourceManager"
+    AddressReservation("badge_reservation")
+    NamedAddress("badge_address")
+;
+CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
+    Enum<2u8>(
+        ${accessRule}
+    )
+    true
+    0u8
+    Decimal("${input.recipients.length}")
+    Tuple(
+        Enum<0u8>(),
+        Enum<0u8>(),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
+        Enum<0u8>(),
+        Enum<0u8>()
+    )
+    Tuple(
+        Map<String, Tuple>(
+            "name" => Tuple(Enum<1u8>(Enum<0u8>("${input.badgeName}")), true)
+        ),
+        Map<String, Enum>()
+    )
+    Enum<1u8>(AddressReservation("badge_reservation"))
+;
 CALL_METHOD
     Address("${input.feePayerAddress}")
-    "withdraw"
-    Address("${input.badgeResourceAddress}")
-    Decimal("${totalAmount}")
+    "try_deposit_batch_or_abort"
+    Expression("ENTIRE_WORKTOP")
+    Enum<0u8>()
 ;
-${withdrawAndDeposit}`
+${distribute}`
 }

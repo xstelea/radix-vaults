@@ -6,7 +6,7 @@ export class BootstrapConfigError extends Data.TaggedError(
   message: string
 }> {}
 
-export const SignerSchema = Schema.Struct({
+export const PublicKeySignerSchema = Schema.Struct({
   publicKey: Schema.String.pipe(
     Schema.pattern(/^[0-9a-fA-F]{64}$/, {
       message: () => 'Must be 64 hex characters (Ed25519 public key)'
@@ -16,6 +16,21 @@ export const SignerSchema = Schema.Struct({
     default: () => 'ed25519' as const
   })
 })
+
+export const VirtualBadgeSignerSchema = Schema.Struct({
+  virtualBadge: Schema.String.pipe(
+    Schema.pattern(/^resource_(?:rdx|tdx_\d+_)\w+:\[[0-9a-fA-F]+\]$/, {
+      message: () => 'Must be a valid NonFungibleGlobalId (resource_...:[hex])'
+    })
+  )
+})
+
+export const SignerSchema = Schema.Union(
+  PublicKeySignerSchema,
+  VirtualBadgeSignerSchema
+)
+
+export type Signer = typeof SignerSchema.Type
 
 export const BootstrapConfigSchema = Schema.Struct({
   networkId: Schema.Literal(1, 2),
