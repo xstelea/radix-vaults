@@ -12,7 +12,6 @@ import { GatewayApiClientLayer } from './gateway/gatewayApiClient'
 import { DatabaseMigrations } from './db/migrate'
 import { ORM } from './db/orm'
 import { PgClientLive } from './db/pgClient'
-import { seedTracerBulletData } from './db/seed'
 import { AuthHandlersLive } from './api/authHandlers'
 import { ProposalHandlersLive } from './api/proposalHandlers'
 import { TeamHandlersLive } from './api/teamHandlers'
@@ -56,7 +55,6 @@ const ServerLive = HttpApiBuilder.serve().pipe(
 const startup = Effect.gen(function* () {
   const runMigrations = yield* DatabaseMigrations
   yield* runMigrations()
-  yield* seedTracerBulletData.pipe(Effect.provide(PgClientLive))
   yield* Effect.logInfo(`HttpApi server listening on http://localhost:${port}`)
   yield* Layer.launch(ServerLive)
 })
