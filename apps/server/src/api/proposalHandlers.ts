@@ -33,12 +33,20 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           Effect.gen(function* () {
             const session = yield* CurrentSession
             const proposalsHandler = yield* ProposalsHandler
-            return yield* proposalsHandler.create(
+            const result = yield* proposalsHandler.create(
               vaultAddress,
               manifest,
               maxProposerTimestamp,
               session.accountAddress
             )
+            yield* Effect.logInfo('Proposal created').pipe(
+              Effect.annotateLogs({
+                vaultAddress,
+                proposalId: result.id,
+                createdBy: session.accountAddress
+              })
+            )
+            return result
           }).pipe(
             Effect.catchTags({
               VaultNotFoundError: (e) =>
@@ -74,11 +82,19 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const session = yield* CurrentSession
           const proposalsHandler = yield* ProposalsHandler
-          return yield* proposalsHandler.sign(
+          const result = yield* proposalsHandler.sign(
             vaultAddress,
             proposalId,
             session.accountAddress
           )
+          yield* Effect.logInfo('Proposal signed').pipe(
+            Effect.annotateLogs({
+              vaultAddress,
+              proposalId,
+              signer: session.accountAddress
+            })
+          )
+          return result
         }).pipe(
           Effect.catchTags({
             VaultNotFoundError: (e) =>
@@ -91,7 +107,14 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
       .handle('submit', ({ path: { vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
-          return yield* proposalsHandler.submit(vaultAddress, proposalId)
+          const result = yield* proposalsHandler.submit(
+            vaultAddress,
+            proposalId
+          )
+          yield* Effect.logInfo('Proposal submitted').pipe(
+            Effect.annotateLogs({ vaultAddress, proposalId })
+          )
+          return result
         }).pipe(
           Effect.catchTags({
             VaultNotFoundError: (e) =>
