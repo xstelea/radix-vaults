@@ -20,7 +20,6 @@ node_modules/
 # Local helper folders
 .meetings/
 .repos/
-.claude/
 
 # Playwright
 **/test-results/
