@@ -9,7 +9,7 @@ class EnvVars extends Schema.Class<EnvVars>('EnvVars')({
     decodingFallback: () => Either.right('prod' as const)
   }),
   API_BASE_URL: Schema.String.annotations({
-    decodingFallback: () => Either.right('')
+    decodingFallback: () => Either.right('http://localhost:3001')
   })
 }) {}
 
