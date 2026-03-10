@@ -17,6 +17,10 @@ export class VaultService extends Effect.Service<VaultService>()(
         importVault: (accountAddress: VaultAddress, name: string) =>
           client.vaults.importVault({
             payload: { accountAddress, name }
+          }),
+        createVault: (name: string, threshold: number) =>
+          client.vaults.createVault({
+            payload: { name, threshold }
           })
       }
     })

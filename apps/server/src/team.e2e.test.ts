@@ -130,6 +130,9 @@ const MockVaultHandlersLive = HttpApiBuilder.group(
       .handle('importVault', () =>
         Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
       )
+      .handle('createVault', () =>
+        Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
+      )
 )
 
 const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>

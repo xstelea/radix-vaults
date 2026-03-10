@@ -9,8 +9,23 @@ export class TransactionSubmitError extends Data.TaggedError(
 export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()(
   '@radix-vaults/server/gateway/TransactionSubmitter',
   {
-    effect: Effect.succeed(
-      (input: {
+    effect: Effect.succeed({
+      feePayerAddress: '',
+
+      submitFeePayerOnly: (
+        _manifest: string
+      ): Effect.Effect<
+        { intentHash: string; entities: string[] },
+        TransactionSubmitError
+      > =>
+        Effect.fail(
+          new TransactionSubmitError({
+            message:
+              'TransactionSubmitter not configured. Provide TransactionSubmitterLive layer.'
+          })
+        ),
+
+      submitWithSigners: (_input: {
         manifest: string
         signers: ReadonlyArray<{
           publicKey: string
@@ -20,9 +35,9 @@ export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()
         Effect.fail(
           new TransactionSubmitError({
             message:
-              'TransactionSubmitter not configured. Wire up fee payer key via Bootstrap CLI (Issue #14).'
+              'TransactionSubmitter not configured. Provide TransactionSubmitterLive layer.'
           })
         )
-    )
+    })
   }
 ) {}

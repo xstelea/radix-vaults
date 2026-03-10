@@ -17,6 +17,7 @@ import { ChallengeStore } from './challengeStore'
 import { RolaVerifier } from './rola'
 import { SessionStore } from './sessionStore'
 import { ORM } from '../db/orm'
+import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { AuthHandlersLive } from '../api/authHandlers'
 import { VaultHandlersLive } from '../api/vaultHandlers'
 import { SessionMiddlewareLive } from '../api/sessionMiddleware'
@@ -156,7 +157,9 @@ const makeTestServer = (
     Layer.provide(MockTeamHandlersLive),
     Layer.provide(MockProposalHandlersLive),
     Layer.provide(HealthHandlersLive),
-    Layer.provide(SessionMiddlewareLive)
+    Layer.provide(SessionMiddlewareLive),
+    Layer.provide(TransactionSubmitter.Default),
+    Layer.provide(testAuthConfig)
   )
 
   return HttpApiBuilder.serve().pipe(

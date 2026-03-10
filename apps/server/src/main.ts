@@ -14,6 +14,8 @@ import { ChallengeStore } from './auth/challengeStore'
 import { RolaVerifier } from './auth/rola'
 import { SessionStore } from './auth/sessionStore'
 import { GatewayApiClientLayer } from './gateway/gatewayApiClient'
+import { TransactionSubmitter } from './gateway/transactionSubmitter'
+import { TransactionSubmitterLive } from './gateway/transactionSubmitterLive'
 import { DatabaseMigrations } from './db/migrate'
 import { ORM } from './db/orm'
 import { PgClientLive } from './db/pgClient'
@@ -51,13 +53,18 @@ const AuthServicesLive = Layer.mergeAll(
   Layer.provide(GatewayApiClientLayer)
 )
 
+const TransactionSubmitterLayer = TransactionSubmitterLive.pipe(
+  Layer.catchAll(() => TransactionSubmitter.Default)
+)
+
 const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(AuthHandlersLive),
   Layer.provide(VaultHandlersLive),
   Layer.provide(TeamHandlersLive),
   Layer.provide(ProposalHandlersLive),
   Layer.provide(HealthHandlersLive),
-  Layer.provide(SessionMiddlewareLive)
+  Layer.provide(SessionMiddlewareLive),
+  Layer.provide(TransactionSubmitterLayer)
 )
 
 const loggerSkipOptions = HttpMiddleware.make((httpApp) =>

@@ -20,6 +20,9 @@ import {
   AlreadySignedError,
   CreateProposalRequestSchema,
   CreateProposalResponseSchema,
+  CreateVaultFailedError,
+  CreateVaultRequestSchema,
+  CreateVaultResponseSchema,
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
   NotEligibleSignerError,
@@ -41,6 +44,7 @@ import {
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
   TeamOverviewSchema,
+  ThresholdExceedsSignersError,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
   VaultDetailSchema,
@@ -131,6 +135,14 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
       .addSuccess(ImportVaultResponseSchema)
       .addError(UnsupportedAccessRuleError)
       .addError(VaultAlreadyExistsError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post('createVault', '/vaults/create')
+      .setPayload(CreateVaultRequestSchema)
+      .addSuccess(CreateVaultResponseSchema)
+      .addError(CreateVaultFailedError)
+      .addError(ThresholdExceedsSignersError)
       .middleware(SessionMiddleware)
   ) {}
 

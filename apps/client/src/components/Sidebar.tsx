@@ -1,10 +1,19 @@
 import { Link, useMatches } from '@tanstack/react-router'
-import { Home, Users, PlusCircle, FileText, X, Shield } from 'lucide-react'
+import {
+  Home,
+  Users,
+  PlusCircle,
+  Download,
+  FileText,
+  X,
+  Shield
+} from 'lucide-react'
 
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/team', label: 'Team', icon: Users },
-  { to: '/vaults/add', label: 'Import Vault', icon: PlusCircle }
+  { to: '/vaults/create', label: 'Create Vault', icon: PlusCircle },
+  { to: '/vaults/add', label: 'Import Vault', icon: Download }
 ] as const
 
 export function Sidebar({

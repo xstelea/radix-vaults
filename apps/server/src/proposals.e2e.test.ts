@@ -131,6 +131,9 @@ const MockVaultHandlersLive = HttpApiBuilder.group(
       .handle('importVault', () =>
         Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
       )
+      .handle('createVault', () =>
+        Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
+      )
 )
 
 const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
@@ -181,21 +184,36 @@ const MockPreviewTransactionFailure = Layer.succeed(
 // Mock TransactionSubmitter that succeeds with a deterministic hash
 const MockTransactionSubmitterSuccess = Layer.succeed(
   TransactionSubmitter,
-  TransactionSubmitter.make((_input) =>
-    Effect.succeed({ intentHash: 'txid_test_abc123def456' })
-  )
+  TransactionSubmitter.make({
+    feePayerAddress: 'account_test_fee_payer',
+    submitFeePayerOnly: (_manifest) =>
+      Effect.succeed({
+        intentHash: 'txid_test_abc123def456',
+        entities: []
+      }),
+    submitWithSigners: (_input) =>
+      Effect.succeed({ intentHash: 'txid_test_abc123def456' })
+  })
 )
 
 // Mock TransactionSubmitter that fails
 const MockTransactionSubmitterFailure = Layer.succeed(
   TransactionSubmitter,
-  TransactionSubmitter.make((_input) =>
-    Effect.fail(
-      new (Data.TaggedError('TransactionSubmitError') as any)({
-        message: 'Fee payer not configured'
-      })
-    )
-  )
+  TransactionSubmitter.make({
+    feePayerAddress: '',
+    submitFeePayerOnly: (_manifest) =>
+      Effect.fail(
+        new (Data.TaggedError('TransactionSubmitError') as any)({
+          message: 'Fee payer not configured'
+        })
+      ),
+    submitWithSigners: (_input) =>
+      Effect.fail(
+        new (Data.TaggedError('TransactionSubmitError') as any)({
+          message: 'Fee payer not configured'
+        })
+      )
+  })
 )
 
 // Mock TransactionStatusChecker that returns CommittedSuccess

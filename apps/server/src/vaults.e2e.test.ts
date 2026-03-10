@@ -10,6 +10,7 @@ import {
   type AccountAddress,
   type HexString,
   AppApi,
+  AuthConfig,
   SessionMiddleware,
   VaultAddress
 } from '@radix-vaults/shared'
@@ -22,6 +23,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import pg from 'pg'
 import { VaultHandlersLive } from './api/vaultHandlers'
+import { TransactionSubmitter } from './gateway/transactionSubmitter'
 import { PgContainer } from './test/PgContainer'
 
 const resolveMigrationsFolder = () => {
@@ -180,7 +182,16 @@ const makeServerLive = (
     Layer.provide(MockTeamHandlersLive),
     Layer.provide(MockProposalHandlersLive),
     Layer.provide(HealthHandlersLive),
-    Layer.provide(MockSessionMiddleware)
+    Layer.provide(MockSessionMiddleware),
+    Layer.provide(TransactionSubmitter.Default),
+    Layer.provide(
+      AuthConfig.layer({
+        networkId: 2,
+        dAppDefinitionAddress: 'account_tdx_2_1test',
+        expectedOrigin: 'http://localhost:3000',
+        teamMemberBadgeAddress: 'resource_tdx_2_1testbadge'
+      })
+    )
   )
 
   return HttpApiBuilder.serve().pipe(

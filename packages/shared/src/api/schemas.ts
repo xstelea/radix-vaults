@@ -69,6 +69,37 @@ export type Signer = typeof SignerSchema.Type
 export type ImportVaultRequest = typeof ImportVaultRequestSchema.Type
 export type ImportVaultResponse = typeof ImportVaultResponseSchema.Type
 
+// --- Create vault schemas ---
+
+export const CreateVaultRequestSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
+  threshold: Schema.Number.pipe(Schema.int(), Schema.greaterThan(0))
+})
+
+export const CreateVaultResponseSchema = Schema.Struct({
+  accountAddress: VaultAddress,
+  name: Schema.String
+})
+
+export class CreateVaultFailedError extends Schema.TaggedError<CreateVaultFailedError>()(
+  'CreateVaultFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ThresholdExceedsSignersError extends Schema.TaggedError<ThresholdExceedsSignersError>()(
+  'ThresholdExceedsSignersError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export type CreateVaultRequest = typeof CreateVaultRequestSchema.Type
+export type CreateVaultResponse = typeof CreateVaultResponseSchema.Type
+
 // --- Team schemas ---
 
 export const MemberSignerSourceSchema = Schema.Struct({

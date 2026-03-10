@@ -13,8 +13,10 @@
   },
   "dependencies": {
     "@effect/cli": "catalog:",
+    "@effect/cluster": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
+    "@effect/rpc": "catalog:",
     "@radix-effects/gateway": "catalog:",
     "@radix-effects/shared": "catalog:",
     "@radix-effects/tx-tool": "catalog:",

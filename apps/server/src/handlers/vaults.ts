@@ -1,20 +1,38 @@
 import type {
+  CreateVaultResponse,
   ImportVaultResponse,
   VaultAddress as VaultAddressType,
   VaultDetail,
   VaultSigners
 } from '@radix-vaults/shared'
+import { AuthConfig, VaultsConfig } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import {
   AccessRuleValidator,
   type UnsupportedRuleError,
   type EntityNotFoundOnLedgerError
 } from '../gateway/accessRuleValidator'
+import { buildCreateVaultManifest } from '../gateway/manifests'
+import {
+  TransactionSubmitter,
+  type TransactionSubmitError
+} from '../gateway/transactionSubmitter'
+import { VaultAddress } from '@radix-vaults/shared'
 import {
   ImportVaultRepo,
   type VaultAlreadyExistsDbError
 } from './importVaultRepo'
 import { ListVaultsRepo } from './listVaultsRepo'
+
+export class ThresholdExceedsSignersHandlerError {
+  readonly _tag = 'ThresholdExceedsSignersHandlerError'
+  constructor(readonly message: string) {}
+}
+
+export class CreateVaultFailedHandlerError {
+  readonly _tag = 'CreateVaultFailedHandlerError'
+  constructor(readonly message: string) {}
+}
 
 export class VaultsHandler extends Effect.Service<VaultsHandler>()(
   '@radix-vaults/server/handlers/VaultsHandler',
@@ -23,6 +41,9 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
       const listVaultsRepo = yield* ListVaultsRepo
       const importVaultRepo = yield* ImportVaultRepo
       const accessRuleValidator = yield* AccessRuleValidator
+      const transactionSubmitter = yield* TransactionSubmitter
+      const vaultsConfig = yield* VaultsConfig
+      const authConfig = yield* AuthConfig
 
       const list = () => listVaultsRepo.list().pipe(Effect.orDie)
 
@@ -67,11 +88,68 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
           } satisfies ImportVaultResponse
         })
 
+      const createVault = (
+        name: string,
+        threshold: number
+      ): Effect.Effect<
+        CreateVaultResponse,
+        | ThresholdExceedsSignersHandlerError
+        | CreateVaultFailedHandlerError
+        | TransactionSubmitError
+      > =>
+        Effect.gen(function* () {
+          const accessRule = yield* accessRuleValidator
+            .validate(vaultsConfig.teamAccountAddress)
+            .pipe(Effect.orDie)
+
+          const signers = accessRule.signers
+          if (threshold > signers.length) {
+            return yield* Effect.fail(
+              new ThresholdExceedsSignersHandlerError(
+                `Threshold ${threshold} exceeds number of team signers (${signers.length})`
+              )
+            )
+          }
+
+          const manifest = yield* Effect.promise(() =>
+            buildCreateVaultManifest({
+              feePayerAddress: transactionSubmitter.feePayerAddress,
+              signers,
+              threshold,
+              networkId: authConfig.networkId
+            })
+          )
+
+          const { entities } =
+            yield* transactionSubmitter.submitFeePayerOnly(manifest)
+
+          const accountAddress = entities.find((addr) =>
+            addr.startsWith('account_')
+          )
+
+          if (!accountAddress) {
+            return yield* Effect.fail(
+              new CreateVaultFailedHandlerError(
+                `No account address found in transaction receipt. Entities: ${entities.join(', ')}`
+              )
+            )
+          }
+
+          const vaultAddress = VaultAddress.make(accountAddress)
+          yield* importVaultRepo.insert(vaultAddress, name).pipe(Effect.orDie)
+
+          return {
+            accountAddress: vaultAddress,
+            name
+          } satisfies CreateVaultResponse
+        })
+
       return {
         list,
         getDetail,
         getSigners,
-        importVault
+        importVault,
+        createVault
       } as const
     })
   }

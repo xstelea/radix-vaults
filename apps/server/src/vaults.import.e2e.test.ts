@@ -10,6 +10,7 @@ import {
   type AccountAddress,
   type HexString,
   AppApi,
+  AuthConfig,
   SessionMiddleware,
   UnsupportedAccessRuleError,
   VaultAddress,
@@ -30,6 +31,7 @@ import {
   UnsupportedRuleError,
   type ParsedAccessRule
 } from './gateway/accessRuleValidator'
+import { TransactionSubmitter } from './gateway/transactionSubmitter'
 import { ImportVaultRepo } from './handlers/importVaultRepo'
 import { VaultsHandler } from './handlers/vaults'
 import { ListVaultsRepo } from './handlers/listVaultsRepo'
@@ -247,13 +249,18 @@ const makeVaultHandlersLive = () =>
           })
         )
       )
+      .handle('createVault', () =>
+        Effect.succeed({ accountAddress: 'mock' as any, name: 'mock' })
+      )
   ).pipe(
     Layer.provide(VaultsHandler.Default),
     Layer.provide(ListVaultsRepo.Default),
     Layer.provide(ImportVaultRepo.Default),
     Layer.provide(MockAccessRuleValidator),
+    Layer.provide(TransactionSubmitter.Default),
     Layer.provide(ORM.Default),
-    Layer.provide(VaultsConfig.Live)
+    Layer.provide(VaultsConfig.Live),
+    Layer.provide(AuthConfig.Live)
   )
 
 const makeServerLive = (

@@ -316,18 +316,20 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             .filter((s): s is NonNullable<typeof s> => s !== null)
 
           // Submit via TransactionSubmitter
-          const { intentHash } = yield* transactionSubmitter({
-            manifest: proposal.manifest,
-            signers
-          }).pipe(
-            Effect.catchTag('TransactionSubmitError', (e) =>
-              Effect.fail(
-                new ProposalSubmitFailedError({
-                  message: e.message
-                })
+          const { intentHash } = yield* transactionSubmitter
+            .submitWithSigners({
+              manifest: proposal.manifest,
+              signers
+            })
+            .pipe(
+              Effect.catchTag('TransactionSubmitError', (e) =>
+                Effect.fail(
+                  new ProposalSubmitFailedError({
+                    message: e.message
+                  })
+                )
               )
             )
-          )
 
           // Persist submission
           yield* proposalRepo.setSubmitted(proposalId, intentHash)
