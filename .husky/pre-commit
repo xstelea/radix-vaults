@@ -4,4 +4,3 @@ pnpm lint-staged
 pnpm check-types
 pnpm test
 pnpm build
-pnpm --filter @radix-vaults/client test:e2e

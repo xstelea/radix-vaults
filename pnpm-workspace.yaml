@@ -4,9 +4,12 @@ packages:
 
 catalog:
   '@effect-atom/atom-react': ^0.4.4
+  '@effect/cli': ^0.72.1
   '@effect/platform': ^0.93.6
   '@effect/platform-browser': ^0.73.0
   '@effect/platform-node': ^0.103.0
+  '@effect/printer': ^0.47.0
+  '@effect/printer-ansi': ^0.47.0
   '@playwright/test': ^1.57.0
   '@effect/sql': ^0.48.6
   '@effect/sql-drizzle': ^0.47.0
@@ -14,6 +17,7 @@ catalog:
   '@effect/vitest': ^0.27.0
   '@radix-effects/gateway': ^0.5.0
   '@radix-effects/shared': ^0.0.1
+  '@radix-effects/tx-tool': ^0.0.6
   '@tailwindcss/vite': ^4.1.17
   '@tanstack/react-router': ^1.139.3
   '@tanstack/react-start': ^1.139.3

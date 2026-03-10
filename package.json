@@ -17,6 +17,8 @@
     "db:migrate": "pnpm --filter @radix-vaults/database db:migrate",
     "db:studio": "pnpm --filter @radix-vaults/database db:studio",
     "dev:db": "docker compose up -d postgres",
+    "bootstrap": "pnpm --filter @radix-vaults/cli bootstrap",
+    "bootstrap:init": "pnpm --filter @radix-vaults/cli bootstrap:init",
     "prepare": "husky",
     "lint-staged": "lint-staged"
   },

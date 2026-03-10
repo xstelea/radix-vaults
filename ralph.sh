@@ -21,8 +21,8 @@ for ((i=1; i<=$1; i++)); do
     --verbose \
     --print \
     --output-format stream-json \
-    "@docs/issues.md @progress.txt \
-1. Decide which task to work on next. \
+    "https://github.com/xstelea/radix-vaults/issues @progress.txt \
+1. Decide which issue to work on next. \
 This should be the one YOU decide has the highest priority, \
 - not necessarily the first in the list. \
 2. Check any feedback loops, such as types and tests. \
