@@ -9,7 +9,7 @@
     "lint": "oxlint .",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "generate-routes": "tsr generate"
   },
   "dependencies": {
@@ -42,6 +42,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "oxlint": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

@@ -6,10 +6,10 @@
     "cli": "tsx src/cli.ts",
     "bootstrap": "tsx src/cli.ts run",
     "bootstrap:init": "tsx src/cli.ts init",
-    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
     "lint": "oxlint .",
     "test": "vitest run",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
     "@effect/cli": "catalog:",
@@ -29,6 +29,7 @@
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "tsx": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

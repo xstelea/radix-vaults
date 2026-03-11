@@ -6,10 +6,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --emitDeclarationOnly false --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --emitDeclarationOnly false --noEmit false --outDir dist",
     "lint": "oxlint .",
     "test": "vitest run --passWithNoTests",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts"
@@ -23,6 +23,7 @@
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "oxlint": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

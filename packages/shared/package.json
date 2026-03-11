@@ -6,11 +6,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --emitDeclarationOnly false --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --emitDeclarationOnly false --noEmit false --outDir dist",
     "dev": "tsx --watch src/index.ts",
     "lint": "oxlint .",
     "test": "vitest run --passWithNoTests",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
     "@effect/platform": "catalog:",
@@ -21,6 +21,7 @@
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "tsx": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

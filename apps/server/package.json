@@ -4,12 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
     "start": "node dist/main.js",
     "lint": "oxlint .",
     "test": "vitest run --exclude '**/*.e2e.test.ts'",
     "test:e2e": "vitest run --include '**/*.e2e.test.ts'",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
     "@effect/cluster": "catalog:",
@@ -39,6 +39,7 @@
     "@types/pg": "^8.15.6",
     "oxlint": "catalog:",
     "tsx": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
