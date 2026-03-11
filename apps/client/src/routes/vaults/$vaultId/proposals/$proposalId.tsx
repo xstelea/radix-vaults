@@ -1,12 +1,22 @@
 import { useState, useCallback } from 'react'
-import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import {
+  Result,
+  useAtom,
+  useAtomRefresh,
+  useAtomValue
+} from '@effect-atom/atom-react'
 import type { ProposalDetail } from '@radix-vaults/shared'
-import { VaultAddress } from '@radix-vaults/shared'
+import { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
-import { Effect, Exit } from 'effect'
-import { toast } from 'sonner'
+import { Exit } from 'effect'
 import { sessionAtom } from '@/atom/auth'
-import { proposalDetailAtom } from '@/atom/proposals'
+import {
+  ProposalDetailKey,
+  proposalDetailAtom,
+  refreshProposalStatus,
+  signProposal,
+  submitProposal
+} from '@/atom/proposals'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +35,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { ProposalService } from '@/services/proposal'
 
 export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
   component: ProposalDetailPage
@@ -94,10 +103,12 @@ const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 function ProposalDetailContent() {
   const { vaultId, proposalId } = Route.useParams()
   const vaultAddress = VaultAddress.make(vaultId)
-  const detailAtom = proposalDetailAtom({
-    vaultAddress,
-    proposalId: Number(proposalId)
-  })
+  const detailAtom = proposalDetailAtom(
+    ProposalDetailKey({
+      vaultAddress,
+      proposalId: ProposalId.make(Number(proposalId))
+    })
+  )
   const detailResult = useAtomValue(detailAtom)
   const refresh = useAtomRefresh(detailAtom)
 
@@ -241,6 +252,7 @@ function SignatureProgressCard({
   onSigned: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
+  const [, dispatch] = useAtom(signProposal, { mode: 'promiseExit' })
   const [signing, setSigning] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -255,25 +267,19 @@ function SignatureProgressCard({
   const handleSign = useCallback(async () => {
     setSigning(true)
     try {
-      const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.sign(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
-      )
+      const exit = await dispatch({
+        vaultAddress,
+        proposalId: proposal.id,
+        proposal
+      })
       Exit.match(exit, {
-        onSuccess: () => {
-          toast.success('Proposal signed successfully')
-          onSigned()
-        },
-        onFailure: (cause) => {
-          toast.error(`Signing failed: ${String(cause)}`)
-        }
+        onSuccess: () => onSigned(),
+        onFailure: () => {}
       })
     } finally {
       setSigning(false)
     }
-  }, [vaultAddress, proposal.id, onSigned])
+  }, [vaultAddress, proposal, onSigned, dispatch])
 
   return (
     <Card>
@@ -341,6 +347,7 @@ function SubmitCard({
   onSubmitted: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
+  const [, dispatch] = useAtom(submitProposal, { mode: 'promiseExit' })
   const [submitting, setSubmitting] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -354,22 +361,10 @@ function SubmitCard({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.submit(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
-      )
+      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
       Exit.match(exit, {
-        onSuccess: (result) => {
-          toast.success(
-            `Proposal submitted! Intent hash: ${result.intentHash.slice(0, 16)}...`
-          )
-          onSubmitted()
-        },
-        onFailure: (cause) => {
-          toast.error(`Submit failed: ${String(cause)}`)
-        }
+        onSuccess: () => onSubmitted(),
+        onFailure: () => {}
       })
     } finally {
       setSubmitting(false)
@@ -404,6 +399,7 @@ function TransactionInfoCard({
   onStatusRefreshed: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
+  const [, dispatch] = useAtom(refreshProposalStatus, { mode: 'promiseExit' })
   const [checking, setChecking] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -417,31 +413,15 @@ function TransactionInfoCard({
   const handleCheckStatus = useCallback(async () => {
     setChecking(true)
     try {
-      const exit = await Effect.runPromiseExit(
-        ProposalService.pipe(
-          Effect.flatMap((svc) => svc.refreshStatus(vaultAddress, proposal.id)),
-          Effect.provide(ProposalService.Default)
-        )
-      )
+      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
       Exit.match(exit, {
-        onSuccess: (result) => {
-          if (result.status === 'committed') {
-            toast.success('Transaction committed successfully')
-          } else if (result.status === 'failed') {
-            toast.error('Transaction failed on-chain')
-          } else {
-            toast('Transaction still pending')
-          }
-          onStatusRefreshed()
-        },
-        onFailure: (cause) => {
-          toast.error(`Status check failed: ${String(cause)}`)
-        }
+        onSuccess: () => onStatusRefreshed(),
+        onFailure: () => {}
       })
     } finally {
       setChecking(false)
     }
-  }, [vaultAddress, proposal.id, onStatusRefreshed])
+  }, [vaultAddress, proposal.id, onStatusRefreshed, dispatch])
 
   return (
     <Card>

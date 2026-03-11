@@ -1,9 +1,8 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
-import { VaultAddress } from '@radix-vaults/shared'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { importVault, vaultsListAtom } from '@/atom/vaults'
+import { createVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -13,16 +12,16 @@ import {
   CardTitle
 } from '@/components/ui/card'
 
-export const Route = createFileRoute('/vaults/add')({
-  component: AddVaultPage
+export const Route = createFileRoute('/vaults/create')({
+  component: CreateVaultPage
 })
 
-function AddVaultPage() {
+function CreateVaultPage() {
   const navigate = useNavigate()
   const refreshVaults = useAtomRefresh(vaultsListAtom)
-  const [, dispatch] = useAtom(importVault, { mode: 'promiseExit' })
-  const [accountAddress, setAccountAddress] = useState('')
+  const [, dispatch] = useAtom(createVault, { mode: 'promiseExit' })
   const [name, setName] = useState('')
+  const [threshold, setThreshold] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,24 +30,22 @@ function AddVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const exit = await dispatch({
-      accountAddress: VaultAddress.make(accountAddress.trim()),
-      name: name.trim()
-    })
+    const exit = await dispatch({ name: name.trim(), threshold })
 
     setSubmitting(false)
 
     Exit.match(exit, {
       onFailure: (cause) => {
         const msg = String(cause)
-        if (msg.includes('UnsupportedAccessRuleError')) {
+        if (msg.includes('ThresholdExceedsSignersError')) {
           setError(
-            'This account does not have a supported multisig access rule (CountOf or AllOf).'
+            'Threshold exceeds the number of team signers. Please choose a lower value.'
           )
-        } else if (msg.includes('VaultAlreadyExistsError')) {
-          setError('This vault has already been imported.')
+        } else if (msg.includes('CreateVaultFailedError')) {
+          const match = msg.match(/message":\s*"([^"]+)"/)
+          setError(match?.[1] ?? 'Vault creation failed. Please try again.')
         } else {
-          setError(`Import failed: ${msg}`)
+          setError(`Create vault failed: ${msg}`)
         }
       },
       onSuccess: () => {
@@ -65,34 +62,19 @@ function AddVaultPage() {
           Home
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-foreground font-medium">Import Vault</span>
+        <span className="text-foreground font-medium">Create Vault</span>
       </nav>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Import Vault</CardTitle>
+          <CardTitle className="text-2xl">Create Vault</CardTitle>
           <CardDescription>
-            Import an existing multisig account as a vault. The account must
-            have a supported access rule (CountOf or AllOf of signature badges).
+            Create a new multisig vault on-chain. The vault will use your
+            team&apos;s current signer set with the threshold you specify.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="accountAddress" className="text-sm font-medium">
-                Account Address
-              </label>
-              <input
-                id="accountAddress"
-                type="text"
-                required
-                placeholder="account_tdx_2_1..."
-                value={accountAddress}
-                onChange={(e) => setAccountAddress(e.target.value)}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-              />
-            </div>
-
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
                 Display Name
@@ -109,6 +91,25 @@ function AddVaultPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <label htmlFor="threshold" className="text-sm font-medium">
+                Signature Threshold
+              </label>
+              <input
+                id="threshold"
+                type="number"
+                required
+                min={1}
+                value={threshold}
+                onChange={(e) => setThreshold(Number(e.target.value))}
+                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground">
+                Vault will use your team&apos;s current signer set. The
+                threshold determines how many signatures are required.
+              </p>
+            </div>
+
             {error && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
                 {error}
@@ -117,7 +118,7 @@ function AddVaultPage() {
 
             <div className="flex gap-3">
               <Button type="submit" disabled={submitting}>
-                {submitting ? 'Importing...' : 'Import Vault'}
+                {submitting ? 'Creating...' : 'Create Vault'}
               </Button>
               <Link to="/">
                 <Button type="button" variant="outline">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createPublicKeyHash } from './proposals'
+import { computePublicKeyHash as createPublicKeyHash } from '../gateway/subintentBuilder'
 
 // Known Ed25519 public key (32 bytes hex)
 const ED25519_PUBLIC_KEY =

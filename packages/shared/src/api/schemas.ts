@@ -1,5 +1,6 @@
 import { HttpApiSchema } from '@effect/platform'
 import * as Schema from 'effect/Schema'
+import { ProposalId } from '../proposalId'
 import { VaultAddress } from '../vaultAddress'
 
 export const SignerSchema = Schema.Struct({
@@ -69,37 +70,46 @@ export type Signer = typeof SignerSchema.Type
 export type ImportVaultRequest = typeof ImportVaultRequestSchema.Type
 export type ImportVaultResponse = typeof ImportVaultResponseSchema.Type
 
-// --- Team schemas ---
+// --- Create vault schemas ---
 
-export const MemberSignerSourceSchema = Schema.Struct({
-  accountAddress: Schema.String,
-  publicKey: Schema.String,
-  keyType: Schema.Literal('ed25519', 'secp256k1')
+export const CreateVaultRequestSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
+  threshold: Schema.Number.pipe(Schema.int(), Schema.greaterThan(0))
 })
+
+export const CreateVaultResponseSchema = Schema.Struct({
+  accountAddress: VaultAddress,
+  name: Schema.String
+})
+
+export class CreateVaultFailedError extends Schema.TaggedError<CreateVaultFailedError>()(
+  'CreateVaultFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export class ThresholdExceedsSignersError extends Schema.TaggedError<ThresholdExceedsSignersError>()(
+  'ThresholdExceedsSignersError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export type CreateVaultRequest = typeof CreateVaultRequestSchema.Type
+export type CreateVaultResponse = typeof CreateVaultResponseSchema.Type
+
+// --- Team schemas ---
 
 export const TeamOverviewSchema = Schema.Struct({
   teamAccountAddress: VaultAddress,
   threshold: Schema.Number,
-  signers: Schema.Array(SignerSchema),
-  memberSignerSources: Schema.Array(MemberSignerSourceSchema),
-  hasMismatch: Schema.Boolean
+  signers: Schema.Array(SignerSchema)
 })
 
-export const SetSignerSourceRequestSchema = Schema.Struct({
-  publicKey: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
-  keyType: Schema.Literal('ed25519', 'secp256k1')
-})
-
-export const SetSignerSourceResponseSchema = Schema.Struct({
-  accountAddress: Schema.String,
-  publicKey: Schema.String,
-  keyType: Schema.Literal('ed25519', 'secp256k1')
-})
-
-export type MemberSignerSource = typeof MemberSignerSourceSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
-export type SetSignerSourceRequest = typeof SetSignerSourceRequestSchema.Type
-export type SetSignerSourceResponse = typeof SetSignerSourceResponseSchema.Type
 
 // --- Proposal schemas ---
 
@@ -120,17 +130,21 @@ export const CreateProposalRequestSchema = Schema.Struct({
 })
 
 export const CreateProposalResponseSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
-  createdAt: Schema.String
+  createdAt: Schema.String,
+  subintentHash: Schema.NullOr(Schema.String),
+  intentDiscriminator: Schema.String,
+  epochMin: Schema.NullOr(Schema.Number),
+  epochMax: Schema.NullOr(Schema.Number)
 })
 
 export const ProposalListItemSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   createdBy: Schema.String,
@@ -151,17 +165,25 @@ export const SignatureProgressSchema = Schema.Struct({
 })
 
 export const ProposalDetailSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
   createdAt: Schema.String,
+  subintentHash: Schema.NullOr(Schema.String),
+  intentDiscriminator: Schema.String,
+  epochMin: Schema.NullOr(Schema.Number),
+  epochMax: Schema.NullOr(Schema.Number),
   signatureProgress: SignatureProgressSchema,
   transactionIntentHash: Schema.NullOr(Schema.String),
   submittedAt: Schema.NullOr(Schema.String),
   statusReason: Schema.NullOr(Schema.String)
+})
+
+export const SignProposalRequestSchema = Schema.Struct({
+  signedPartialTransactionHex: Schema.String
 })
 
 export const SignProposalResponseSchema = Schema.Struct({
@@ -176,7 +198,7 @@ export const SubmitProposalResponseSchema = Schema.Struct({
 export class ProposalNotFoundError extends Schema.TaggedError<ProposalNotFoundError>()(
   'ProposalNotFoundError',
   {
-    proposalId: Schema.Number
+    proposalId: ProposalId
   },
   HttpApiSchema.annotations({ status: 404 })
 ) {}
@@ -187,14 +209,6 @@ export class ProposalPreviewFailedError extends Schema.TaggedError<ProposalPrevi
     message: Schema.String
   },
   HttpApiSchema.annotations({ status: 422 })
-) {}
-
-export class SignerSourceMissingError extends Schema.TaggedError<SignerSourceMissingError>()(
-  'SignerSourceMissingError',
-  {
-    message: Schema.String
-  },
-  HttpApiSchema.annotations({ status: 403 })
 ) {}
 
 export class NotEligibleSignerError extends Schema.TaggedError<NotEligibleSignerError>()(

@@ -4,6 +4,11 @@ import * as Effect from 'effect/Effect'
 import * as Option from 'effect/Option'
 import { type ExternalToast, toast } from 'sonner'
 
+type ToastVariant = {
+  message: string | React.ReactNode
+  type: 'success' | 'error' | 'info'
+}
+
 type ToastOptions<A, E, Args extends ReadonlyArray<unknown>> = {
   whenLoading:
     | string
@@ -19,7 +24,7 @@ type ToastOptions<A, E, Args extends ReadonlyArray<unknown>> = {
         registry: Registry.Registry
         result: A
         args: Args
-      }) => React.ReactNode | string)
+      }) => React.ReactNode | string | ToastVariant)
   whenFailure:
     | string
     | React.ReactNode
@@ -65,13 +70,27 @@ export const withToast =
         )
       )
 
-      const message =
+      const successResult =
         typeof options.whenSuccess === 'function'
           ? options.whenSuccess({ registry, result, args })
           : options.whenSuccess
-      toast.success(message, {
-        id: toastId,
-        ...options.options
-      })
+
+      if (
+        typeof successResult === 'object' &&
+        successResult !== null &&
+        'type' in successResult &&
+        'message' in successResult
+      ) {
+        const variant = successResult as ToastVariant
+        const toastFn =
+          variant.type === 'success'
+            ? toast.success
+            : variant.type === 'error'
+              ? toast.error
+              : toast.info
+        toastFn(variant.message, { id: toastId, ...options.options })
+      } else {
+        toast.success(successResult, { id: toastId, ...options.options })
+      }
       return result
     })

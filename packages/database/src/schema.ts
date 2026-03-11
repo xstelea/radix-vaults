@@ -36,15 +36,6 @@ export const sessions = pgTable('sessions', {
     .defaultNow()
 })
 
-export const memberSignerSources = pgTable('member_signer_sources', {
-  accountAddress: varchar('account_address', { length: 255 }).primaryKey(),
-  publicKey: varchar('public_key', { length: 255 }).notNull(),
-  keyType: varchar('key_type', { length: 32 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow()
-})
-
 export const proposals = pgTable('proposals', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
   vaultAddress: varchar('vault_address', { length: 255 })
@@ -56,6 +47,13 @@ export const proposals = pgTable('proposals', {
     length: 64
   }).notNull(),
   createdBy: varchar('created_by', { length: 255 }).notNull(),
+  subintentHash: varchar('subintent_hash', { length: 255 }),
+  intentDiscriminator: varchar('intent_discriminator', {
+    length: 64
+  }).notNull(),
+  partialTransactionHex: text('partial_transaction_hex'),
+  epochMin: integer('epoch_min'),
+  epochMax: integer('epoch_max'),
   transactionIntentHash: varchar('transaction_intent_hash', { length: 255 }),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
   statusReason: text('status_reason'),
@@ -74,8 +72,13 @@ export const proposalSignatures = pgTable(
     signerAccountAddress: varchar('signer_account_address', {
       length: 255
     }).notNull(),
+    signerPublicKey: varchar('signer_public_key', { length: 255 }).notNull(),
     signerKeyHash: varchar('signer_key_hash', { length: 255 }).notNull(),
     signerKeyType: varchar('signer_key_type', { length: 32 }).notNull(),
+    signatureBytes: text('signature_bytes').notNull(),
+    signedPartialTransactionHex: text(
+      'signed_partial_transaction_hex'
+    ).notNull(),
     signedAt: timestamp('signed_at', { withTimezone: true })
       .notNull()
       .defaultNow()

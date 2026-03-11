@@ -1,6 +1,6 @@
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { VaultAddress } from '@radix-vaults/shared'
+import { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Redacted } from 'effect'
@@ -84,7 +84,12 @@ describe('ProposalRepo', () => {
             vaultAddress: VAULT,
             manifest: 'CALL_METHOD Address("test") "deposit" ;',
             maxProposerTimestamp: '2026-12-31T23:59:59',
-            createdBy: 'account_tdx_2_1qcreator'
+            createdBy: 'account_tdx_2_1qcreator',
+            subintentHash: 'subtxid_test_1',
+            intentDiscriminator: '123456',
+            partialTransactionHex: 'deadbeef',
+            epochMin: 100,
+            epochMax: 200
           })
         )
 
@@ -117,13 +122,23 @@ describe('ProposalRepo', () => {
               vaultAddress: VAULT,
               manifest: 'manifest1',
               maxProposerTimestamp: '2026-12-31',
-              createdBy: 'creator1'
+              createdBy: 'creator1',
+              subintentHash: 'subtxid_test_2',
+              intentDiscriminator: '111',
+              partialTransactionHex: 'aa',
+              epochMin: 100,
+              epochMax: 200
             }),
             repo.insert({
               vaultAddress: VAULT,
               manifest: 'manifest2',
               maxProposerTimestamp: '2026-12-31',
-              createdBy: 'creator2'
+              createdBy: 'creator2',
+              subintentHash: 'subtxid_test_3',
+              intentDiscriminator: '222',
+              partialTransactionHex: 'bb',
+              epochMin: 100,
+              epochMax: 200
             })
           ])
         )
@@ -157,7 +172,12 @@ describe('ProposalRepo', () => {
             vaultAddress: VAULT,
             manifest: 'CALL_METHOD ...',
             maxProposerTimestamp: '2026-12-31',
-            createdBy: 'creator'
+            createdBy: 'creator',
+            subintentHash: 'subtxid_test_4',
+            intentDiscriminator: '333',
+            partialTransactionHex: 'cc',
+            epochMin: 100,
+            epochMax: 200
           })
         )
 
@@ -185,7 +205,7 @@ describe('ProposalRepo', () => {
         yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
-          Effect.either(repo.getById(VAULT, 9999))
+          Effect.either(repo.getById(VAULT, ProposalId.make(9999)))
         )
 
         expect(result._tag).toBe('Left')

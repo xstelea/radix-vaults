@@ -9,13 +9,14 @@
     "lint": "oxlint .",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsgo --noEmit",
     "generate-routes": "tsr generate"
   },
   "dependencies": {
     "@effect-atom/atom-react": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-browser": "catalog:",
+    "@radix-effects/gateway": "catalog:",
     "@radix-vaults/shared": "workspace:*",
     "@radixdlt/radix-dapp-toolkit": "^2.3.0",
     "@tailwindcss/vite": "catalog:",
@@ -23,7 +24,7 @@
     "@tanstack/react-start": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
-    "effect": "catalog:",
+    "effect": "^3.19.19",
     "lucide-react": "^0.577.0",
     "react": "catalog:",
     "react-dom": "catalog:",
@@ -41,6 +42,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "oxlint": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

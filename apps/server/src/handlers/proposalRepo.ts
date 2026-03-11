@@ -1,5 +1,6 @@
 import { proposals, proposalSignatures } from '@radix-vaults/database'
 import {
+  ProposalId,
   VaultAddress,
   type VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
@@ -10,13 +11,13 @@ import { ORM } from '../db/orm'
 export class ProposalNotFoundDbError extends Data.TaggedError(
   'ProposalNotFoundDbError'
 )<{
-  proposalId: number
+  proposalId: ProposalId
 }> {}
 
 export class DuplicateSignatureDbError extends Data.TaggedError(
   'DuplicateSignatureDbError'
 )<{
-  proposalId: number
+  proposalId: ProposalId
   signerAccountAddress: string
 }> {}
 
@@ -31,6 +32,11 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         manifest: string
         maxProposerTimestamp: string
         createdBy: string
+        subintentHash: string
+        intentDiscriminator: string
+        partialTransactionHex: string
+        epochMin: number
+        epochMax: number
       }) =>
         db
           .insert(proposals)
@@ -39,20 +45,29 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             status: 'created',
             manifest: input.manifest,
             maxProposerTimestamp: input.maxProposerTimestamp,
-            createdBy: input.createdBy
+            createdBy: input.createdBy,
+            subintentHash: input.subintentHash,
+            intentDiscriminator: input.intentDiscriminator,
+            partialTransactionHex: input.partialTransactionHex,
+            epochMin: input.epochMin,
+            epochMax: input.epochMax
           })
           .returning()
           .pipe(
             Effect.map((rows) => {
               const row = rows[0]!
               return {
-                id: row.id,
+                id: ProposalId.make(row.id),
                 vaultAddress: VaultAddress.make(row.vaultAddress),
                 status: row.status,
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
                 createdBy: row.createdBy,
-                createdAt: row.createdAt.toISOString()
+                createdAt: row.createdAt.toISOString(),
+                subintentHash: row.subintentHash,
+                intentDiscriminator: row.intentDiscriminator,
+                epochMin: row.epochMin,
+                epochMax: row.epochMax
               }
             }),
             Effect.catchTags({ SqlError: Effect.die })
@@ -74,6 +89,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.map((rows) =>
               rows.map((row) => ({
                 ...row,
+                id: ProposalId.make(row.id),
                 vaultAddress: VaultAddress.make(row.vaultAddress),
                 createdAt: row.createdAt.toISOString()
               }))
@@ -81,7 +97,10 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      const getById = (vaultAddress: VaultAddressType, proposalId: number) =>
+      const getById = (
+        vaultAddress: VaultAddressType,
+        proposalId: ProposalId
+      ) =>
         db
           .select()
           .from(proposals)
@@ -99,12 +118,17 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 return Effect.fail(new ProposalNotFoundDbError({ proposalId }))
               }
               return Effect.succeed({
-                id: row.id,
+                id: ProposalId.make(row.id),
                 vaultAddress: VaultAddress.make(row.vaultAddress),
                 status: row.status,
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
                 createdBy: row.createdBy,
+                subintentHash: row.subintentHash,
+                intentDiscriminator: row.intentDiscriminator,
+                partialTransactionHex: row.partialTransactionHex,
+                epochMin: row.epochMin,
+                epochMax: row.epochMax,
                 transactionIntentHash: row.transactionIntentHash,
                 submittedAt: row.submittedAt?.toISOString() ?? null,
                 statusReason: row.statusReason ?? null,
@@ -115,18 +139,24 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           )
 
       const addSignature = (input: {
-        proposalId: number
+        proposalId: ProposalId
         signerAccountAddress: string
+        signerPublicKey: string
         signerKeyHash: string
         signerKeyType: 'ed25519' | 'secp256k1'
+        signatureBytes: string
+        signedPartialTransactionHex: string
       }) =>
         db
           .insert(proposalSignatures)
           .values({
             proposalId: input.proposalId,
             signerAccountAddress: input.signerAccountAddress,
+            signerPublicKey: input.signerPublicKey,
             signerKeyHash: input.signerKeyHash,
-            signerKeyType: input.signerKeyType
+            signerKeyType: input.signerKeyType,
+            signatureBytes: input.signatureBytes,
+            signedPartialTransactionHex: input.signedPartialTransactionHex
           })
           .returning()
           .pipe(
@@ -147,12 +177,14 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             })
           )
 
-      const getSignatures = (proposalId: number) =>
+      const getSignatures = (proposalId: ProposalId) =>
         db
           .select({
             signerAccountAddress: proposalSignatures.signerAccountAddress,
+            signerPublicKey: proposalSignatures.signerPublicKey,
             signerKeyHash: proposalSignatures.signerKeyHash,
             signerKeyType: proposalSignatures.signerKeyType,
+            signatureBytes: proposalSignatures.signatureBytes,
             signedAt: proposalSignatures.signedAt
           })
           .from(proposalSignatures)
@@ -167,7 +199,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      const updateStatus = (proposalId: number, status: string) =>
+      const updateStatus = (proposalId: ProposalId, status: string) =>
         db
           .update(proposals)
           .set({ status })
@@ -175,7 +207,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
       const setSubmitted = (
-        proposalId: number,
+        proposalId: ProposalId,
         transactionIntentHash: string
       ) =>
         db
@@ -189,7 +221,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
       const setTerminalStatus = (
-        proposalId: number,
+        proposalId: ProposalId,
         status: 'expired' | 'invalid',
         statusReason: string
       ) =>

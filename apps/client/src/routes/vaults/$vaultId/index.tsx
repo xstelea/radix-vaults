@@ -1,6 +1,11 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
-import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  ClientOnly,
+  useNavigate
+} from '@tanstack/react-router'
 import { proposalListAtom } from '@/atom/proposals'
 import { vaultReadAtom } from '@/atom/vaults'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +26,12 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+
+const formatWithSpaces = (value: string): string => {
+  const [integer = '', decimal] = value.split('.')
+  const spaced = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009')
+  return decimal !== undefined ? `${spaced}.${decimal}` : spaced
+}
 
 export const Route = createFileRoute('/vaults/$vaultId/')({
   component: VaultDetailPage
@@ -108,7 +119,7 @@ function VaultReadContent() {
         </CardContent>
       </Card>
     ))
-    .onSuccess(({ detail, signers }) => (
+    .onSuccess(({ detail, signers, balanceXrd }) => (
       <>
         <Card>
           <CardHeader>
@@ -123,8 +134,8 @@ function VaultReadContent() {
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                   Balance (XRD)
                 </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {detail.balanceXrd}
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {formatWithSpaces(balanceXrd)}
                 </p>
               </CardContent>
             </Card>
@@ -155,16 +166,15 @@ function VaultReadContent() {
           <CardHeader>
             <CardTitle>Current Signers</CardTitle>
             <CardDescription>
-              On-chain signer set reconciled through server gateway reads.
+              On-chain signer set read directly from the Radix Gateway.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Key Type</TableHead>
-                  <TableHead>Public Key</TableHead>
-                  <TableHead>Key Hash</TableHead>
+                  <TableHead>Curve</TableHead>
+                  <TableHead>Badge Local ID</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -175,9 +185,6 @@ function VaultReadContent() {
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {signer.signerPublicKey}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {signer.signerKeyHash}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -206,6 +213,7 @@ const statusVariant: Record<
 
 function ProposalListSection() {
   const { vaultId } = Route.useParams()
+  const navigate = useNavigate()
   const vaultAddress = VaultAddress.make(vaultId)
   const listAtom = proposalListAtom(vaultAddress)
   const listResult = useAtomValue(listAtom)
@@ -256,7 +264,16 @@ function ProposalListSection() {
               </TableHeader>
               <TableBody>
                 {proposals.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow
+                    key={p.id}
+                    className="cursor-pointer"
+                    onClick={() =>
+                      navigate({
+                        to: '/vaults/$vaultId/proposals/$proposalId',
+                        params: { vaultId, proposalId: String(p.id) }
+                      })
+                    }
+                  >
                     <TableCell>
                       <Link
                         to="/vaults/$vaultId/proposals/$proposalId"

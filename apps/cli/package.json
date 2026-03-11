@@ -6,27 +6,30 @@
     "cli": "tsx src/cli.ts",
     "bootstrap": "tsx src/cli.ts run",
     "bootstrap:init": "tsx src/cli.ts init",
-    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
     "lint": "oxlint .",
     "test": "vitest run",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
     "@effect/cli": "catalog:",
+    "@effect/cluster": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
+    "@effect/rpc": "catalog:",
+    "@noble/hashes": "^2.0.1",
     "@radix-effects/gateway": "catalog:",
     "@radix-effects/shared": "catalog:",
     "@radix-effects/tx-tool": "catalog:",
     "@radixdlt/radix-engine-toolkit": "^1.0.5",
-    "@noble/hashes": "^2.0.1",
-    "effect": "catalog:"
+    "effect": "^3.19.19"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "tsx": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

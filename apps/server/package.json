@@ -4,26 +4,32 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
     "start": "node dist/main.js",
     "lint": "oxlint .",
     "test": "vitest run --exclude '**/*.e2e.test.ts'",
     "test:e2e": "vitest run --include '**/*.e2e.test.ts'",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsgo --noEmit"
   },
   "dependencies": {
+    "@effect/cluster": "catalog:",
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
+    "@effect/rpc": "catalog:",
     "@effect/sql": "catalog:",
     "@effect/sql-drizzle": "catalog:",
     "@effect/sql-pg": "catalog:",
-    "@radix-effects/gateway": "catalog:",
     "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
+    "@radix-effects/gateway": "0.6.0-dev.1",
+    "@radix-effects/shared": "catalog:",
+    "@radix-effects/tx-tool": "0.1.0-dev.1",
     "@radix-vaults/database": "workspace:*",
     "@radix-vaults/shared": "workspace:*",
+    "@radixdlt/radix-engine-toolkit": "^1.0.5",
+    "@steleaio/radix-engine-toolkit": "2.0.0-dev.5",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:",
+    "effect": "^3.19.19",
     "pg": "catalog:"
   },
   "devDependencies": {
@@ -33,6 +39,7 @@
     "@types/pg": "^8.15.6",
     "oxlint": "catalog:",
     "tsx": "catalog:",
+    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

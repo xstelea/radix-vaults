@@ -15,11 +15,15 @@ import {
   SessionInfoSchema,
   VerifyRequestSchema
 } from '../auth'
+import { ProposalId } from '../proposalId'
 import { VaultAddress } from '../vaultAddress'
 import {
   AlreadySignedError,
   CreateProposalRequestSchema,
   CreateProposalResponseSchema,
+  CreateVaultFailedError,
+  CreateVaultRequestSchema,
+  CreateVaultResponseSchema,
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
   NotEligibleSignerError,
@@ -35,12 +39,11 @@ import {
   ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
   RefreshStatusResponseSchema,
-  SetSignerSourceRequestSchema,
-  SetSignerSourceResponseSchema,
-  SignerSourceMissingError,
+  SignProposalRequestSchema,
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
   TeamOverviewSchema,
+  ThresholdExceedsSignersError,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
   VaultDetailSchema,
@@ -132,22 +135,20 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
       .addError(UnsupportedAccessRuleError)
       .addError(VaultAlreadyExistsError)
       .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post('createVault', '/vaults/create')
+      .setPayload(CreateVaultRequestSchema)
+      .addSuccess(CreateVaultResponseSchema)
+      .addError(CreateVaultFailedError)
+      .addError(ThresholdExceedsSignersError)
+      .middleware(SessionMiddleware)
   ) {}
 
 // --- Team endpoints ---
-export class TeamGroup extends HttpApiGroup.make('team')
-  .add(HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema))
-  .add(
-    HttpApiEndpoint.put('setSignerSource', '/team/signer-source')
-      .setPayload(SetSignerSourceRequestSchema)
-      .addSuccess(SetSignerSourceResponseSchema)
-      .middleware(SessionMiddleware)
-  )
-  .add(
-    HttpApiEndpoint.del('clearSignerSource', '/team/signer-source')
-      .addSuccess(Schema.Struct({ ok: Schema.Boolean }))
-      .middleware(SessionMiddleware)
-  ) {}
+export class TeamGroup extends HttpApiGroup.make('team').add(
+  HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema)
+) {}
 
 // --- Proposal endpoints ---
 export class ProposalsGroup extends HttpApiGroup.make('proposals')
@@ -171,7 +172,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(ProposalDetailSchema)
@@ -186,15 +187,15 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
+      .setPayload(SignProposalRequestSchema)
       .addSuccess(SignProposalResponseSchema)
       .addError(VaultNotFoundErrorSchema, { status: 404 })
       .addError(ProposalNotFoundError)
       .addError(ProposalNotSignableError)
       .addError(ProposalExpiredError)
-      .addError(SignerSourceMissingError)
       .addError(NotEligibleSignerError)
       .addError(AlreadySignedError)
       .middleware(SessionMiddleware)
@@ -207,7 +208,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(SubmitProposalResponseSchema)
@@ -227,7 +228,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(RefreshStatusResponseSchema)

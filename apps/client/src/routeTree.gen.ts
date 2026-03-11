@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VaultsCreateRouteImport } from './routes/vaults/create'
 import { Route as VaultsAddRouteImport } from './routes/vaults/add'
 import { Route as VaultsVaultIdIndexRouteImport } from './routes/vaults/$vaultId/index'
 import { Route as VaultsVaultIdProposalsNewRouteImport } from './routes/vaults/$vaultId/proposals/new'
@@ -24,6 +25,11 @@ const TeamRoute = TeamRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VaultsCreateRoute = VaultsCreateRouteImport.update({
+  id: '/vaults/create',
+  path: '/vaults/create',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VaultsAddRoute = VaultsAddRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/team': typeof TeamRoute
   '/vaults/add': typeof VaultsAddRoute
+  '/vaults/create': typeof VaultsCreateRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/team': typeof TeamRoute
   '/vaults/add': typeof VaultsAddRoute
+  '/vaults/create': typeof VaultsCreateRoute
   '/vaults/$vaultId': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/team': typeof TeamRoute
   '/vaults/add': typeof VaultsAddRoute
+  '/vaults/create': typeof VaultsCreateRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/'
     | '/team'
     | '/vaults/add'
+    | '/vaults/create'
     | '/vaults/$vaultId/'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/'
     | '/team'
     | '/vaults/add'
+    | '/vaults/create'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/team'
     | '/vaults/add'
+    | '/vaults/create'
     | '/vaults/$vaultId/'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   TeamRoute: typeof TeamRoute
   VaultsAddRoute: typeof VaultsAddRoute
+  VaultsCreateRoute: typeof VaultsCreateRoute
   VaultsVaultIdIndexRoute: typeof VaultsVaultIdIndexRoute
   VaultsVaultIdProposalsProposalIdRoute: typeof VaultsVaultIdProposalsProposalIdRoute
   VaultsVaultIdProposalsNewRoute: typeof VaultsVaultIdProposalsNewRoute
@@ -124,6 +137,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vaults/create': {
+      id: '/vaults/create'
+      path: '/vaults/create'
+      fullPath: '/vaults/create'
+      preLoaderRoute: typeof VaultsCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vaults/add': {
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   TeamRoute: TeamRoute,
   VaultsAddRoute: VaultsAddRoute,
+  VaultsCreateRoute: VaultsCreateRoute,
   VaultsVaultIdIndexRoute: VaultsVaultIdIndexRoute,
   VaultsVaultIdProposalsProposalIdRoute: VaultsVaultIdProposalsProposalIdRoute,
   VaultsVaultIdProposalsNewRoute: VaultsVaultIdProposalsNewRoute,
