@@ -1,5 +1,6 @@
 export * from './api'
 export * from './auth'
 export * from './config'
+export * from './proposalId'
 export * from './vaultAddress'
 export { AccountAddress, HexString } from '@radix-effects/shared'

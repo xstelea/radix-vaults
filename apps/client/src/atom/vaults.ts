@@ -1,8 +1,9 @@
 import { Atom } from '@effect-atom/atom-react'
 import type { VaultAddress } from '@radix-vaults/shared'
-import { Effect } from 'effect'
+import { Effect, Option } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
 import { VaultService } from '@/services/vault'
+import { withToast } from '@/atom/withToast'
 
 const runtime = makeAtomRuntime(VaultService.Default)
 
@@ -20,7 +21,13 @@ export const createVault = runtime.fn(
     Effect.gen(function* () {
       const svc = yield* VaultService
       return yield* svc.createVault(args.name, args.threshold)
-    })
+    }).pipe(
+      withToast({
+        whenLoading: 'Creating vault...',
+        whenSuccess: 'Vault created successfully',
+        whenFailure: () => Option.none()
+      })
+    )
 )
 
 export const importVault = runtime.fn(
@@ -28,7 +35,13 @@ export const importVault = runtime.fn(
     Effect.gen(function* () {
       const svc = yield* VaultService
       return yield* svc.importVault(args.accountAddress, args.name)
-    })
+    }).pipe(
+      withToast({
+        whenLoading: 'Importing vault...',
+        whenSuccess: 'Vault imported successfully',
+        whenFailure: () => Option.none()
+      })
+    )
 )
 
 export const vaultReadAtom = Atom.family((vaultAddress: VaultAddress) =>

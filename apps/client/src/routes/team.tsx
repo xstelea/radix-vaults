@@ -7,7 +7,6 @@ import {
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
 import {
   clearSignerSource,
@@ -251,7 +250,6 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
       onFailure: (cause) =>
         setError(`Failed to set signer source: ${String(cause)}`),
       onSuccess: () => {
-        toast.success('Signer source set successfully')
         setPublicKey('')
         onSuccess()
       }
@@ -268,10 +266,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     Exit.match(exit, {
       onFailure: (cause) =>
         setError(`Failed to clear signer source: ${String(cause)}`),
-      onSuccess: () => {
-        toast.success('Signer source cleared')
-        onSuccess()
-      }
+      onSuccess: () => onSuccess()
     })
   }
 

@@ -11,6 +11,7 @@ import {
   type HexString,
   AppApi,
   AuthConfig,
+  ProposalId,
   SessionMiddleware,
   UnsupportedAccessRuleError,
   VaultAddress,
@@ -122,7 +123,7 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
     handlers
       .handle('create', () =>
         Effect.succeed({
-          id: 0,
+          id: ProposalId.make(0),
           vaultAddress: 'mock' as any,
           status: 'created',
           manifest: '',
@@ -134,7 +135,7 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
       .handle('list', () => Effect.succeed([]))
       .handle('detail', () =>
         Effect.succeed({
-          id: 0,
+          id: ProposalId.make(0),
           vaultAddress: 'mock' as any,
           status: 'created',
           manifest: '',

@@ -1,6 +1,6 @@
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { VaultAddress } from '@radix-vaults/shared'
+import { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Redacted } from 'effect'
@@ -185,7 +185,7 @@ describe('ProposalRepo', () => {
         yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
-          Effect.either(repo.getById(VAULT, 9999))
+          Effect.either(repo.getById(VAULT, ProposalId.make(9999)))
         )
 
         expect(result._tag).toBe('Left')

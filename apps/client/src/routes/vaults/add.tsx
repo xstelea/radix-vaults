@@ -3,7 +3,6 @@ import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { importVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,7 +52,6 @@ function AddVaultPage() {
         }
       },
       onSuccess: () => {
-        toast.success('Vault imported successfully')
         refreshVaults()
         navigate({ to: '/' })
       }

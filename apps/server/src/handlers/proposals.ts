@@ -1,5 +1,6 @@
 import type {
   AccountAddress,
+  ProposalId,
   VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
 import {
@@ -100,7 +101,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
 
       const getSignatureProgress = (
         vaultAddress: VaultAddressType,
-        proposalId: number
+        proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
           const signatures = yield* proposalRepo.getSignatures(proposalId)
@@ -126,7 +127,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }
         })
 
-      const getDetail = (vaultAddress: VaultAddressType, proposalId: number) =>
+      const getDetail = (
+        vaultAddress: VaultAddressType,
+        proposalId: ProposalId
+      ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
@@ -144,7 +148,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
 
       const sign = (
         vaultAddress: VaultAddressType,
-        proposalId: number,
+        proposalId: ProposalId,
         signerAccountAddress: AccountAddress
       ) =>
         Effect.gen(function* () {
@@ -230,7 +234,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ok: true as const }
         })
 
-      const submit = (vaultAddress: VaultAddressType, proposalId: number) =>
+      const submit = (vaultAddress: VaultAddressType, proposalId: ProposalId) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
           const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
@@ -339,7 +343,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
 
       const refreshStatus = (
         vaultAddress: VaultAddressType,
-        proposalId: number
+        proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)

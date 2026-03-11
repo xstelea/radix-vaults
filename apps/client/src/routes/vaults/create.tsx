@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { createVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
@@ -50,7 +49,6 @@ function CreateVaultPage() {
         }
       },
       onSuccess: () => {
-        toast.success('Vault created successfully')
         refreshVaults()
         navigate({ to: '/' })
       }

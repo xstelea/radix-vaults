@@ -11,6 +11,7 @@ import {
   type HexString,
   AppApi,
   CurrentSession,
+  ProposalId,
   ProposalNotFoundError,
   SessionMiddleware,
   VaultAddress,
@@ -511,7 +512,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Get detail — should include signature progress
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.id).toBe(1)
           expect(detail.manifest).toBe(
@@ -640,7 +641,7 @@ describe('proposal lifecycle e2e', () => {
 
           const result = yield* client.proposals
             .detail({
-              path: { vaultAddress, proposalId: 9999 }
+              path: { vaultAddress, proposalId: ProposalId.make(9999) }
             })
             .pipe(Effect.either)
 
@@ -716,13 +717,13 @@ describe('proposal lifecycle e2e', () => {
 
           // Sign as TEST_USER (first signer)
           const signResult = yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(signResult.ok).toBe(true)
 
           // Check status is now 'signing' (1 of 2 signatures)
           const detailAfterFirstSign = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detailAfterFirstSign.status).toBe('signing')
           expect(detailAfterFirstSign.signatureProgress.collected).toBe(1)
@@ -768,13 +769,13 @@ describe('proposal lifecycle e2e', () => {
 
           // Sign as TEST_USER_2 (second signer)
           const signResult2 = yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(signResult2.ok).toBe(true)
 
           // Check status is now 'ready' (2 of 2 signatures)
           const detailAfterSecondSign = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detailAfterSecondSign.status).toBe('ready')
           expect(detailAfterSecondSign.signatureProgress.collected).toBe(2)
@@ -843,13 +844,13 @@ describe('proposal lifecycle e2e', () => {
 
           // First sign succeeds
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
 
           // Second sign from same user should fail
           const dupResult = yield* client.proposals
             .sign({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -915,7 +916,7 @@ describe('proposal lifecycle e2e', () => {
 
           const result = yield* client.proposals
             .sign({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -986,7 +987,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1018,19 +1019,19 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
 
           // Proposal should now be ready — submit it
           const submitResult = yield* client.proposals.submit({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(submitResult.intentHash).toBe('txid_test_abc123def456')
           expect(submitResult.status).toBe('submitted')
 
           // Verify detail shows submitted status and tx info
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('submitted')
           expect(detail.transactionIntentHash).toBe('txid_test_abc123def456')
@@ -1100,7 +1101,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1132,18 +1133,18 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
 
           // First submit
           const first = yield* client.proposals.submit({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(first.intentHash).toBe('txid_test_abc123def456')
 
           // Second submit — idempotent, same result
           const second = yield* client.proposals.submit({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(second.intentHash).toBe('txid_test_abc123def456')
           expect(second.status).toBe('submitted')
@@ -1208,7 +1209,7 @@ describe('proposal lifecycle e2e', () => {
           // Try to submit — should fail because proposal is not ready
           const result = yield* client.proposals
             .submit({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -1279,7 +1280,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1312,10 +1313,10 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           yield* client.proposals.submit({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow2
@@ -1343,7 +1344,7 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           const result = yield* client.proposals.refreshStatus({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(result.status).toBe('committed')
           expect(result.transactionIntentHash).toBe('txid_test_abc123def456')
@@ -1351,7 +1352,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Verify proposal detail also reflects committed
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('committed')
         }).pipe(Effect.provide(FetchHttpClient.layer))
@@ -1419,7 +1420,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1451,10 +1452,10 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           yield* client.proposals.submit({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow2
@@ -1482,13 +1483,13 @@ describe('proposal lifecycle e2e', () => {
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
 
           const result = yield* client.proposals.refreshStatus({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(result.status).toBe('failed')
 
           // Verify detail also reflects failed
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('failed')
         }).pipe(Effect.provide(FetchHttpClient.layer))
@@ -1552,7 +1553,7 @@ describe('proposal lifecycle e2e', () => {
           // Try to refresh — should fail because proposal is not submitted
           const result = yield* client.proposals
             .refreshStatus({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -1622,7 +1623,7 @@ describe('proposal lifecycle e2e', () => {
           // Try to sign — should fail because proposal is expired
           const signResult = yield* client.proposals
             .sign({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -1630,7 +1631,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Verify detail shows expired status with reason
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('expired')
           expect(detail.statusReason).toContain('expired')
@@ -1702,7 +1703,7 @@ describe('proposal lifecycle e2e', () => {
           })
 
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1733,7 +1734,7 @@ describe('proposal lifecycle e2e', () => {
           })
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow2
@@ -1753,7 +1754,7 @@ describe('proposal lifecycle e2e', () => {
 
           const submitResult = yield* client.proposals
             .submit({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -1761,7 +1762,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Verify detail shows expired status
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('expired')
           expect(detail.statusReason).toContain('expired')
@@ -1830,7 +1831,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -1861,7 +1862,7 @@ describe('proposal lifecycle e2e', () => {
           })
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow2
@@ -1901,7 +1902,7 @@ describe('proposal lifecycle e2e', () => {
 
           const submitResult = yield* client.proposals
             .submit({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -1909,7 +1910,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Verify detail shows invalid status with reason
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('invalid')
           expect(detail.statusReason).toContain('drift')
@@ -1978,7 +1979,7 @@ describe('proposal lifecycle e2e', () => {
             }
           })
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow
@@ -2009,7 +2010,7 @@ describe('proposal lifecycle e2e', () => {
           })
           const vaultAddress = VaultAddress.make(VAULT_ADDRESS)
           yield* client.proposals.sign({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
         }).pipe(Effect.provide(FetchHttpClient.layer))
         yield* apiFlow2
@@ -2035,7 +2036,7 @@ describe('proposal lifecycle e2e', () => {
 
           const submitResult = yield* client.proposals
             .submit({
-              path: { vaultAddress, proposalId: 1 }
+              path: { vaultAddress, proposalId: ProposalId.make(1) }
             })
             .pipe(Effect.either)
 
@@ -2043,7 +2044,7 @@ describe('proposal lifecycle e2e', () => {
 
           // Verify detail shows invalid status with reason
           const detail = yield* client.proposals.detail({
-            path: { vaultAddress, proposalId: 1 }
+            path: { vaultAddress, proposalId: ProposalId.make(1) }
           })
           expect(detail.status).toBe('invalid')
           expect(detail.statusReason).toContain('no longer valid')

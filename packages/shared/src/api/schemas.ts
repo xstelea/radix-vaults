@@ -1,5 +1,6 @@
 import { HttpApiSchema } from '@effect/platform'
 import * as Schema from 'effect/Schema'
+import { ProposalId } from '../proposalId'
 import { VaultAddress } from '../vaultAddress'
 
 export const SignerSchema = Schema.Struct({
@@ -151,7 +152,7 @@ export const CreateProposalRequestSchema = Schema.Struct({
 })
 
 export const CreateProposalResponseSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   manifest: Schema.String,
@@ -161,7 +162,7 @@ export const CreateProposalResponseSchema = Schema.Struct({
 })
 
 export const ProposalListItemSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   createdBy: Schema.String,
@@ -182,7 +183,7 @@ export const SignatureProgressSchema = Schema.Struct({
 })
 
 export const ProposalDetailSchema = Schema.Struct({
-  id: Schema.Number,
+  id: ProposalId,
   vaultAddress: VaultAddress,
   status: Schema.String,
   manifest: Schema.String,
@@ -207,7 +208,7 @@ export const SubmitProposalResponseSchema = Schema.Struct({
 export class ProposalNotFoundError extends Schema.TaggedError<ProposalNotFoundError>()(
   'ProposalNotFoundError',
   {
-    proposalId: Schema.Number
+    proposalId: ProposalId
   },
   HttpApiSchema.annotations({ status: 404 })
 ) {}

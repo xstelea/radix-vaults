@@ -2,7 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import { NodeHttpServer } from '@effect/platform-node'
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { AppApi, AuthConfig } from '@radix-vaults/shared'
+import { AppApi, AuthConfig, ProposalId } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Layer, Redacted } from 'effect'
@@ -97,7 +97,7 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
     handlers
       .handle('create', () =>
         Effect.succeed({
-          id: 0,
+          id: ProposalId.make(0),
           vaultAddress: 'mock' as any,
           status: 'created',
           manifest: '',
@@ -109,7 +109,7 @@ const MockProposalHandlersLive = HttpApiBuilder.group(
       .handle('list', () => Effect.succeed([]))
       .handle('detail', () =>
         Effect.succeed({
-          id: 0,
+          id: ProposalId.make(0),
           vaultAddress: 'mock' as any,
           status: 'created',
           manifest: '',

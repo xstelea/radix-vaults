@@ -15,6 +15,7 @@ import {
   SessionInfoSchema,
   VerifyRequestSchema
 } from '../auth'
+import { ProposalId } from '../proposalId'
 import { VaultAddress } from '../vaultAddress'
 import {
   AlreadySignedError,
@@ -183,7 +184,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(ProposalDetailSchema)
@@ -198,7 +199,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(SignProposalResponseSchema)
@@ -219,7 +220,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(SubmitProposalResponseSchema)
@@ -239,7 +240,7 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .setPath(
         Schema.Struct({
           vaultAddress: VaultAddress,
-          proposalId: Schema.NumberFromString
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
       .addSuccess(RefreshStatusResponseSchema)

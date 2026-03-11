@@ -3,7 +3,6 @@ import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { toast } from 'sonner'
 import { createProposal, proposalListAtom } from '@/atom/proposals'
 import { vaultReadAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
@@ -59,7 +58,6 @@ function NewProposalPage() {
         }
       },
       onSuccess: (result) => {
-        toast.success(`Proposal #${result.id} created`)
         refreshProposals()
         refreshVault()
         navigate({

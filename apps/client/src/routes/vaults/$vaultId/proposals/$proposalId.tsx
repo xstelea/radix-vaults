@@ -6,12 +6,12 @@ import {
   useAtomValue
 } from '@effect-atom/atom-react'
 import type { ProposalDetail } from '@radix-vaults/shared'
-import { VaultAddress } from '@radix-vaults/shared'
+import { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Exit } from 'effect'
-import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
 import {
+  ProposalDetailKey,
   proposalDetailAtom,
   refreshProposalStatus,
   signProposal,
@@ -103,10 +103,12 @@ const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 function ProposalDetailContent() {
   const { vaultId, proposalId } = Route.useParams()
   const vaultAddress = VaultAddress.make(vaultId)
-  const detailAtom = proposalDetailAtom({
-    vaultAddress,
-    proposalId: Number(proposalId)
-  })
+  const detailAtom = proposalDetailAtom(
+    ProposalDetailKey({
+      vaultAddress,
+      proposalId: ProposalId.make(Number(proposalId))
+    })
+  )
   const detailResult = useAtomValue(detailAtom)
   const refresh = useAtomRefresh(detailAtom)
 
@@ -267,13 +269,8 @@ function SignatureProgressCard({
     try {
       const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
       Exit.match(exit, {
-        onSuccess: () => {
-          toast.success('Proposal signed successfully')
-          onSigned()
-        },
-        onFailure: (cause) => {
-          toast.error(`Signing failed: ${String(cause)}`)
-        }
+        onSuccess: () => onSigned(),
+        onFailure: () => {}
       })
     } finally {
       setSigning(false)
@@ -362,15 +359,8 @@ function SubmitCard({
     try {
       const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
       Exit.match(exit, {
-        onSuccess: (result) => {
-          toast.success(
-            `Proposal submitted! Intent hash: ${result.intentHash.slice(0, 16)}...`
-          )
-          onSubmitted()
-        },
-        onFailure: (cause) => {
-          toast.error(`Submit failed: ${String(cause)}`)
-        }
+        onSuccess: () => onSubmitted(),
+        onFailure: () => {}
       })
     } finally {
       setSubmitting(false)
@@ -421,19 +411,8 @@ function TransactionInfoCard({
     try {
       const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
       Exit.match(exit, {
-        onSuccess: (result) => {
-          if (result.status === 'committed') {
-            toast.success('Transaction committed successfully')
-          } else if (result.status === 'failed') {
-            toast.error('Transaction failed on-chain')
-          } else {
-            toast('Transaction still pending')
-          }
-          onStatusRefreshed()
-        },
-        onFailure: (cause) => {
-          toast.error(`Status check failed: ${String(cause)}`)
-        }
+        onSuccess: () => onStatusRefreshed(),
+        onFailure: () => {}
       })
     } finally {
       setChecking(false)
