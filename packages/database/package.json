@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
+    "effect": "^3.19.19",
     "pg": "catalog:"
   },
   "devDependencies": {

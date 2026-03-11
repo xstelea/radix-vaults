@@ -103,35 +103,13 @@ export type CreateVaultResponse = typeof CreateVaultResponseSchema.Type
 
 // --- Team schemas ---
 
-export const MemberSignerSourceSchema = Schema.Struct({
-  accountAddress: Schema.String,
-  publicKey: Schema.String,
-  keyType: Schema.Literal('ed25519', 'secp256k1')
-})
-
 export const TeamOverviewSchema = Schema.Struct({
   teamAccountAddress: VaultAddress,
   threshold: Schema.Number,
-  signers: Schema.Array(SignerSchema),
-  memberSignerSources: Schema.Array(MemberSignerSourceSchema),
-  hasMismatch: Schema.Boolean
+  signers: Schema.Array(SignerSchema)
 })
 
-export const SetSignerSourceRequestSchema = Schema.Struct({
-  publicKey: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
-  keyType: Schema.Literal('ed25519', 'secp256k1')
-})
-
-export const SetSignerSourceResponseSchema = Schema.Struct({
-  accountAddress: Schema.String,
-  publicKey: Schema.String,
-  keyType: Schema.Literal('ed25519', 'secp256k1')
-})
-
-export type MemberSignerSource = typeof MemberSignerSourceSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
-export type SetSignerSourceRequest = typeof SetSignerSourceRequestSchema.Type
-export type SetSignerSourceResponse = typeof SetSignerSourceResponseSchema.Type
 
 // --- Proposal schemas ---
 
@@ -158,7 +136,11 @@ export const CreateProposalResponseSchema = Schema.Struct({
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
-  createdAt: Schema.String
+  createdAt: Schema.String,
+  subintentHash: Schema.NullOr(Schema.String),
+  intentDiscriminator: Schema.String,
+  epochMin: Schema.NullOr(Schema.Number),
+  epochMax: Schema.NullOr(Schema.Number)
 })
 
 export const ProposalListItemSchema = Schema.Struct({
@@ -190,10 +172,18 @@ export const ProposalDetailSchema = Schema.Struct({
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
   createdAt: Schema.String,
+  subintentHash: Schema.NullOr(Schema.String),
+  intentDiscriminator: Schema.String,
+  epochMin: Schema.NullOr(Schema.Number),
+  epochMax: Schema.NullOr(Schema.Number),
   signatureProgress: SignatureProgressSchema,
   transactionIntentHash: Schema.NullOr(Schema.String),
   submittedAt: Schema.NullOr(Schema.String),
   statusReason: Schema.NullOr(Schema.String)
+})
+
+export const SignProposalRequestSchema = Schema.Struct({
+  signedPartialTransactionHex: Schema.String
 })
 
 export const SignProposalResponseSchema = Schema.Struct({
@@ -219,14 +209,6 @@ export class ProposalPreviewFailedError extends Schema.TaggedError<ProposalPrevi
     message: Schema.String
   },
   HttpApiSchema.annotations({ status: 422 })
-) {}
-
-export class SignerSourceMissingError extends Schema.TaggedError<SignerSourceMissingError>()(
-  'SignerSourceMissingError',
-  {
-    message: Schema.String
-  },
-  HttpApiSchema.annotations({ status: 403 })
 ) {}
 
 export class NotEligibleSignerError extends Schema.TaggedError<NotEligibleSignerError>()(

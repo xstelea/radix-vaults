@@ -6,8 +6,11 @@ import {
   VaultNotFoundErrorSchema,
   VaultsConfig
 } from '@radix-vaults/shared'
-import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
-import { PreviewTransaction } from '@radix-effects/gateway'
+import {
+  GetEntityDetailsVaultAggregated,
+  GetLedgerStateService,
+  PreviewTransaction
+} from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
@@ -17,7 +20,6 @@ import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 import { ProposalRepo } from '../handlers/proposalRepo'
 import { ProposalsHandler } from '../handlers/proposals'
-import { SignerSourceRepo } from '../handlers/signerSourceRepo'
 
 export const ProposalHandlersLive = HttpApiBuilder.group(
   AppApi,
@@ -78,31 +80,37 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           })
         )
       )
-      .handle('sign', ({ path: { vaultAddress, proposalId } }) =>
-        Effect.gen(function* () {
-          const session = yield* CurrentSession
-          const proposalsHandler = yield* ProposalsHandler
-          const result = yield* proposalsHandler.sign(
-            vaultAddress,
-            proposalId,
-            session.accountAddress
-          )
-          yield* Effect.logInfo('Proposal signed').pipe(
-            Effect.annotateLogs({
+      .handle(
+        'sign',
+        ({
+          path: { vaultAddress, proposalId },
+          payload: { signedPartialTransactionHex }
+        }) =>
+          Effect.gen(function* () {
+            const session = yield* CurrentSession
+            const proposalsHandler = yield* ProposalsHandler
+            const result = yield* proposalsHandler.sign(
               vaultAddress,
               proposalId,
-              signer: session.accountAddress
+              session.accountAddress,
+              signedPartialTransactionHex
+            )
+            yield* Effect.logInfo('Proposal signed').pipe(
+              Effect.annotateLogs({
+                vaultAddress,
+                proposalId,
+                signer: session.accountAddress
+              })
+            )
+            return result
+          }).pipe(
+            Effect.catchTags({
+              VaultNotFoundError: (e) =>
+                new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
+              ProposalNotFoundDbError: (e) =>
+                new ProposalNotFoundError({ proposalId: e.proposalId })
             })
           )
-          return result
-        }).pipe(
-          Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
-            ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
       )
       .handle('submit', ({ path: { vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
@@ -142,9 +150,9 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
   Layer.provide(ProposalRepo.Default),
   Layer.provide(ListVaultsRepo.Default),
   Layer.provide(AccessRuleValidator.Default),
-  Layer.provide(SignerSourceRepo.Default),
   Layer.provide(TransactionSubmitter.Default),
   Layer.provide(TransactionStatusChecker.Default),
+  Layer.provide(GetLedgerStateService.Default),
   Layer.provide(PreviewTransaction.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),

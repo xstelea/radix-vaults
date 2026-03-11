@@ -8,7 +8,7 @@ import {
   SubmitTransaction,
   TransactionStatus
 } from '@radix-effects/tx-tool'
-import { PrivateKey, RadixEngineToolkit } from '@radixdlt/radix-engine-toolkit'
+import { PrivateKey, RadixEngineToolkit } from '@steleaio/radix-engine-toolkit'
 import { Config, ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import {
   TransactionSubmitError,
@@ -117,11 +117,21 @@ export const TransactionSubmitterLive = Layer.unwrapEffect(
             )
           ),
 
-        submitWithSigners: (_input) =>
-          Effect.fail(
-            new TransactionSubmitError({
-              message: 'submitWithSigners not yet implemented'
+        submitNotarizedHex: (notarizedTransactionHex) =>
+          Effect.gen(function* () {
+            const submit = yield* SubmitTransaction
+
+            yield* submit({
+              compiledTransaction: Buffer.from(notarizedTransactionHex, 'hex')
             })
+          }).pipe(
+            Effect.provide(AppLayer),
+            Effect.mapError(
+              (e) =>
+                new TransactionSubmitError({
+                  message: `Transaction submission failed: ${String(e)}`
+                })
+            )
           )
       })
     )

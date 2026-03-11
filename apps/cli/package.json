@@ -17,12 +17,12 @@
     "@effect/platform": "catalog:",
     "@effect/platform-node": "catalog:",
     "@effect/rpc": "catalog:",
+    "@noble/hashes": "^2.0.1",
     "@radix-effects/gateway": "catalog:",
     "@radix-effects/shared": "catalog:",
     "@radix-effects/tx-tool": "catalog:",
     "@radixdlt/radix-engine-toolkit": "^1.0.5",
-    "@noble/hashes": "^2.0.1",
-    "effect": "catalog:"
+    "effect": "^3.19.19"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",

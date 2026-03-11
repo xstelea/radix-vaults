@@ -1,11 +1,23 @@
 import { Atom } from '@effect-atom/atom-react'
-import type { ProposalId, VaultAddress } from '@radix-vaults/shared'
-import { Data, Effect, Option } from 'effect'
+import type {
+  ProposalDetail,
+  ProposalId,
+  VaultAddress
+} from '@radix-vaults/shared'
+import { SubintentRequestBuilder } from '@radixdlt/radix-dapp-toolkit'
+import { Data, Effect, Layer, Option, Ref } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
+import { AppApiClient } from '@/lib/apiClient'
+import { RadixDappToolkit } from '@/lib/radixDappToolkit'
 import { ProposalService } from '@/services/proposal'
 import { withToast } from '@/atom/withToast'
 
-const runtime = makeAtomRuntime(ProposalService.Default)
+const runtime = makeAtomRuntime(
+  Layer.merge(
+    ProposalService.Default,
+    RadixDappToolkit.Live.pipe(Layer.provide(AppApiClient.Default))
+  )
+)
 
 export const proposalListAtom = Atom.family((vaultAddress: VaultAddress) =>
   runtime
@@ -17,6 +29,12 @@ export const proposalListAtom = Atom.family((vaultAddress: VaultAddress) =>
     )
     .pipe(Atom.withLabel(`proposalListAtom(${vaultAddress})`), Atom.keepAlive)
 )
+
+export class CreateProposalError extends Data.TaggedError(
+  'CreateProposalError'
+)<{
+  message: string
+}> {}
 
 export const createProposal = runtime.fn(
   (args: {
@@ -32,6 +50,12 @@ export const createProposal = runtime.fn(
         args.maxProposerTimestamp
       )
     }).pipe(
+      Effect.catchTags({
+        ProposalPreviewFailedError: (e) =>
+          Effect.fail(new CreateProposalError({ message: e.message })),
+        VaultNotFoundError: () =>
+          Effect.fail(new CreateProposalError({ message: 'Vault not found.' }))
+      }),
       withToast({
         whenLoading: 'Creating proposal...',
         whenSuccess: ({ result }) => `Proposal #${result.id} created`,
@@ -40,11 +64,68 @@ export const createProposal = runtime.fn(
     )
 )
 
+const ensureYieldToParent = (manifest: string): string => {
+  const trimmed = manifest.trim()
+  if (trimmed.endsWith('YIELD_TO_PARENT;')) return trimmed
+  return `${trimmed}\nYIELD_TO_PARENT;\n`
+}
+
+const requestWalletSignature = (
+  proposal: ProposalDetail
+): Effect.Effect<string, WalletSigningError, RadixDappToolkit> =>
+  Effect.gen(function* () {
+    const rdtRef = yield* RadixDappToolkit
+    const rdt = yield* Ref.get(rdtRef)
+
+    const maxTs = new Date(proposal.maxProposerTimestamp)
+    const expirationSeconds = Math.floor(maxTs.getTime() / 1000)
+
+    const request = SubintentRequestBuilder()
+      .manifest(ensureYieldToParent(proposal.manifest))
+      .setExpiration('atTime', expirationSeconds)
+      .message('')
+      .header({
+        startEpochInclusive: proposal.epochMin!,
+        endEpochExclusive: proposal.epochMax!,
+        intentDiscriminator: Number(proposal.intentDiscriminator)
+      })
+
+    const result = yield* Effect.promise(() =>
+      rdt.walletApi.sendPreAuthorizationRequest(request)
+    )
+
+    if (result.isErr()) {
+      return yield* new WalletSigningError({
+        message: result.error.message ?? 'Wallet rejected the signing request'
+      })
+    }
+
+    return result.value.signedPartialTransaction
+  })
+
+class WalletSigningError extends Data.TaggedError('WalletSigningError')<{
+  message: string
+}> {}
+
 export const signProposal = runtime.fn(
-  (args: { vaultAddress: VaultAddress; proposalId: ProposalId }) =>
+  (args: {
+    vaultAddress: VaultAddress
+    proposalId: ProposalId
+    proposal: ProposalDetail
+  }) =>
     Effect.gen(function* () {
+      // 1. Request wallet to sign the subintent
+      const signedPartialTransactionHex = yield* requestWalletSignature(
+        args.proposal
+      )
+
+      // 2. Send the wallet's signed response to the server
       const svc = yield* ProposalService
-      return yield* svc.sign(args.vaultAddress, args.proposalId)
+      return yield* svc.sign(
+        args.vaultAddress,
+        args.proposalId,
+        signedPartialTransactionHex
+      )
     }).pipe(
       withToast({
         whenLoading: 'Signing proposal...',

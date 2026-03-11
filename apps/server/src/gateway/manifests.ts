@@ -22,14 +22,7 @@ export const getNetworkAddresses = async (
 const ED25519_RESOURCE_SUFFIX = 'ed25sg'
 
 const isEd25519Resource = (resourceAddress: string): boolean =>
-  resourceAddress.endsWith(ED25519_RESOURCE_SUFFIX)
-
-function stripAngleBrackets(localId: string): string {
-  if (localId.startsWith('<') && localId.endsWith('>')) {
-    return localId.slice(1, -1)
-  }
-  return localId
-}
+  resourceAddress.includes(ED25519_RESOURCE_SUFFIX)
 
 function buildSignerEntries(
   signers: ReadonlyArray<ParsedSigner>,
@@ -40,10 +33,9 @@ function buildSignerEntries(
       const resource = isEd25519Resource(s.resourceAddress)
         ? addrs.ed25519BadgeResource
         : addrs.secp256k1BadgeResource
-      const localId = stripAngleBrackets(s.localId)
       return [
         '                        Enum<0u8>(',
-        `                            NonFungibleGlobalId("${resource}:[${localId}]")`,
+        `                            NonFungibleGlobalId("${resource}:${s.localId}")`,
         '                        )'
       ].join('\n')
     })

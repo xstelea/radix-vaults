@@ -1,7 +1,7 @@
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { Exit } from 'effect'
+import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
 import { createProposal, proposalListAtom } from '@/atom/proposals'
 import { vaultReadAtom } from '@/atom/vaults'
@@ -27,7 +27,7 @@ function NewProposalPage() {
   const [, dispatch] = useAtom(createProposal, { mode: 'promiseExit' })
 
   const [manifest, setManifest] = useState('')
-  const [maxProposerTimestamp, setMaxProposerTimestamp] = useState('')
+  const [expiresInHours, setExpiresInHours] = useState('24')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,25 +36,29 @@ function NewProposalPage() {
     setError(null)
     setSubmitting(true)
 
+    const hours = Number(expiresInHours)
+    const deadline = new Date(Date.now() + hours * 60 * 60 * 1000)
+    const maxProposerTimestamp = deadline.toISOString().slice(0, 19)
+
     const exit = await dispatch({
       vaultAddress,
       manifest: manifest.trim(),
-      maxProposerTimestamp: maxProposerTimestamp.trim()
+      maxProposerTimestamp
     })
 
     setSubmitting(false)
 
     Exit.match(exit, {
       onFailure: (cause) => {
-        const msg = String(cause)
-        if (msg.includes('ProposalPreviewFailedError')) {
-          setError(
-            'Transaction manifest failed compile/preview validation. Check that the manifest is syntactically valid.'
-          )
-        } else if (msg.includes('VaultNotFoundError')) {
-          setError('Vault not found.')
+        const failure = Cause.failureOption(cause)
+        if (
+          Option.isSome(failure) &&
+          'message' in failure.value &&
+          typeof failure.value.message === 'string'
+        ) {
+          setError(failure.value.message)
         } else {
-          setError(`Failed to create proposal: ${msg}`)
+          setError('An unexpected error occurred. Please try again.')
         }
       },
       onSuccess: (result) => {
@@ -112,22 +116,21 @@ function NewProposalPage() {
             </div>
 
             <div className="space-y-2">
-              <label
-                htmlFor="maxProposerTimestamp"
-                className="text-sm font-medium"
-              >
-                Max Proposer Timestamp
+              <label htmlFor="expiresInHours" className="text-sm font-medium">
+                Expires In (hours)
               </label>
               <input
-                id="maxProposerTimestamp"
-                type="datetime-local"
+                id="expiresInHours"
+                type="number"
                 required
-                value={maxProposerTimestamp}
-                onChange={(e) => setMaxProposerTimestamp(e.target.value)}
+                min={1}
+                step={1}
+                value={expiresInHours}
+                onChange={(e) => setExpiresInHours(e.target.value)}
                 className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
-                The latest time at which this proposal can be submitted.
+                Number of hours from now until this proposal expires.
               </p>
             </div>
 

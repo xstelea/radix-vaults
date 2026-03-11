@@ -32,6 +32,11 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         manifest: string
         maxProposerTimestamp: string
         createdBy: string
+        subintentHash: string
+        intentDiscriminator: string
+        partialTransactionHex: string
+        epochMin: number
+        epochMax: number
       }) =>
         db
           .insert(proposals)
@@ -40,7 +45,12 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             status: 'created',
             manifest: input.manifest,
             maxProposerTimestamp: input.maxProposerTimestamp,
-            createdBy: input.createdBy
+            createdBy: input.createdBy,
+            subintentHash: input.subintentHash,
+            intentDiscriminator: input.intentDiscriminator,
+            partialTransactionHex: input.partialTransactionHex,
+            epochMin: input.epochMin,
+            epochMax: input.epochMax
           })
           .returning()
           .pipe(
@@ -53,7 +63,11 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
                 createdBy: row.createdBy,
-                createdAt: row.createdAt.toISOString()
+                createdAt: row.createdAt.toISOString(),
+                subintentHash: row.subintentHash,
+                intentDiscriminator: row.intentDiscriminator,
+                epochMin: row.epochMin,
+                epochMax: row.epochMax
               }
             }),
             Effect.catchTags({ SqlError: Effect.die })
@@ -110,6 +124,11 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
                 createdBy: row.createdBy,
+                subintentHash: row.subintentHash,
+                intentDiscriminator: row.intentDiscriminator,
+                partialTransactionHex: row.partialTransactionHex,
+                epochMin: row.epochMin,
+                epochMax: row.epochMax,
                 transactionIntentHash: row.transactionIntentHash,
                 submittedAt: row.submittedAt?.toISOString() ?? null,
                 statusReason: row.statusReason ?? null,
@@ -122,16 +141,22 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
       const addSignature = (input: {
         proposalId: ProposalId
         signerAccountAddress: string
+        signerPublicKey: string
         signerKeyHash: string
         signerKeyType: 'ed25519' | 'secp256k1'
+        signatureBytes: string
+        signedPartialTransactionHex: string
       }) =>
         db
           .insert(proposalSignatures)
           .values({
             proposalId: input.proposalId,
             signerAccountAddress: input.signerAccountAddress,
+            signerPublicKey: input.signerPublicKey,
             signerKeyHash: input.signerKeyHash,
-            signerKeyType: input.signerKeyType
+            signerKeyType: input.signerKeyType,
+            signatureBytes: input.signatureBytes,
+            signedPartialTransactionHex: input.signedPartialTransactionHex
           })
           .returning()
           .pipe(
@@ -156,8 +181,10 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         db
           .select({
             signerAccountAddress: proposalSignatures.signerAccountAddress,
+            signerPublicKey: proposalSignatures.signerPublicKey,
             signerKeyHash: proposalSignatures.signerKeyHash,
             signerKeyType: proposalSignatures.signerKeyType,
+            signatureBytes: proposalSignatures.signatureBytes,
             signedAt: proposalSignatures.signedAt
           })
           .from(proposalSignatures)

@@ -39,9 +39,7 @@ import {
   ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
   RefreshStatusResponseSchema,
-  SetSignerSourceRequestSchema,
-  SetSignerSourceResponseSchema,
-  SignerSourceMissingError,
+  SignProposalRequestSchema,
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
   TeamOverviewSchema,
@@ -148,19 +146,9 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
   ) {}
 
 // --- Team endpoints ---
-export class TeamGroup extends HttpApiGroup.make('team')
-  .add(HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema))
-  .add(
-    HttpApiEndpoint.put('setSignerSource', '/team/signer-source')
-      .setPayload(SetSignerSourceRequestSchema)
-      .addSuccess(SetSignerSourceResponseSchema)
-      .middleware(SessionMiddleware)
-  )
-  .add(
-    HttpApiEndpoint.del('clearSignerSource', '/team/signer-source')
-      .addSuccess(Schema.Struct({ ok: Schema.Boolean }))
-      .middleware(SessionMiddleware)
-  ) {}
+export class TeamGroup extends HttpApiGroup.make('team').add(
+  HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema)
+) {}
 
 // --- Proposal endpoints ---
 export class ProposalsGroup extends HttpApiGroup.make('proposals')
@@ -202,12 +190,12 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
           proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
+      .setPayload(SignProposalRequestSchema)
       .addSuccess(SignProposalResponseSchema)
       .addError(VaultNotFoundErrorSchema, { status: 404 })
       .addError(ProposalNotFoundError)
       .addError(ProposalNotSignableError)
       .addError(ProposalExpiredError)
-      .addError(SignerSourceMissingError)
       .addError(NotEligibleSignerError)
       .addError(AlreadySignedError)
       .middleware(SessionMiddleware)

@@ -1,18 +1,6 @@
-import {
-  Result,
-  useAtom,
-  useAtomRefresh,
-  useAtomValue
-} from '@effect-atom/atom-react'
+import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
-import { Exit } from 'effect'
-import { useState } from 'react'
-import { sessionAtom } from '@/atom/auth'
-import {
-  clearSignerSource,
-  setSignerSource,
-  teamOverviewAtom
-} from '@/atom/team'
+import { teamOverviewAtom } from '@/atom/team'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -99,17 +87,6 @@ function TeamContent() {
     ))
     .onSuccess((overview) => (
       <>
-        {overview.hasMismatch && (
-          <Card className="border-amber-400/40 bg-amber-50/80">
-            <CardContent className="py-4">
-              <p className="text-sm font-medium text-amber-900">
-                Signer-set mismatch detected — the registered member signer
-                sources do not fully cover the on-chain signer set.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Team Overview</CardTitle>
@@ -171,171 +148,9 @@ function TeamContent() {
             </Table>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Registered Member Signer Sources</CardTitle>
-            <CardDescription>
-              Public keys registered by team members for signing proposals.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {overview.memberSignerSources.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No signer sources registered yet.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Member</TableHead>
-                    <TableHead>Key Type</TableHead>
-                    <TableHead>Public Key</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {overview.memberSignerSources.map((source) => (
-                    <TableRow key={source.accountAddress}>
-                      <TableCell className="font-mono text-xs">
-                        {source.accountAddress}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{source.keyType}</Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {source.publicKey}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <ClientOnly>
-          <SetSignerSourceForm onSuccess={refresh} />
-        </ClientOnly>
       </>
     ))
     .render()
-}
-
-function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
-  const sessionResult = useAtomValue(sessionAtom)
-  const session = Result.builder(sessionResult)
-    .onInitialOrWaiting(() => null)
-    .onFailure(() => null)
-    .onSuccess((s) => s)
-    .render()
-
-  const [, dispatchSet] = useAtom(setSignerSource, { mode: 'promiseExit' })
-  const [, dispatchClear] = useAtom(clearSignerSource, { mode: 'promiseExit' })
-  const [publicKey, setPublicKey] = useState('')
-  const [keyType, setKeyType] = useState<'ed25519' | 'secp256k1'>('ed25519')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  if (!session) return null
-
-  const handleSet = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSubmitting(true)
-
-    const exit = await dispatchSet({ publicKey: publicKey.trim(), keyType })
-    setSubmitting(false)
-
-    Exit.match(exit, {
-      onFailure: (cause) =>
-        setError(`Failed to set signer source: ${String(cause)}`),
-      onSuccess: () => {
-        setPublicKey('')
-        onSuccess()
-      }
-    })
-  }
-
-  const handleClear = async () => {
-    setError(null)
-    setSubmitting(true)
-
-    const exit = await dispatchClear()
-    setSubmitting(false)
-
-    Exit.match(exit, {
-      onFailure: (cause) =>
-        setError(`Failed to clear signer source: ${String(cause)}`),
-      onSuccess: () => onSuccess()
-    })
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>My Signer Source</CardTitle>
-        <CardDescription>
-          Set or clear your Ed25519/Secp256k1 public key used for signing
-          proposals.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSet} className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="publicKey" className="text-sm font-medium">
-              Public Key
-            </label>
-            <input
-              id="publicKey"
-              type="text"
-              required
-              placeholder="Hex-encoded public key..."
-              value={publicKey}
-              onChange={(e) => setPublicKey(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="keyType" className="text-sm font-medium">
-              Key Type
-            </label>
-            <select
-              id="keyType"
-              value={keyType}
-              onChange={(e) =>
-                setKeyType(e.target.value as 'ed25519' | 'secp256k1')
-              }
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            >
-              <option value="ed25519">Ed25519</option>
-              <option value="secp256k1">Secp256k1</option>
-            </select>
-          </div>
-
-          {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? 'Setting...' : 'Set Signer Source'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submitting}
-              onClick={handleClear}
-            >
-              {submitting ? 'Clearing...' : 'Clear My Source'}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  )
 }
 
 function TeamSkeleton() {

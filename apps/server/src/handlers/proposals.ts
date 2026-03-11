@@ -13,18 +13,25 @@ import {
   ProposalNotSubmittedError,
   ProposalPreviewFailedError,
   ProposalStatusCheckFailedError,
-  ProposalSubmitFailedError,
-  SignerSourceMissingError
+  ProposalSubmitFailedError
 } from '@radix-vaults/shared'
-import { PreviewTransaction } from '@radix-effects/gateway'
-import { blake2b } from '@noble/hashes/blake2.js'
-import { Effect } from 'effect'
+import {
+  GetLedgerStateService,
+  PreviewTransaction
+} from '@radix-effects/gateway'
+import { Config, Effect, Redacted } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+import {
+  buildUnsignedSubintent,
+  computePublicKeyHash,
+  computeSubintentHashFromSignedPartial,
+  extractSignatureFromHex,
+  reconstructAndCompose
+} from '../gateway/subintentBuilder'
 import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo } from './listVaultsRepo'
 import { ProposalRepo } from './proposalRepo'
-import { SignerSourceRepo } from './signerSourceRepo'
 
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
@@ -40,10 +47,17 @@ const keyTypeFromResource = (
 ): 'ed25519' | 'secp256k1' =>
   resourceAddress.endsWith(ED25519_RESOURCE_SUFFIX) ? 'ed25519' : 'secp256k1'
 
-export const createPublicKeyHash = (publicKeyHex: string): string => {
-  const hash = blake2b(Buffer.from(publicKeyHex, 'hex'), { dkLen: 32 })
-  const last29 = hash.subarray(-29)
-  return Buffer.from(last29).toString('hex')
+const extractPreviewErrorMessage = (e: { _tag: string; message?: string }) => {
+  try {
+    const parsed = JSON.parse(e.message ?? '')
+    const errors: string[] =
+      parsed?.details?.validation_errors?.flatMap(
+        (v: { errors?: string[] }) => v.errors ?? []
+      ) ?? []
+    if (errors.length > 0) return errors.join('; ')
+    if (parsed?.message) return String(parsed.message)
+  } catch {}
+  return e.message ?? String(e)
 }
 
 export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
@@ -54,9 +68,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const proposalRepo = yield* ProposalRepo
       const previewFn = yield* PreviewTransaction
       const accessRuleValidator = yield* AccessRuleValidator
-      const signerSourceRepo = yield* SignerSourceRepo
       const transactionSubmitter = yield* TransactionSubmitter
       const transactionStatusChecker = yield* TransactionStatusChecker
+      const getLedgerState = yield* GetLedgerStateService
+      const networkId = yield* Config.number('NETWORK_ID')
 
       const create = (
         vaultAddress: VaultAddressType,
@@ -70,6 +85,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           yield* previewFn({
             payload: {
               manifest,
+              start_epoch_inclusive: 1,
+              end_epoch_exclusive: 2,
+              nonce: 1,
+              signer_public_keys: [],
               flags: {
                 assume_all_signature_proofs: true,
                 use_free_credit: true,
@@ -80,16 +99,40 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             Effect.catchAll(
               (e) =>
                 new ProposalPreviewFailedError({
-                  message: `Preview failed: ${e._tag ?? String(e)}`
+                  message: extractPreviewErrorMessage(e)
                 })
             )
           )
+
+          // Fetch current epoch for subintent header bounds
+          const ledgerState = yield* getLedgerState({}).pipe(Effect.orDie)
+          const currentEpoch = ledgerState.epoch
+
+          // Parse maxProposerTimestamp to ms for subintent header
+          const maxTs = new Date(maxProposerTimestamp)
+          const maxProposerTimestampMs = !isNaN(maxTs.getTime())
+            ? maxTs.getTime()
+            : undefined
+
+          // Build unsigned subintent
+          const subintent = yield* buildUnsignedSubintent(
+            manifest,
+            networkId,
+            currentEpoch,
+            currentEpoch + 100,
+            maxProposerTimestampMs
+          ).pipe(Effect.orDie)
 
           return yield* proposalRepo.insert({
             vaultAddress,
             manifest,
             maxProposerTimestamp,
-            createdBy
+            createdBy,
+            subintentHash: subintent.subintentHash,
+            intentDiscriminator: subintent.intentDiscriminator,
+            partialTransactionHex: subintent.partialTransactionHex,
+            epochMin: subintent.epochMin,
+            epochMax: subintent.epochMax
           })
         })
 
@@ -149,7 +192,8 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const sign = (
         vaultAddress: VaultAddressType,
         proposalId: ProposalId,
-        signerAccountAddress: AccountAddress
+        signerAccountAddress: AccountAddress,
+        signedPartialTransactionHex: string
       ) =>
         Effect.gen(function* () {
           yield* listVaultsRepo.ensureExists(vaultAddress)
@@ -168,31 +212,55 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             return yield* new ProposalExpiredError({ message: reason })
           }
 
-          // Look up signer source for authenticated member
-          const sources = yield* signerSourceRepo.list()
-          const signerSource = sources.find(
-            (s) => s.accountAddress === signerAccountAddress
-          )
-          if (!signerSource) {
-            return yield* new SignerSourceMissingError({
+          // Verify the subintent hash from the signed partial matches our stored hash
+          const walletSubintentHash =
+            yield* computeSubintentHashFromSignedPartial(
+              signedPartialTransactionHex,
+              networkId
+            ).pipe(
+              Effect.catchAll(() =>
+                Effect.fail(
+                  new NotEligibleSignerError({
+                    message: 'Failed to decode signed partial transaction'
+                  })
+                )
+              )
+            )
+
+          if (walletSubintentHash !== proposal.subintentHash) {
+            return yield* new NotEligibleSignerError({
               message:
-                'You must register a signer source before signing proposals'
+                'Signed subintent hash does not match the proposal subintent hash'
             })
           }
 
-          // Validate signer key against vault access rule
+          // Extract signature + public key from wallet response
+          const extracted = yield* extractSignatureFromHex(
+            signedPartialTransactionHex,
+            networkId
+          ).pipe(
+            Effect.catchAll(() =>
+              Effect.fail(
+                new NotEligibleSignerError({
+                  message: 'Failed to extract signature from signed partial'
+                })
+              )
+            )
+          )
+
+          // Compute key hash and validate against vault access rule
+          const signerKeyHash = computePublicKeyHash(extracted.publicKeyHex)
+
           const accessRule = yield* accessRuleValidator
             .validate(vaultAddress)
             .pipe(Effect.orDie)
 
-          const signerKeyHash = createPublicKeyHash(signerSource.publicKey)
           const matchingSigner = accessRule.signers.find(
             (s) => s.localId === `<${signerKeyHash}>`
           )
           if (!matchingSigner) {
             return yield* new NotEligibleSignerError({
-              message:
-                'Your registered signer source does not match any vault signer'
+              message: 'The signing key does not match any vault signer'
             })
           }
 
@@ -200,13 +268,16 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             matchingSigner.resourceAddress
           )
 
-          // Persist signature
+          // Persist signature with full cryptographic data
           yield* proposalRepo
             .addSignature({
               proposalId,
               signerAccountAddress,
+              signerPublicKey: extracted.publicKeyHex,
               signerKeyHash,
-              signerKeyType
+              signerKeyType,
+              signatureBytes: extracted.signatureHex,
+              signedPartialTransactionHex
             })
             .pipe(
               Effect.catchTag('DuplicateSignatureDbError', () =>
@@ -280,51 +351,44 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             return yield* new ProposalInvalidError({ message: reason })
           }
 
-          // Re-preview manifest — mark invalid on failure
-          yield* previewFn({
-            payload: {
-              manifest: proposal.manifest,
-              flags: {
-                assume_all_signature_proofs: true,
-                use_free_credit: true,
-                skip_epoch_check: true
-              }
-            }
-          }).pipe(
-            Effect.catchAll((e) => {
-              const reason = `Manifest no longer valid: ${e._tag ?? String(e)}`
-              return proposalRepo
-                .setTerminalStatus(proposalId, 'invalid', reason)
-                .pipe(
-                  Effect.flatMap(() =>
-                    Effect.fail(new ProposalInvalidError({ message: reason }))
-                  )
+          if (!proposal.partialTransactionHex) {
+            return yield* new ProposalSubmitFailedError({
+              message: 'Proposal missing partial transaction data'
+            })
+          }
+
+          // Compose the NotarizedTransactionV2 from collected signatures
+          const feePayerKeyHex = yield* Config.string(
+            'FEE_PAYER_PRIVATE_KEY_HEX'
+          ).pipe(Config.redacted, Effect.orDie)
+
+          const ledgerState = yield* getLedgerState({}).pipe(Effect.orDie)
+
+          const { notarizedTransactionHex, intentHash } =
+            yield* reconstructAndCompose(
+              proposal.partialTransactionHex,
+              signatures.map((s) => ({
+                publicKeyHex: s.signerPublicKey,
+                signatureHex: s.signatureBytes,
+                keyType: s.signerKeyType as 'ed25519' | 'secp256k1'
+              })),
+              Redacted.value(feePayerKeyHex) as string,
+              transactionSubmitter.feePayerAddress,
+              networkId,
+              ledgerState.epoch
+            ).pipe(
+              Effect.catchAll((e) =>
+                Effect.fail(
+                  new ProposalSubmitFailedError({
+                    message: `Transaction composition failed: ${e.message}`
+                  })
                 )
-            })
-          )
-
-          // Build signer list from collected signatures
-          const signerSourceList = yield* signerSourceRepo.list()
-          const signers = signatures
-            .map((sig) => {
-              const source = signerSourceList.find(
-                (s) => s.accountAddress === sig.signerAccountAddress
               )
-              return source
-                ? {
-                    publicKey: source.publicKey,
-                    keyType: source.keyType as 'ed25519' | 'secp256k1'
-                  }
-                : null
-            })
-            .filter((s): s is NonNullable<typeof s> => s !== null)
+            )
 
-          // Submit via TransactionSubmitter
-          const { intentHash } = yield* transactionSubmitter
-            .submitWithSigners({
-              manifest: proposal.manifest,
-              signers
-            })
+          // Submit the compiled notarized transaction
+          yield* transactionSubmitter
+            .submitNotarizedHex(notarizedTransactionHex)
             .pipe(
               Effect.catchTag('TransactionSubmitError', (e) =>
                 Effect.fail(

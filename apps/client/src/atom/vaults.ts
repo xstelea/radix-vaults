@@ -51,7 +51,8 @@ export const vaultReadAtom = Atom.family((vaultAddress: VaultAddress) =>
         const svc = yield* VaultService
         return yield* Effect.all({
           detail: svc.getDetail(vaultAddress),
-          signers: svc.getSigners(vaultAddress)
+          signers: svc.getSigners(vaultAddress),
+          balanceXrd: svc.getVaultBalanceXrd(vaultAddress)
         })
       })
     )

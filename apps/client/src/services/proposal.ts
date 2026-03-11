@@ -24,9 +24,14 @@ export class ProposalService extends Effect.Service<ProposalService>()(
           client.proposals.detail({
             path: { vaultAddress, proposalId }
           }),
-        sign: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
+        sign: (
+          vaultAddress: VaultAddress,
+          proposalId: ProposalId,
+          signedPartialTransactionHex: string
+        ) =>
           client.proposals.sign({
-            path: { vaultAddress, proposalId }
+            path: { vaultAddress, proposalId },
+            payload: { signedPartialTransactionHex }
           }),
         submit: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
           client.proposals.submit({

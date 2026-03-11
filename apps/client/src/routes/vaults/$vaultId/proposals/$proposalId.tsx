@@ -267,7 +267,11 @@ function SignatureProgressCard({
   const handleSign = useCallback(async () => {
     setSigning(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
+      const exit = await dispatch({
+        vaultAddress,
+        proposalId: proposal.id,
+        proposal
+      })
       Exit.match(exit, {
         onSuccess: () => onSigned(),
         onFailure: () => {}
@@ -275,7 +279,7 @@ function SignatureProgressCard({
     } finally {
       setSigning(false)
     }
-  }, [vaultAddress, proposal.id, onSigned, dispatch])
+  }, [vaultAddress, proposal, onSigned, dispatch])
 
   return (
     <Card>
