@@ -13,3 +13,12 @@ export const teamOverviewAtom = runtime
     })
   )
   .pipe(Atom.withLabel('teamOverviewAtom'), Atom.keepAlive)
+
+export const teamMembersAtom = runtime
+  .atom(
+    Effect.gen(function* () {
+      const svc = yield* TeamService
+      return yield* svc.getMembers()
+    })
+  )
+  .pipe(Atom.withLabel('teamMembersAtom'), Atom.keepAlive)

@@ -79,6 +79,9 @@ const MockTeamHandlersLive = HttpApiBuilder.group(AppApi, 'team', (handlers) =>
         hasMismatch: false
       })
     )
+    .handle('members', () =>
+      Effect.succeed({ badgeAddress: 'mock', members: [] })
+    )
     .handle('setSignerSource', () =>
       Effect.succeed({
         accountAddress: 'mock',

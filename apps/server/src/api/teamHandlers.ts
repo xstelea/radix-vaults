@@ -1,6 +1,14 @@
 import { HttpApiBuilder } from '@effect/platform'
-import { AppApi, CurrentSession, VaultsConfig } from '@radix-vaults/shared'
-import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
+import {
+  AppApi,
+  AuthConfig,
+  CurrentSession,
+  VaultsConfig
+} from '@radix-vaults/shared'
+import {
+  GetEntityDetailsVaultAggregated,
+  GetResourceHoldersService
+} from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
@@ -17,6 +25,12 @@ export const TeamHandlersLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const team = yield* TeamHandler
           return yield* team.getOverview()
+        })
+      )
+      .handle('members', () =>
+        Effect.gen(function* () {
+          const team = yield* TeamHandler
+          return yield* team.getMembers()
         })
       )
       .handle('setSignerSource', ({ payload: { publicKey, keyType } }) =>
@@ -42,7 +56,9 @@ export const TeamHandlersLive = HttpApiBuilder.group(
   Layer.provide(SignerSourceRepo.Default),
   Layer.provide(AccessRuleValidator.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
+  Layer.provide(GetResourceHoldersService.Default),
   Layer.provide(ORM.Default),
   Layer.provide(VaultsConfig.Live),
+  Layer.provide(AuthConfig.Live),
   Layer.provide(GatewayApiClientLayer)
 )

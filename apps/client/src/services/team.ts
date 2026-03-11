@@ -9,6 +9,7 @@ export class TeamService extends Effect.Service<TeamService>()(
       const client = yield* AppApiClient
       return {
         getOverview: () => client.team.overview(),
+        getMembers: () => client.team.members(),
         setSignerSource: (
           publicKey: string,
           keyType: 'ed25519' | 'secp256k1'

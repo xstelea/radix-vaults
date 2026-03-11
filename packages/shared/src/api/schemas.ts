@@ -69,6 +69,21 @@ export type Signer = typeof SignerSchema.Type
 export type ImportVaultRequest = typeof ImportVaultRequestSchema.Type
 export type ImportVaultResponse = typeof ImportVaultResponseSchema.Type
 
+// --- Badge holder schemas ---
+
+export const BadgeHolderSchema = Schema.Struct({
+  holderAddress: Schema.String,
+  amount: Schema.String
+})
+
+export const TeamMembersSchema = Schema.Struct({
+  badgeAddress: Schema.String,
+  members: Schema.Array(BadgeHolderSchema)
+})
+
+export type BadgeHolder = typeof BadgeHolderSchema.Type
+export type TeamMembers = typeof TeamMembersSchema.Type
+
 // --- Team schemas ---
 
 export const MemberSignerSourceSchema = Schema.Struct({

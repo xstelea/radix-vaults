@@ -29,10 +29,17 @@ export const envVars = pipe(
     } satisfies Record<keyof typeof EnvVars.Encoded, unknown>)
   }),
   Schema.decodeUnknownEither(EnvVars),
-  Either.map((envVars) => ({
-    ...envVars,
-    EFFECTIVE_ENV: envVars.ENV === 'local' ? 'dev' : envVars.ENV
-  })),
+  Either.map((envVars) => {
+    const networkId = Number(import.meta.env.VITE_NETWORK_ID ?? '2')
+    return {
+      ...envVars,
+      EFFECTIVE_ENV: envVars.ENV === 'local' ? 'dev' : envVars.ENV,
+      DASHBOARD_BASE_URL:
+        networkId === 1
+          ? 'https://dashboard.radixdlt.com'
+          : 'https://stokenet-dashboard.radixdlt.com'
+    }
+  }),
   Either.getOrElse((parseIssue) => {
     throw new Error(
       `Invalid environment variables: ${TreeFormatter.formatErrorSync(parseIssue)}`

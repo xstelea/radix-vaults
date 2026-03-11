@@ -4,7 +4,8 @@ import { Effect, Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
-import { teamOverviewAtom } from '@/atom/team'
+import { teamMembersAtom, teamOverviewAtom } from '@/atom/team'
+import { envVars } from '@/lib/envVars'
 import { TeamService } from '@/services/team'
 import { AppApiClient } from '@/lib/apiClient'
 import { Badge } from '@/components/ui/badge'
@@ -60,19 +61,27 @@ function TeamPage() {
 }
 
 function RefreshTeamButton() {
-  const refresh = useAtomRefresh(teamOverviewAtom)
+  const refreshOverview = useAtomRefresh(teamOverviewAtom)
+  const refreshMembers = useAtomRefresh(teamMembersAtom)
   return (
-    <Button variant="outline" onClick={refresh}>
+    <Button
+      variant="outline"
+      onClick={() => {
+        refreshOverview()
+        refreshMembers()
+      }}
+    >
       Refresh
     </Button>
   )
 }
 
 function TeamContent() {
-  const result = useAtomValue(teamOverviewAtom)
-  const refresh = useAtomRefresh(teamOverviewAtom)
+  const overviewResult = useAtomValue(teamOverviewAtom)
+  const membersResult = useAtomValue(teamMembersAtom)
+  const refreshOverview = useAtomRefresh(teamOverviewAtom)
 
-  return Result.builder(result)
+  return Result.builder(overviewResult)
     .onInitialOrWaiting(() => <TeamSkeleton />)
     .onFailure((cause) => (
       <Card className="border-red-900/20 bg-red-50/80">
@@ -85,7 +94,7 @@ function TeamContent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" onClick={refresh}>
+          <Button variant="outline" onClick={refreshOverview}>
             Retry
           </Button>
         </CardContent>
@@ -107,31 +116,126 @@ function TeamContent() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Team Overview</CardTitle>
-            <CardDescription className="font-mono text-xs">
-              {overview.teamAccountAddress}
+            <CardDescription className="font-mono text-xs truncate">
+              <a
+                href={`${envVars.DASHBOARD_BASE_URL}/account/${overview.teamAccountAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline text-blue-600"
+              >
+                {overview.teamAccountAddress}
+              </a>
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Card className="border-border bg-accent/30 shadow-none">
-              <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  Threshold
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {overview.threshold}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-accent/30 shadow-none">
-              <CardContent className="py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                  On-chain Signers
-                </p>
-                <p className="mt-1 text-lg font-semibold">
-                  {overview.signers.length}
-                </p>
-              </CardContent>
-            </Card>
+          <CardContent className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card className="border-border bg-accent/30 shadow-none">
+                <CardContent className="py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Threshold
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {overview.threshold}
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="border-border bg-accent/30 shadow-none">
+                <CardContent className="py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    On-chain Signers
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {overview.signers.length}
+                  </p>
+                </CardContent>
+              </Card>
+              {Result.builder(membersResult)
+                .onInitialOrWaiting(() => <Skeleton className="h-20 w-full" />)
+                .onFailure(() => (
+                  <Card className="border-border bg-accent/30 shadow-none">
+                    <CardContent className="py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        Badge Holders
+                      </p>
+                      <p className="mt-1 text-lg font-semibold text-muted-foreground">
+                        —
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+                .onSuccess(({ members }) => (
+                  <Card className="border-border bg-accent/30 shadow-none">
+                    <CardContent className="py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        Badge Holders
+                      </p>
+                      <p className="mt-1 text-lg font-semibold">
+                        {members.length}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+                .render()}
+            </div>
+
+            {Result.builder(membersResult)
+              .onInitialOrWaiting(() => (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-10 w-full" />
+                  ))}
+                </div>
+              ))
+              .onFailure((cause) => (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                  Could not load team members: {String(cause)}
+                </div>
+              ))
+              .onSuccess(({ badgeAddress, members }) => (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Badge:{' '}
+                    <a
+                      href={`${envVars.DASHBOARD_BASE_URL}/resource/${badgeAddress}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono hover:underline text-blue-600 truncate inline-block max-w-[40ch] align-bottom"
+                    >
+                      {badgeAddress}
+                    </a>
+                  </p>
+                  {members.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No badge holders found.
+                    </p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Account Address</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {members.map((member) => (
+                          <TableRow key={member.holderAddress}>
+                            <TableCell className="font-mono text-xs max-w-0">
+                              <a
+                                href={`${envVars.DASHBOARD_BASE_URL}/account/${member.holderAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:underline text-blue-600 block truncate"
+                              >
+                                {member.holderAddress}
+                              </a>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              ))
+              .render()}
           </CardContent>
         </Card>
 
@@ -208,7 +312,7 @@ function TeamContent() {
         </Card>
 
         <ClientOnly>
-          <SetSignerSourceForm onSuccess={refresh} />
+          <SetSignerSourceForm onSuccess={refreshOverview} />
         </ClientOnly>
       </>
     ))
@@ -352,28 +456,23 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
 
 function TeamSkeleton() {
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-7 w-48" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
+    <Card>
+      <CardHeader>
+        <Skeleton className="h-7 w-48" />
+        <Skeleton className="h-4 w-2/3" />
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-3 sm:grid-cols-3">
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-20 w-full" />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-4 w-2/3" />
-        </CardHeader>
-        <CardContent className="space-y-2">
+          <Skeleton className="h-20 w-full" />
+        </div>
+        <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={index} className="h-10 w-full" />
           ))}
-        </CardContent>
-      </Card>
-    </>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

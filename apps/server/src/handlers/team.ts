@@ -1,9 +1,11 @@
 import type {
   AccountAddress,
   SetSignerSourceResponse,
+  TeamMembers,
   TeamOverview
 } from '@radix-vaults/shared'
-import { VaultsConfig } from '@radix-vaults/shared'
+import { AuthConfig, VaultsConfig } from '@radix-vaults/shared'
+import { GetResourceHoldersService } from '@radix-effects/gateway'
 import { Effect } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { SignerSourceRepo } from './signerSourceRepo'
@@ -44,8 +46,10 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
   {
     effect: Effect.gen(function* () {
       const config = yield* VaultsConfig
+      const authConfig = yield* AuthConfig
       const accessRuleValidator = yield* AccessRuleValidator
       const signerSourceRepo = yield* SignerSourceRepo
+      const getResourceHolders = yield* GetResourceHoldersService
 
       const getOverview = (): Effect.Effect<TeamOverview> =>
         Effect.gen(function* () {
@@ -108,7 +112,33 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
           .clear(accountAddress)
           .pipe(Effect.as({ ok: true as const }))
 
-      return { getOverview, setSignerSource, clearSignerSource } as const
+      const getMembers = (): Effect.Effect<TeamMembers> =>
+        getResourceHolders({
+          resourceAddress: authConfig.teamMemberBadgeAddress
+        }).pipe(
+          Effect.map((items) => ({
+            badgeAddress: authConfig.teamMemberBadgeAddress,
+            members: items
+              .filter(
+                (
+                  item
+                ): item is Extract<typeof item, { type: 'FungibleResource' }> =>
+                  item.type === 'FungibleResource'
+              )
+              .map((item) => ({
+                holderAddress: item.holder_address,
+                amount: item.amount
+              }))
+          })),
+          Effect.orDie
+        )
+
+      return {
+        getOverview,
+        setSignerSource,
+        clearSignerSource,
+        getMembers
+      } as const
     })
   }
 ) {}

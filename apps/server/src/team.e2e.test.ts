@@ -9,12 +9,14 @@ import {
   type AccountAddress,
   type HexString,
   AppApi,
+  AuthConfig,
   CurrentSession,
   SessionMiddleware,
   VaultsConfig
 } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
+import { GetResourceHoldersService } from '@radix-effects/gateway'
 import { Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from '@effect/vitest'
 import { existsSync } from 'node:fs'
@@ -89,6 +91,18 @@ const MockAccessRuleValidator = Layer.succeed(
   })
 )
 
+const MockGetResourceHolders = Layer.succeed(
+  GetResourceHoldersService,
+  GetResourceHoldersService.make(() => Effect.succeed([]))
+)
+
+const testAuthConfig = AuthConfig.layer({
+  networkId: 2,
+  dAppDefinitionAddress: 'account_tdx_2_1testdapp',
+  expectedOrigin: 'http://localhost:3000',
+  teamMemberBadgeAddress: 'resource_tdx_2_1testbadge'
+})
+
 const MockAuthHandlersLive = HttpApiBuilder.group(AppApi, 'auth', (handlers) =>
   handlers
     .handle('createChallenge', () =>
@@ -145,6 +159,12 @@ const makeTeamHandlersLive = () =>
           return yield* team.getOverview()
         })
       )
+      .handle('members', () =>
+        Effect.gen(function* () {
+          const team = yield* TeamHandler
+          return yield* team.getMembers()
+        })
+      )
       .handle('setSignerSource', ({ payload: { publicKey, keyType } }) =>
         Effect.gen(function* () {
           const session = yield* CurrentSession
@@ -167,8 +187,10 @@ const makeTeamHandlersLive = () =>
     Layer.provide(TeamHandler.Default),
     Layer.provide(SignerSourceRepo.Default),
     Layer.provide(MockAccessRuleValidator),
+    Layer.provide(MockGetResourceHolders),
     Layer.provide(ORM.Default),
-    Layer.provide(VaultsConfig.layer(TEAM_ACCOUNT))
+    Layer.provide(VaultsConfig.layer(TEAM_ACCOUNT)),
+    Layer.provide(testAuthConfig)
   )
 
 const MockProposalHandlersLive = HttpApiBuilder.group(

@@ -40,6 +40,7 @@ import {
   SignerSourceMissingError,
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
+  TeamMembersSchema,
   TeamOverviewSchema,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
@@ -137,6 +138,11 @@ export class VaultsGroup extends HttpApiGroup.make('vaults')
 // --- Team endpoints ---
 export class TeamGroup extends HttpApiGroup.make('team')
   .add(HttpApiEndpoint.get('overview', '/team').addSuccess(TeamOverviewSchema))
+  .add(
+    HttpApiEndpoint.get('members', '/team/members').addSuccess(
+      TeamMembersSchema
+    )
+  )
   .add(
     HttpApiEndpoint.put('setSignerSource', '/team/signer-source')
       .setPayload(SetSignerSourceRequestSchema)
