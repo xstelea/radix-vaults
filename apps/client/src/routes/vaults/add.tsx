@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useAtomRefresh } from '@effect-atom/atom-react'
+import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
-import { Effect, Exit } from 'effect'
+import { Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { importVault, vaultsListAtom } from '@/atom/vaults'
@@ -21,6 +21,7 @@ export const Route = createFileRoute('/vaults/add')({
 function AddVaultPage() {
   const navigate = useNavigate()
   const refreshVaults = useAtomRefresh(vaultsListAtom)
+  const [, dispatch] = useAtom(importVault, { mode: 'promiseExit' })
   const [accountAddress, setAccountAddress] = useState('')
   const [name, setName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -31,9 +32,10 @@ function AddVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const exit = await Effect.runPromiseExit(
-      importVault(VaultAddress.make(accountAddress.trim()), name.trim())
-    )
+    const exit = await dispatch({
+      accountAddress: VaultAddress.make(accountAddress.trim()),
+      name: name.trim()
+    })
 
     setSubmitting(false)
 

@@ -1,7 +1,7 @@
-import { useAtomRefresh } from '@effect-atom/atom-react'
+import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { Effect, Exit } from 'effect'
+import { Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { createProposal, proposalListAtom } from '@/atom/proposals'
@@ -25,6 +25,7 @@ function NewProposalPage() {
   const vaultAddress = VaultAddress.make(vaultId)
   const refreshProposals = useAtomRefresh(proposalListAtom(vaultAddress))
   const refreshVault = useAtomRefresh(vaultReadAtom(vaultAddress))
+  const [, dispatch] = useAtom(createProposal, { mode: 'promiseExit' })
 
   const [manifest, setManifest] = useState('')
   const [maxProposerTimestamp, setMaxProposerTimestamp] = useState('')
@@ -36,9 +37,11 @@ function NewProposalPage() {
     setError(null)
     setSubmitting(true)
 
-    const exit = await Effect.runPromiseExit(
-      createProposal(vaultAddress, manifest.trim(), maxProposerTimestamp.trim())
-    )
+    const exit = await dispatch({
+      vaultAddress,
+      manifest: manifest.trim(),
+      maxProposerTimestamp: maxProposerTimestamp.trim()
+    })
 
     setSubmitting(false)
 

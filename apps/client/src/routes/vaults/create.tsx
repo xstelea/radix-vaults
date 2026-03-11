@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useAtomRefresh } from '@effect-atom/atom-react'
-import { Effect, Exit } from 'effect'
+import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
+import { Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { createVault, vaultsListAtom } from '@/atom/vaults'
@@ -20,6 +20,7 @@ export const Route = createFileRoute('/vaults/create')({
 function CreateVaultPage() {
   const navigate = useNavigate()
   const refreshVaults = useAtomRefresh(vaultsListAtom)
+  const [, dispatch] = useAtom(createVault, { mode: 'promiseExit' })
   const [name, setName] = useState('')
   const [threshold, setThreshold] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -30,9 +31,7 @@ function CreateVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const exit = await Effect.runPromiseExit(
-      createVault(name.trim(), threshold)
-    )
+    const exit = await dispatch({ name: name.trim(), threshold })
 
     setSubmitting(false)
 

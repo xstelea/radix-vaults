@@ -17,41 +17,45 @@ export const proposalListAtom = Atom.family((vaultAddress: VaultAddress) =>
     .pipe(Atom.withLabel(`proposalListAtom(${vaultAddress})`), Atom.keepAlive)
 )
 
-export const createProposal = (
-  vaultAddress: VaultAddress,
-  manifest: string,
-  maxProposerTimestamp: string
-) =>
-  ProposalService.pipe(
-    Effect.andThen((svc) =>
-      svc.create(vaultAddress, manifest, maxProposerTimestamp)
-    ),
-    Effect.provide(ProposalService.Default)
-  )
+export const createProposal = runtime.fn(
+  (args: {
+    vaultAddress: VaultAddress
+    manifest: string
+    maxProposerTimestamp: string
+  }) =>
+    Effect.gen(function* () {
+      const svc = yield* ProposalService
+      return yield* svc.create(
+        args.vaultAddress,
+        args.manifest,
+        args.maxProposerTimestamp
+      )
+    })
+)
 
-export const signProposal = (vaultAddress: VaultAddress, proposalId: number) =>
-  ProposalService.pipe(
-    Effect.andThen((svc) => svc.sign(vaultAddress, proposalId)),
-    Effect.provide(ProposalService.Default)
-  )
+export const signProposal = runtime.fn(
+  (args: { vaultAddress: VaultAddress; proposalId: number }) =>
+    Effect.gen(function* () {
+      const svc = yield* ProposalService
+      return yield* svc.sign(args.vaultAddress, args.proposalId)
+    })
+)
 
-export const submitProposal = (
-  vaultAddress: VaultAddress,
-  proposalId: number
-) =>
-  ProposalService.pipe(
-    Effect.andThen((svc) => svc.submit(vaultAddress, proposalId)),
-    Effect.provide(ProposalService.Default)
-  )
+export const submitProposal = runtime.fn(
+  (args: { vaultAddress: VaultAddress; proposalId: number }) =>
+    Effect.gen(function* () {
+      const svc = yield* ProposalService
+      return yield* svc.submit(args.vaultAddress, args.proposalId)
+    })
+)
 
-export const refreshProposalStatus = (
-  vaultAddress: VaultAddress,
-  proposalId: number
-) =>
-  ProposalService.pipe(
-    Effect.andThen((svc) => svc.refreshStatus(vaultAddress, proposalId)),
-    Effect.provide(ProposalService.Default)
-  )
+export const refreshProposalStatus = runtime.fn(
+  (args: { vaultAddress: VaultAddress; proposalId: number }) =>
+    Effect.gen(function* () {
+      const svc = yield* ProposalService
+      return yield* svc.refreshStatus(args.vaultAddress, args.proposalId)
+    })
+)
 
 export const proposalDetailAtom = Atom.family(
   ({

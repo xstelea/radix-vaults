@@ -1,6 +1,11 @@
-import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import {
+  Result,
+  useAtom,
+  useAtomRefresh,
+  useAtomValue
+} from '@effect-atom/atom-react'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
-import { Effect, Exit } from 'effect'
+import { Exit } from 'effect'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { sessionAtom } from '@/atom/auth'
@@ -225,6 +230,8 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     .onSuccess((s) => s)
     .render()
 
+  const [, dispatchSet] = useAtom(setSignerSource, { mode: 'promiseExit' })
+  const [, dispatchClear] = useAtom(clearSignerSource, { mode: 'promiseExit' })
   const [publicKey, setPublicKey] = useState('')
   const [keyType, setKeyType] = useState<'ed25519' | 'secp256k1'>('ed25519')
   const [submitting, setSubmitting] = useState(false)
@@ -237,9 +244,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
     setSubmitting(true)
 
-    const exit = await Effect.runPromiseExit(
-      setSignerSource(publicKey.trim(), keyType)
-    )
+    const exit = await dispatchSet({ publicKey: publicKey.trim(), keyType })
     setSubmitting(false)
 
     Exit.match(exit, {
@@ -257,7 +262,7 @@ function SetSignerSourceForm({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
     setSubmitting(true)
 
-    const exit = await Effect.runPromiseExit(clearSignerSource())
+    const exit = await dispatchClear()
     setSubmitting(false)
 
     Exit.match(exit, {
