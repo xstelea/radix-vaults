@@ -91,7 +91,7 @@ function TeamContent() {
           <CardHeader>
             <CardTitle className="text-2xl">Team Overview</CardTitle>
             <CardDescription className="font-mono text-xs">
-              {overview.teamAccountAddress}
+              {overview.teamMemberBadgeAddress}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -122,7 +122,7 @@ function TeamContent() {
           <CardHeader>
             <CardTitle>On-chain Signer Set</CardTitle>
             <CardDescription>
-              Signers from the team account&apos;s on-chain access rule.
+              Signers from the badge resource&apos;s on-chain owner role.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -142,6 +142,35 @@ function TeamContent() {
                     <TableCell className="font-mono text-xs">
                       {signer.signerKeyHash}
                     </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Badge Holders</CardTitle>
+            <CardDescription>
+              Accounts holding the team member badge.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account Address</TableHead>
+                  <TableHead>Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overview.badgeHolders.map((holder) => (
+                  <TableRow key={holder.holderAddress}>
+                    <TableCell className="font-mono text-xs">
+                      {holder.holderAddress}
+                    </TableCell>
+                    <TableCell>{holder.amount}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -169,6 +198,17 @@ function TeamSkeleton() {
       <Card>
         <CardHeader>
           <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-10 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-36" />
           <Skeleton className="h-4 w-2/3" />
         </CardHeader>
         <CardContent className="space-y-2">

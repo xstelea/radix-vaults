@@ -13,17 +13,13 @@ import {
 } from '@radix-effects/tx-tool'
 import { Data, Effect } from 'effect'
 import type { BootstrapConfig } from './config'
-import {
-  buildCreateBadgeResourceManifest,
-  buildCreateTeamAccountManifest
-} from './manifests'
+import { buildCreateBadgeResourceManifest } from './manifests'
 
 export class BootstrapError extends Data.TaggedError('BootstrapError')<{
   message: string
 }> {}
 
 export type BootstrapResult = {
-  teamAccountAddress: string
   teamMemberBadgeAddress: string
 }
 
@@ -85,37 +81,8 @@ export const runBootstrap = (
 
     yield* Effect.logInfo(`Fee payer address: ${feePayerAddress}`)
 
-    // --- Step 1: Create team account ---
-    yield* Effect.logInfo('Step 1: Creating team account...')
-
-    const createAccountManifest = yield* Effect.promise(() =>
-      buildCreateTeamAccountManifest({
-        feePayerAddress,
-        signers: config.signers,
-        threshold: config.threshold,
-        networkId
-      })
-    )
-
-    const accountTxId = yield* submitAndPoll(createAccountManifest)
-    yield* Effect.logInfo(`Account creation tx committed: ${accountTxId}`)
-
-    const accountEntities = yield* getCreatedEntities(accountTxId)
-
-    const teamAccountAddress = accountEntities.find((addr) =>
-      addr.startsWith('account_')
-    )
-
-    if (!teamAccountAddress) {
-      return yield* new BootstrapError({
-        message: `No account address found in transaction receipt. Entities: ${accountEntities.join(', ')}`
-      })
-    }
-
-    yield* Effect.logInfo(`Team account created: ${teamAccountAddress}`)
-
-    // --- Step 2: Create badge resource and distribute ---
-    yield* Effect.logInfo('Step 2: Creating badge resource and distributing...')
+    // --- Create badge resource and distribute ---
+    yield* Effect.logInfo('Creating badge resource and distributing...')
 
     const createBadgeManifest = yield* Effect.promise(() =>
       buildCreateBadgeResourceManifest({
@@ -151,5 +118,5 @@ export const runBootstrap = (
       )
     }
 
-    return { teamAccountAddress, teamMemberBadgeAddress }
+    return { teamMemberBadgeAddress }
   })

@@ -114,35 +114,6 @@ ${entries}
         )`
 }
 
-export async function buildCreateTeamAccountManifest(input: {
-  feePayerAddress: string
-  signers: ReadonlyArray<Signer>
-  threshold: number
-  networkId: NetworkId
-}): Promise<string> {
-  const addrs = await getNetworkAddresses(input.networkId)
-  const accessRule = buildMultisigAccessRule(
-    input.signers,
-    input.threshold,
-    addrs
-  )
-
-  return `CALL_METHOD
-    Address("${input.feePayerAddress}")
-    "lock_fee"
-    Decimal("20")
-;
-CALL_FUNCTION
-    Address("${addrs.accountPackage}")
-    "Account"
-    "create_advanced"
-    Enum<2u8>(
-        ${accessRule}
-    )
-    Enum<0u8>()
-;`
-}
-
 export async function buildCreateBadgeResourceManifest(input: {
   feePayerAddress: string
   signers: ReadonlyArray<Signer>

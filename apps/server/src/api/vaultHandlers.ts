@@ -5,8 +5,7 @@ import {
   CreateVaultFailedError,
   ThresholdExceedsSignersError,
   UnsupportedAccessRuleError,
-  VaultAlreadyExistsError,
-  VaultsConfig
+  VaultAlreadyExistsError
 } from '@radix-vaults/shared'
 import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
@@ -49,12 +48,12 @@ export const VaultHandlersLive = HttpApiBuilder.group(
           Effect.catchTags({
             UnsupportedRuleError: (e) =>
               new UnsupportedAccessRuleError({
-                accountAddress,
+                entityAddress: accountAddress,
                 message: e.reason
               }),
             EntityNotFoundOnLedgerError: (e) =>
               new UnsupportedAccessRuleError({
-                accountAddress: e.accountAddress as typeof accountAddress,
+                entityAddress: e.entityAddress,
                 message: 'Account not found on ledger'
               }),
             VaultAlreadyExistsDbError: (e) =>
@@ -86,7 +85,6 @@ export const VaultHandlersLive = HttpApiBuilder.group(
   Layer.provide(AccessRuleValidator.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),
-  Layer.provide(VaultsConfig.Live),
   Layer.provide(AuthConfig.Live),
   Layer.provide(GatewayApiClientLayer)
 )

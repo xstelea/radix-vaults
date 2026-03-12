@@ -18,7 +18,6 @@ import {
 } from './config'
 import {
   buildCreateBadgeResourceManifest,
-  buildCreateTeamAccountManifest,
   deriveSignatureBadgeLocalId
 } from './manifests'
 
@@ -133,84 +132,6 @@ describe('deriveSignatureBadgeLocalId', () => {
   })
 })
 
-describe('buildCreateTeamAccountManifest', () => {
-  it('builds a valid manifest with CALL_FUNCTION', async () => {
-    const manifest = await buildCreateTeamAccountManifest({
-      feePayerAddress: 'account_tdx_2_feepayer',
-      signers: [
-        { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
-        { publicKey: ED25519_KEY_2, keyType: 'ed25519' }
-      ],
-      threshold: 2,
-      networkId: 2
-    })
-
-    expect(manifest).toContain('lock_fee')
-    expect(manifest).toContain('CALL_FUNCTION')
-    expect(manifest).toContain('"Account"')
-    expect(manifest).toContain('"create_advanced"')
-    expect(manifest).toContain('resource_tdx_2_')
-    expect(manifest).toContain('ed25sg')
-    expect(manifest).toContain('account_tdx_2_feepayer')
-  })
-
-  it('uses AllOf when threshold equals signer count', async () => {
-    const manifest = await buildCreateTeamAccountManifest({
-      feePayerAddress: 'account_tdx_2_feepayer',
-      signers: [
-        { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
-        { publicKey: ED25519_KEY_2, keyType: 'ed25519' }
-      ],
-      threshold: 2,
-      networkId: 2
-    })
-
-    // Protected(BasicRequirement(AllOf(entries)))
-    // Enum<0u8> wraps BasicRequirement, Enum<3u8> is AllOf
-    expect(manifest).toContain('Enum<3u8>')
-    // Entries are ResourceOrNonFungible::NonFungible — single Enum<0u8>(NFG), not double-wrapped
-    expect(manifest).not.toMatch(
-      /Enum<0u8>\(\s*Enum<0u8>\(\s*NonFungibleGlobalId/
-    )
-  })
-
-  it('uses CountOf when threshold is less than signer count', async () => {
-    const manifest = await buildCreateTeamAccountManifest({
-      feePayerAddress: 'account_tdx_2_feepayer',
-      signers: [
-        { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
-        { publicKey: ED25519_KEY_2, keyType: 'ed25519' },
-        { publicKey: ED25519_KEY_3, keyType: 'ed25519' }
-      ],
-      threshold: 2,
-      networkId: 2
-    })
-
-    // Protected(BasicRequirement(CountOf(2, entries)))
-    // Enum<0u8> wraps BasicRequirement, followed by Enum<2u8> for CountOf with threshold arg
-    expect(manifest).toContain('2u8,')
-    expect(manifest).toMatch(/Enum<0u8>\(\s*Enum<2u8>\(\s*2u8,/)
-    // Entries should be ResourceOrNonFungible::NonFungible, not double-wrapped
-    expect(manifest).not.toMatch(
-      /Enum<0u8>\(\s*Enum<0u8>\(\s*NonFungibleGlobalId/
-    )
-  })
-
-  it('uses correct resource for mainnet', async () => {
-    const manifest = await buildCreateTeamAccountManifest({
-      feePayerAddress: 'account_rdx_feepayer',
-      signers: [{ publicKey: ED25519_KEY_1, keyType: 'ed25519' }],
-      threshold: 1,
-      networkId: 1
-    })
-
-    expect(manifest).toContain('resource_rdx1nf')
-    expect(manifest).toContain('ed25sg')
-    expect(manifest).toContain('package_rdx1pkg')
-    expect(manifest).toContain('accnt')
-  })
-})
-
 describe('buildCreateBadgeResourceManifest', () => {
   it('creates resource and distributes in a single manifest', async () => {
     const manifest = await buildCreateBadgeResourceManifest({
@@ -260,7 +181,7 @@ const makeConfig = (
 
 const makeMockTxLayer = (entitySets: Record<string, string[]>) => {
   let txCallCount = 0
-  const intentIds = ['hash_account', 'hash_badge']
+  const intentIds = ['hash_badge']
 
   return Layer.mergeAll(
     Layer.succeed(CreateTransactionIntent, (() =>
@@ -312,9 +233,8 @@ const makeMockTxLayer = (entitySets: Record<string, string[]>) => {
 }
 
 describe('runBootstrap', () => {
-  it('orchestrates the full flow and returns addresses', async () => {
+  it('orchestrates the full flow and returns badge address', async () => {
     const layer = makeMockTxLayer({
-      hash_account: ['account_tdx_2_1new_team_account'],
       hash_badge: ['resource_tdx_2_1new_badge_resource']
     })
 
@@ -324,13 +244,12 @@ describe('runBootstrap', () => {
       runBootstrap(config, 'account_tdx_2_feepayer').pipe(Effect.provide(layer))
     )
 
-    expect(result.teamAccountAddress).toBe('account_tdx_2_1new_team_account')
     expect(result.teamMemberBadgeAddress).toBe(
       'resource_tdx_2_1new_badge_resource'
     )
   })
 
-  it('fails if no account address found in receipt', async () => {
+  it('fails if no resource address found in receipt', async () => {
     const layer = makeMockTxLayer({})
 
     const config = makeConfig({

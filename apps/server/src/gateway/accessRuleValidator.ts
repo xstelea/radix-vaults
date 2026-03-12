@@ -4,7 +4,6 @@ import {
   type ParsedAccessRule,
   type ParsedSigner
 } from '@radix-vaults/shared'
-import type { VaultAddress } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
 
 // --- Errors ---
@@ -12,13 +11,13 @@ import { Data, Effect } from 'effect'
 export class EntityNotFoundOnLedgerError extends Data.TaggedError(
   'EntityNotFoundOnLedgerError'
 )<{
-  accountAddress: string
+  entityAddress: string
 }> {}
 
 export class UnsupportedRuleError extends Data.TaggedError(
   'UnsupportedRuleError'
 )<{
-  accountAddress: string
+  entityAddress: string
   reason: string
 }> {}
 
@@ -34,47 +33,48 @@ export class AccessRuleValidator extends Effect.Service<AccessRuleValidator>()(
       const getEntityDetails = yield* GetEntityDetailsVaultAggregated
 
       const validate = (
-        accountAddress: VaultAddress
+        entityAddress: string
       ): Effect.Effect<
         ParsedAccessRule,
         EntityNotFoundOnLedgerError | UnsupportedRuleError
       > =>
         Effect.gen(function* () {
           const details = yield* getEntityDetails(
-            [accountAddress],
+            [entityAddress],
             undefined,
             undefined
           ).pipe(
             Effect.mapError(
               () =>
                 new EntityNotFoundOnLedgerError({
-                  accountAddress
+                  entityAddress
                 })
             )
           )
 
           const entity = details[0]
           if (!entity) {
-            return yield* new EntityNotFoundOnLedgerError({ accountAddress })
+            return yield* new EntityNotFoundOnLedgerError({ entityAddress })
           }
 
-          const componentDetails = entity.details
+          const entityDetails = entity.details
           if (
-            !componentDetails ||
-            componentDetails.type !== 'Component' ||
-            !componentDetails.role_assignments
+            !entityDetails ||
+            (entityDetails.type !== 'Component' &&
+              entityDetails.type !== 'FungibleResource') ||
+            !entityDetails.role_assignments
           ) {
             return yield* new UnsupportedRuleError({
-              accountAddress,
-              reason: 'Entity is not an account or has no role assignments'
+              entityAddress,
+              reason: 'Entity has no role assignments'
             })
           }
 
-          const ownerRole = componentDetails.role_assignments.owner
+          const ownerRole = entityDetails.role_assignments.owner
           const parsed = parseOwnerAccessRule(ownerRole)
           if (!parsed) {
             return yield* new UnsupportedRuleError({
-              accountAddress,
+              entityAddress,
               reason:
                 'Owner access rule is not a supported format (expected CountOf or AllOf of signature badges)'
             })

@@ -1,5 +1,6 @@
 import type { TeamOverview } from '@radix-vaults/shared'
-import { VaultsConfig } from '@radix-vaults/shared'
+import { AuthConfig } from '@radix-vaults/shared'
+import { GetResourceHoldersService } from '@radix-effects/gateway'
 import { Effect } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 
@@ -14,13 +15,14 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
   '@radix-vaults/server/handlers/TeamHandler',
   {
     effect: Effect.gen(function* () {
-      const config = yield* VaultsConfig
+      const authConfig = yield* AuthConfig
       const accessRuleValidator = yield* AccessRuleValidator
+      const getResourceHolders = yield* GetResourceHoldersService
 
       const getOverview = (): Effect.Effect<TeamOverview> =>
         Effect.gen(function* () {
           const accessRule = yield* accessRuleValidator
-            .validate(config.teamAccountAddress)
+            .validate(authConfig.teamMemberBadgeAddress)
             .pipe(Effect.orDie)
 
           const threshold =
@@ -34,10 +36,22 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
             signerKeyHash: s.localId
           }))
 
+          const holders = yield* getResourceHolders({
+            resourceAddress: authConfig.teamMemberBadgeAddress
+          }).pipe(Effect.orDie)
+
+          const badgeHolders = holders
+            .filter((h) => h.type === 'FungibleResource')
+            .map((h) => ({
+              holderAddress: h.holder_address,
+              amount: h.amount
+            }))
+
           return {
-            teamAccountAddress: config.teamAccountAddress,
+            teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
             threshold,
-            signers
+            signers,
+            badgeHolders
           } satisfies TeamOverview
         })
 

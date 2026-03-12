@@ -1,6 +1,9 @@
 import { HttpApiBuilder } from '@effect/platform'
-import { AppApi, VaultsConfig } from '@radix-vaults/shared'
-import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
+import { AppApi, AuthConfig } from '@radix-vaults/shared'
+import {
+  GetEntityDetailsVaultAggregated,
+  GetResourceHoldersService
+} from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
@@ -20,6 +23,7 @@ export const TeamHandlersLive = HttpApiBuilder.group(
   Layer.provide(TeamHandler.Default),
   Layer.provide(AccessRuleValidator.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
-  Layer.provide(VaultsConfig.Live),
+  Layer.provide(GetResourceHoldersService.Default),
+  Layer.provide(AuthConfig.Live),
   Layer.provide(GatewayApiClientLayer)
 )

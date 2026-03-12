@@ -67,8 +67,7 @@ export const runCommand = Command.make('run', { config }, ({ config }) =>
 
     yield* Effect.logInfo('Bootstrap complete!')
     yield* Effect.logInfo('')
-    yield* Effect.logInfo('Add these to your .env:')
-    yield* Effect.logInfo(`TEAM_ACCOUNT_ADDRESS=${result.teamAccountAddress}`)
+    yield* Effect.logInfo('Add this to your .env:')
     yield* Effect.logInfo(
       `TEAM_MEMBER_BADGE_ADDRESS=${result.teamMemberBadgeAddress}`
     )
@@ -76,7 +75,6 @@ export const runCommand = Command.make('run', { config }, ({ config }) =>
     console.log(
       JSON.stringify(
         {
-          TEAM_ACCOUNT_ADDRESS: result.teamAccountAddress,
           TEAM_MEMBER_BADGE_ADDRESS: result.teamMemberBadgeAddress
         },
         null,

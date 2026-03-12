@@ -5,7 +5,7 @@ import type {
   VaultDetail,
   VaultSigners
 } from '@radix-vaults/shared'
-import { AuthConfig, VaultsConfig } from '@radix-vaults/shared'
+import { AuthConfig } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import {
   AccessRuleValidator,
@@ -42,7 +42,6 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
       const importVaultRepo = yield* ImportVaultRepo
       const accessRuleValidator = yield* AccessRuleValidator
       const transactionSubmitter = yield* TransactionSubmitter
-      const vaultsConfig = yield* VaultsConfig
       const authConfig = yield* AuthConfig
 
       const list = () => listVaultsRepo.list().pipe(Effect.orDie)
@@ -99,7 +98,7 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
       > =>
         Effect.gen(function* () {
           const accessRule = yield* accessRuleValidator
-            .validate(vaultsConfig.teamAccountAddress)
+            .validate(authConfig.teamMemberBadgeAddress)
             .pipe(Effect.orDie)
 
           const signers = accessRule.signers

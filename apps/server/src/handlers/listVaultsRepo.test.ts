@@ -1,6 +1,6 @@
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { VaultAddress, VaultsConfig } from '@radix-vaults/shared'
+import { VaultAddress } from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Redacted } from 'effect'
@@ -68,8 +68,7 @@ const seedVaultRows = Effect.gen(function* () {
 
 const runWithRepo = <A>(
   pgClientLayer: ReturnType<typeof PgClient.layer>,
-  f: (repo: ListVaultsRepo) => Effect.Effect<A, unknown, never>,
-  configLayer = VaultsConfig.layer('account_tdx_2_1qteam')
+  f: (repo: ListVaultsRepo) => Effect.Effect<A, unknown, never>
 ) =>
   Effect.gen(function* () {
     const repo = yield* ListVaultsRepo
@@ -77,14 +76,11 @@ const runWithRepo = <A>(
   }).pipe(
     Effect.provide(ListVaultsRepo.Default),
     Effect.provide(ORM.Default),
-    Effect.provide(configLayer),
     Effect.provide(pgClientLayer)
   )
 
-const listFromRepo = (
-  pgClientLayer: ReturnType<typeof PgClient.layer>,
-  configLayer = VaultsConfig.layer('account_tdx_2_1qteam')
-) => runWithRepo(pgClientLayer, (repo) => repo.list(), configLayer)
+const listFromRepo = (pgClientLayer: ReturnType<typeof PgClient.layer>) =>
+  runWithRepo(pgClientLayer, (repo) => repo.list())
 
 describe('ListVaultsRepo', () => {
   it.scopedLive(
@@ -111,32 +107,6 @@ describe('ListVaultsRepo', () => {
         expect(list.map((vault) => vault.pendingProposalCount)).toEqual([
           2, 1, 0
         ])
-      }).pipe(Effect.provide(PgContainer.Default)),
-    90_000
-  )
-
-  it.scopedLive(
-    'excludes TEAM_ACCOUNT_ADDRESS from list results',
-    () =>
-      Effect.gen(function* () {
-        const container = yield* PgContainer
-        const connectionUri = container.getConnectionUri()
-        const pgClientLayer = PgClient.layer({
-          url: Redacted.make(connectionUri)
-        })
-
-        yield* runMigrations(connectionUri)
-        yield* seedVaultRows.pipe(Effect.provide(pgClientLayer))
-
-        const list = yield* listFromRepo(
-          pgClientLayer,
-          VaultsConfig.layer('account_tdx_2_1qbeta')
-        )
-
-        expect(list).toHaveLength(2)
-        expect(
-          list.find((vault) => vault.accountAddress === 'account_tdx_2_1qbeta')
-        ).toBeUndefined()
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )

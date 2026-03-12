@@ -3,8 +3,7 @@ import {
   AppApi,
   CurrentSession,
   ProposalNotFoundError,
-  VaultNotFoundErrorSchema,
-  VaultsConfig
+  VaultNotFoundErrorSchema
 } from '@radix-vaults/shared'
 import {
   GetEntityDetailsVaultAggregated,
@@ -157,6 +156,5 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
   Layer.provide(PreviewTransaction.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(ORM.Default),
-  Layer.provide(VaultsConfig.Live),
   Layer.provide(GatewayApiClientLayer)
 )

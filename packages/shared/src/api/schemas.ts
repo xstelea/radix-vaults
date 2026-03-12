@@ -49,7 +49,7 @@ export const ImportVaultResponseSchema = Schema.Struct({
 export class UnsupportedAccessRuleError extends Schema.TaggedError<UnsupportedAccessRuleError>()(
   'UnsupportedAccessRuleError',
   {
-    accountAddress: VaultAddress,
+    entityAddress: Schema.String,
     message: Schema.String
   },
   HttpApiSchema.annotations({ status: 422 })
@@ -103,12 +103,19 @@ export type CreateVaultResponse = typeof CreateVaultResponseSchema.Type
 
 // --- Team schemas ---
 
-export const TeamOverviewSchema = Schema.Struct({
-  teamAccountAddress: VaultAddress,
-  threshold: Schema.Number,
-  signers: Schema.Array(SignerSchema)
+export const BadgeHolderSchema = Schema.Struct({
+  holderAddress: Schema.String,
+  amount: Schema.String
 })
 
+export const TeamOverviewSchema = Schema.Struct({
+  teamMemberBadgeAddress: Schema.String,
+  threshold: Schema.Number,
+  signers: Schema.Array(SignerSchema),
+  badgeHolders: Schema.Array(BadgeHolderSchema)
+})
+
+export type BadgeHolder = typeof BadgeHolderSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
 
 // --- Proposal schemas ---

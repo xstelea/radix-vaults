@@ -2,12 +2,11 @@ import { proposals, vaults } from '@radix-vaults/database'
 import {
   VaultAddress,
   type VaultAddress as VaultAddressType,
-  VaultsConfig,
   type VaultDetail,
   type VaultListItem
 } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
-import { and, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 const pendingStatuses = ['created', 'signing', 'ready'] as const
@@ -21,7 +20,6 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
   {
     effect: Effect.gen(function* () {
       const db = yield* ORM
-      const config = yield* VaultsConfig
 
       const selectVaultBase = () =>
         db
@@ -41,7 +39,6 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
 
       const list = () =>
         selectVaultBase()
-          .where(ne(vaults.accountAddress, config.teamAccountAddress))
           .groupBy(vaults.accountAddress, vaults.name, vaults.createdAt)
           .orderBy(vaults.createdAt)
           .pipe(
