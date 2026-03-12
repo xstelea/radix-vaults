@@ -1,4 +1,4 @@
-import { GatewayApiClient } from '@radix-effects/gateway'
+import { GatewayApiClient, PreviewTransactionV2 } from '@radix-effects/gateway'
 import {
   Epoch,
   HexString,
@@ -18,12 +18,14 @@ import {
 import {
   Convert,
   PrivateKey,
-  RadixEngineToolkit
+  RadixEngineToolkit,
+  type PreviewTransactionV2 as RETPreviewTransactionV2
 } from '@steleaio/radix-engine-toolkit'
 import { Config, ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
 import {
   TransactionSubmitError,
-  TransactionSubmitter
+  TransactionSubmitter,
+  type PreviewSubintentResult
 } from './transactionSubmitter'
 
 export const TransactionSubmitterLive = Layer.unwrapEffect(
@@ -69,7 +71,16 @@ export const TransactionSubmitterLive = Layer.unwrapEffect(
       TransactionHeaderV2.Default
     ).pipe(Layer.provide(SignerLayer), Layer.provide(GatewayLayer))
 
-    const AppLayer = Layer.mergeAll(TxLayer, GatewayLayer, SignerLayer)
+    const PreviewV2Layer = PreviewTransactionV2.Default.pipe(
+      Layer.provide(GatewayLayer)
+    )
+
+    const AppLayer = Layer.mergeAll(
+      TxLayer,
+      GatewayLayer,
+      SignerLayer,
+      PreviewV2Layer
+    )
 
     return Layer.succeed(
       TransactionSubmitter,
@@ -250,6 +261,166 @@ YIELD_TO_CHILD
               (e) =>
                 new TransactionSubmitError({
                   message: `Transaction failed: ${String(e)}`
+                })
+            )
+          ),
+
+        previewSubintent: (
+          partialTransactionHex: string
+        ): Effect.Effect<PreviewSubintentResult, TransactionSubmitError> =>
+          Effect.gen(function* () {
+            const headerV2Service = yield* TransactionHeaderV2
+            const previewV2 = yield* PreviewTransactionV2
+
+            // 1. Decompile stored partial transaction
+            const partialBytes = Convert.HexString.toUint8Array(
+              partialTransactionHex
+            )
+            const partialTx = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.PartialTransactionV2.decompile(
+                partialBytes,
+                networkId
+              )
+            )
+
+            // 2. Hash child subintent
+            const childSubintentHash = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.SubintentV2.hash(partialTx.rootSubintent)
+            )
+
+            // 3. Get V2 headers (auto-fills epoch, uses fee payer as notary)
+            const { transactionHeader, intentHeader } = yield* headerV2Service({
+              networkId: NetworkId.make(networkId),
+              startEpochInclusive: Option.none(),
+              endEpochExclusive: Option.none(),
+              notaryIsSignatory: true
+            })
+
+            // 4. Root manifest: USE_CHILD + lock_fee + YIELD_TO_CHILD
+            const rootManifest = TransactionManifestString.make(
+              `USE_CHILD
+  NamedIntent("withdrawal")
+  Intent("${childSubintentHash.id}")
+;
+CALL_METHOD
+  Address("${feePayerAddress}")
+  "lock_fee"
+  Decimal("10")
+;
+YIELD_TO_CHILD
+  NamedIntent("withdrawal")
+;
+`
+            )
+
+            // 5. Adapt decompiled subintent to tx-tool branded types
+            const childCore = partialTx.rootSubintent.intentCore
+            const childSubintent = {
+              intentCore: {
+                header: {
+                  networkId: NetworkId.make(childCore.header.networkId),
+                  startEpochInclusive: Epoch.make(
+                    childCore.header.startEpochInclusive
+                  ),
+                  endEpochExclusive: Epoch.make(
+                    childCore.header.endEpochExclusive
+                  ),
+                  intentDiscriminator: childCore.header.intentDiscriminator,
+                  ...(childCore.header.minProposerTimestampInclusive !==
+                    undefined && {
+                    minProposerTimestampInclusive:
+                      childCore.header.minProposerTimestampInclusive
+                  }),
+                  ...(childCore.header.maxProposerTimestampExclusive !==
+                    undefined && {
+                    maxProposerTimestampExclusive:
+                      childCore.header.maxProposerTimestampExclusive
+                  })
+                },
+                instructions: TransactionManifestString.make(
+                  childCore.instructions as string
+                ),
+                blobs: [...childCore.blobs],
+                message: childCore.message as schemas.TransactionMessageV2,
+                children: [...childCore.children]
+              }
+            } satisfies schemas.SubintentV2
+
+            // 6. Build TransactionIntentV2
+            const intent: schemas.TransactionIntentV2 = {
+              transactionHeader,
+              rootIntentCore: {
+                header: intentHeader,
+                instructions: rootManifest,
+                blobs: [],
+                message: { kind: 'None' as const },
+                children: [childSubintentHash.hash]
+              },
+              nonRootSubintents: [childSubintent]
+            }
+
+            // 7. Build PreviewTransactionV2 and compile to hex
+            const previewTx = {
+              transactionIntent: intent,
+              rootSignerPublicKeys: [] as Array<{
+                curve: 'Ed25519' | 'Secp256k1'
+                publicKey: Uint8Array
+              }>,
+              nonRootSubintentSignerPublicKeys: [[]] as Array<
+                Array<{
+                  curve: 'Ed25519' | 'Secp256k1'
+                  publicKey: Uint8Array
+                }>
+              >
+            }
+            const compiledBytes = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.PreviewTransactionV2.compile(
+                previewTx as unknown as RETPreviewTransactionV2
+              )
+            )
+            const previewTransactionHex =
+              Convert.Uint8Array.toHexString(compiledBytes)
+
+            // 8. Call gateway PreviewTransactionV2
+            const result = yield* previewV2({
+              payload: {
+                preview_transaction: {
+                  type: 'Compiled',
+                  preview_transaction_hex: previewTransactionHex
+                },
+                flags: {
+                  assume_all_signature_proofs: true,
+                  use_free_credit: true,
+                  skip_epoch_check: true
+                },
+                opt_ins: {
+                  radix_engine_toolkit_receipt: true,
+                  logs: true
+                }
+              }
+            })
+
+            // V2 preview returns receipt data in radix_engine_toolkit_receipt
+            // (when opted in), while `receipt` may be null/undefined.
+            const receipt =
+              (result.radix_engine_toolkit_receipt as
+                | Record<string, unknown>
+                | undefined) ??
+              (result.receipt as Record<string, unknown> | undefined)
+
+            return {
+              receipt,
+              logs: (result.logs ?? []).map((l) => ({
+                level: l.level,
+                message: l.message
+              }))
+            }
+          }).pipe(
+            Effect.provide(AppLayer),
+            Effect.mapError(
+              (e) =>
+                new TransactionSubmitError({
+                  message: `Preview failed: ${String(e)}`
                 })
             )
           )

@@ -296,6 +296,18 @@ export const RefreshStatusResponseSchema = Schema.Struct({
   submittedAt: Schema.NullOr(Schema.String)
 })
 
+export const PreviewProposalLogSchema = Schema.Struct({
+  level: Schema.String,
+  message: Schema.String
+})
+
+export const PreviewProposalResponseSchema = Schema.Struct({
+  receipt: Schema.NullOr(Schema.Unknown),
+  logs: Schema.Array(PreviewProposalLogSchema)
+})
+
+export type PreviewProposalResponse = typeof PreviewProposalResponseSchema.Type
+
 export type CreateProposalRequest = typeof CreateProposalRequestSchema.Type
 export type CreateProposalResponse = typeof CreateProposalResponseSchema.Type
 export type ProposalListItem = typeof ProposalListItemSchema.Type

@@ -17,6 +17,7 @@ import {
   signProposal,
   submitProposal
 } from '@/atom/proposals'
+import { TransactionPreviewCard } from '@/components/transaction-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -223,6 +224,11 @@ function ProposalDetailContent() {
             onStatusRefreshed={refresh}
           />
         )}
+
+        <TransactionPreviewCard
+          vaultAddress={vaultAddress}
+          proposalId={proposal.id}
+        />
 
         <Card>
           <CardHeader>

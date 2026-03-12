@@ -446,7 +446,45 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }
         })
 
-      return { create, list, getDetail, sign, submit, refreshStatus } as const
+      const preview = (
+        vaultAddress: VaultAddressType,
+        proposalId: ProposalId
+      ) =>
+        Effect.gen(function* () {
+          yield* listVaultsRepo.ensureExists(vaultAddress)
+          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+
+          if (!proposal.partialTransactionHex) {
+            return yield* new ProposalPreviewFailedError({
+              message: 'Proposal missing partial transaction data'
+            })
+          }
+
+          const result = yield* transactionSubmitter
+            .previewSubintent(proposal.partialTransactionHex)
+            .pipe(
+              Effect.catchTag('TransactionSubmitError', (e) =>
+                Effect.fail(
+                  new ProposalPreviewFailedError({ message: e.message })
+                )
+              )
+            )
+
+          return {
+            receipt: result.receipt ?? null,
+            logs: result.logs
+          }
+        })
+
+      return {
+        create,
+        list,
+        getDetail,
+        sign,
+        submit,
+        refreshStatus,
+        preview
+      } as const
     })
   }
 ) {}

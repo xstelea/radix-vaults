@@ -187,6 +187,14 @@ export const refreshProposalStatus = runtime.fn(
     )
 )
 
+export const previewProposal = runtime.fn(
+  (args: { vaultAddress: VaultAddress; proposalId: ProposalId }) =>
+    Effect.gen(function* () {
+      const svc = yield* ProposalService
+      return yield* svc.preview(args.vaultAddress, args.proposalId)
+    })
+)
+
 interface ProposalDetailKey {
   readonly vaultAddress: VaultAddress
   readonly proposalId: ProposalId

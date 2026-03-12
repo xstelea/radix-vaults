@@ -27,6 +27,7 @@ import {
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
   NotEligibleSignerError,
+  PreviewProposalResponseSchema,
   ProposalDetailSchema,
   ProposalExpiredError,
   ProposalInvalidError,
@@ -237,6 +238,22 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(ProposalNotSubmittedError)
       .addError(ProposalStatusCheckFailedError)
       .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'preview',
+      '/vaults/:vaultAddress/proposals/:proposalId/preview'
+    )
+      .setPath(
+        Schema.Struct({
+          vaultAddress: VaultAddress,
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
+        })
+      )
+      .addSuccess(PreviewProposalResponseSchema)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ProposalNotFoundError)
+      .addError(ProposalPreviewFailedError)
   ) {}
 
 // --- Health endpoint ---

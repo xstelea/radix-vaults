@@ -40,6 +40,10 @@ export class ProposalService extends Effect.Service<ProposalService>()(
         refreshStatus: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
           client.proposals.refreshStatus({
             path: { vaultAddress, proposalId }
+          }),
+        preview: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
+          client.proposals.preview({
+            path: { vaultAddress, proposalId }
           })
       }
     })
