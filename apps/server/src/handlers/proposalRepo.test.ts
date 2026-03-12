@@ -85,6 +85,7 @@ describe('ProposalRepo', () => {
             manifest: 'CALL_METHOD Address("test") "deposit" ;',
             maxProposerTimestamp: '2026-12-31T23:59:59',
             createdBy: 'account_tdx_2_1qcreator',
+            createdAt: new Date(),
             subintentHash: 'subtxid_test_1',
             intentDiscriminator: '123456',
             partialTransactionHex: 'deadbeef',
@@ -117,30 +118,32 @@ describe('ProposalRepo', () => {
         yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         yield* runWithRepo(pgClientLayer, (repo) =>
-          Effect.all([
-            repo.insert({
+          Effect.gen(function* () {
+            yield* repo.insert({
               vaultAddress: VAULT,
               manifest: 'manifest1',
               maxProposerTimestamp: '2026-12-31',
               createdBy: 'creator1',
+              createdAt: new Date('2026-01-01T00:00:00Z'),
               subintentHash: 'subtxid_test_2',
               intentDiscriminator: '111',
               partialTransactionHex: 'aa',
               epochMin: 100,
               epochMax: 200
-            }),
-            repo.insert({
+            })
+            yield* repo.insert({
               vaultAddress: VAULT,
               manifest: 'manifest2',
               maxProposerTimestamp: '2026-12-31',
               createdBy: 'creator2',
+              createdAt: new Date('2026-01-02T00:00:00Z'),
               subintentHash: 'subtxid_test_3',
               intentDiscriminator: '222',
               partialTransactionHex: 'bb',
               epochMin: 100,
               epochMax: 200
             })
-          ])
+          })
         )
 
         const list = yield* runWithRepo(pgClientLayer, (repo) =>
@@ -173,6 +176,7 @@ describe('ProposalRepo', () => {
             manifest: 'CALL_METHOD ...',
             maxProposerTimestamp: '2026-12-31',
             createdBy: 'creator',
+            createdAt: new Date(),
             subintentHash: 'subtxid_test_4',
             intentDiscriminator: '333',
             partialTransactionHex: 'cc',

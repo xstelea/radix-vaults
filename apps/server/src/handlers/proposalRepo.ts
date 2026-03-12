@@ -32,6 +32,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         manifest: string
         maxProposerTimestamp: string
         createdBy: string
+        createdAt: Date
         subintentHash: string
         intentDiscriminator: string
         partialTransactionHex: string
@@ -46,6 +47,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             manifest: input.manifest,
             maxProposerTimestamp: input.maxProposerTimestamp,
             createdBy: input.createdBy,
+            createdAt: input.createdAt,
             subintentHash: input.subintentHash,
             intentDiscriminator: input.intentDiscriminator,
             partialTransactionHex: input.partialTransactionHex,

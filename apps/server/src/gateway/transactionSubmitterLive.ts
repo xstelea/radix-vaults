@@ -1,15 +1,26 @@
 import { GatewayApiClient } from '@radix-effects/gateway'
-import { HexString, TransactionManifestString } from '@radix-effects/shared'
+import {
+  Epoch,
+  HexString,
+  NetworkId,
+  TransactionManifestString
+} from '@radix-effects/shared'
 import {
   CompileTransaction,
   CreateTransactionIntent,
   IntentHashService,
+  schemas,
   Signer,
   SubmitTransaction,
+  TransactionHeaderV2,
   TransactionStatus
 } from '@radix-effects/tx-tool'
-import { PrivateKey, RadixEngineToolkit } from '@steleaio/radix-engine-toolkit'
-import { Config, ConfigProvider, Effect, Layer, Redacted } from 'effect'
+import {
+  Convert,
+  PrivateKey,
+  RadixEngineToolkit
+} from '@steleaio/radix-engine-toolkit'
+import { Config, ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
 import {
   TransactionSubmitError,
   TransactionSubmitter
@@ -54,7 +65,8 @@ export const TransactionSubmitterLive = Layer.unwrapEffect(
       CompileTransaction.Default,
       SubmitTransaction.Default,
       TransactionStatus.Default,
-      IntentHashService.Default
+      IntentHashService.Default,
+      TransactionHeaderV2.Default
     ).pipe(Layer.provide(SignerLayer), Layer.provide(GatewayLayer))
 
     const AppLayer = Layer.mergeAll(TxLayer, GatewayLayer, SignerLayer)
@@ -117,19 +129,127 @@ export const TransactionSubmitterLive = Layer.unwrapEffect(
             )
           ),
 
-        submitNotarizedHex: (notarizedTransactionHex) =>
+        submitWithSubintent: ({ partialTransactionHex, signatures }) =>
           Effect.gen(function* () {
+            const headerV2Service = yield* TransactionHeaderV2
+            const intentHashSvc = yield* IntentHashService
+            const compile = yield* CompileTransaction
             const submit = yield* SubmitTransaction
 
-            yield* submit({
-              compiledTransaction: Buffer.from(notarizedTransactionHex, 'hex')
+            // 1. Decompile stored partial transaction
+            const partialBytes = Convert.HexString.toUint8Array(
+              partialTransactionHex
+            )
+            const partialTx = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.PartialTransactionV2.decompile(
+                partialBytes,
+                networkId
+              )
+            )
+
+            // 2. Hash child subintent
+            const childSubintentHash = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.SubintentV2.hash(partialTx.rootSubintent)
+            )
+
+            // 3. Get V2 headers (auto-fills epoch, uses fee payer as notary)
+            const { transactionHeader, intentHeader } = yield* headerV2Service({
+              networkId: NetworkId.make(networkId),
+              startEpochInclusive: Option.none(),
+              endEpochExclusive: Option.none(),
+              notaryIsSignatory: true
             })
+
+            // 4. Root manifest: USE_CHILD + lock_fee + YIELD_TO_CHILD
+            const rootManifest = TransactionManifestString.make(
+              `USE_CHILD
+  NamedIntent("withdrawal")
+  Intent("${childSubintentHash.id}")
+;
+CALL_METHOD
+  Address("${feePayerAddress}")
+  "lock_fee"
+  Decimal("10")
+;
+YIELD_TO_CHILD
+  NamedIntent("withdrawal")
+;
+`
+            )
+
+            // 5. Adapt decompiled subintent to tx-tool branded types
+            const childCore = partialTx.rootSubintent.intentCore
+            const childSubintent = {
+              intentCore: {
+                header: {
+                  networkId: NetworkId.make(childCore.header.networkId),
+                  startEpochInclusive: Epoch.make(
+                    childCore.header.startEpochInclusive
+                  ),
+                  endEpochExclusive: Epoch.make(
+                    childCore.header.endEpochExclusive
+                  ),
+                  intentDiscriminator: childCore.header.intentDiscriminator,
+                  ...(childCore.header.minProposerTimestampInclusive !==
+                    undefined && {
+                    minProposerTimestampInclusive:
+                      childCore.header.minProposerTimestampInclusive
+                  }),
+                  ...(childCore.header.maxProposerTimestampExclusive !==
+                    undefined && {
+                    maxProposerTimestampExclusive:
+                      childCore.header.maxProposerTimestampExclusive
+                  })
+                },
+                instructions: TransactionManifestString.make(
+                  childCore.instructions as string
+                ),
+                blobs: [...childCore.blobs],
+                message: childCore.message as schemas.TransactionMessageV2,
+                children: [...childCore.children]
+              }
+            } satisfies schemas.SubintentV2
+
+            // 6. Build TransactionIntentV2
+            const intent: schemas.TransactionIntentV2 = {
+              transactionHeader,
+              rootIntentCore: {
+                header: intentHeader,
+                instructions: rootManifest,
+                blobs: [],
+                message: { kind: 'None' as const },
+                children: [childSubintentHash.hash]
+              },
+              nonRootSubintents: [childSubintent]
+            }
+
+            // 7. Map signatures to tx-tool format
+            const childSigs = signatures.map((sig) => ({
+              curve: (sig.keyType === 'ed25519'
+                ? 'Ed25519'
+                : 'Secp256k1') as schemas.Ed25519SignatureWithPublicKey['curve'],
+              signature: new Uint8Array(Buffer.from(sig.signatureHex, 'hex')),
+              publicKey: new Uint8Array(Buffer.from(sig.publicKeyHex, 'hex'))
+            }))
+
+            // 8. Get intent hash
+            const { id } = yield* intentHashSvc.create(intent)
+
+            // 9. Compile + submit (no polling)
+            const compiled = yield* compile({
+              intent,
+              signatures: [],
+              subintentSignatures: [childSigs]
+            })
+            yield* submit({ compiledTransaction: compiled })
+
+            return { intentHash: id }
           }).pipe(
             Effect.provide(AppLayer),
             Effect.mapError(
               (e) =>
                 new TransactionSubmitError({
-                  message: `Transaction submission failed: ${String(e)}`
+                  message: `Transaction failed: ${String(e)}`
                 })
             )
           )

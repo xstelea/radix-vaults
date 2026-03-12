@@ -1,15 +1,9 @@
 import {
   Convert,
-  PrivateKey,
-  PublicKey,
   RadixEngineToolkit,
-  SignatureWithPublicKey,
-  TransactionV2Builder,
   type IntentCoreV2,
   type IntentHeaderV2,
-  type PartialTransactionV2,
-  type SignedPartialTransactionV2,
-  type TransactionHeaderV2
+  type PartialTransactionV2
 } from '@steleaio/radix-engine-toolkit'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { Effect } from 'effect'
@@ -42,7 +36,8 @@ export const buildUnsignedSubintent = (
   networkId: number,
   epochMin: number,
   epochMax: number,
-  maxProposerTimestampMs?: number
+  maxProposerTimestampSec?: number,
+  minProposerTimestampSec?: number
 ): Effect.Effect<UnsignedSubintentResult, SubintentBuildError> =>
   Effect.tryPromise({
     try: async () => {
@@ -54,8 +49,11 @@ export const buildUnsignedSubintent = (
         startEpochInclusive: epochMin,
         endEpochExclusive: epochMax,
         intentDiscriminator: Number(intentDiscriminator),
-        ...(maxProposerTimestampMs !== undefined && {
-          maxProposerTimestampExclusive: maxProposerTimestampMs
+        ...(maxProposerTimestampSec !== undefined && {
+          maxProposerTimestampExclusive: maxProposerTimestampSec
+        }),
+        ...(minProposerTimestampSec !== undefined && {
+          minProposerTimestampInclusive: minProposerTimestampSec
         })
       }
 
@@ -63,7 +61,13 @@ export const buildUnsignedSubintent = (
         header,
         instructions: subintentManifest,
         blobs: [],
-        message: { kind: 'None' },
+        message: {
+          kind: 'PlainText',
+          value: {
+            mimeType: 'text/plain',
+            message: { kind: 'String', value: '' }
+          }
+        },
         children: []
       }
 
@@ -171,112 +175,6 @@ export const computePublicKeyHash = (publicKeyHex: string): string => {
   return Buffer.from(last29).toString('hex')
 }
 
-export const reconstructAndCompose = (
-  partialTxHex: string,
-  signatures: ReadonlyArray<{
-    publicKeyHex: string
-    signatureHex: string
-    keyType: 'ed25519' | 'secp256k1'
-  }>,
-  feePayerPrivateKeyHex: string,
-  feePayerAccountAddress: string,
-  networkId: number,
-  currentEpoch: number
-): Effect.Effect<
-  { notarizedTransactionHex: string; intentHash: string },
-  TransactionCompositionError
-> =>
-  Effect.tryPromise({
-    try: async () => {
-      // 1. Decompile the stored unsigned partial transaction
-      const partialBytes = Convert.HexString.toUint8Array(partialTxHex)
-      const partialTx = await RadixEngineToolkit.PartialTransactionV2.decompile(
-        partialBytes,
-        networkId
-      )
-
-      // 2. Build SignatureWithPublicKey array from collected signatures
-      const signaturesWithPk: SignatureWithPublicKey[] = signatures.map(
-        (sig) => {
-          const sigBytes = Convert.HexString.toUint8Array(sig.signatureHex)
-          const pubKeyBytes = Convert.HexString.toUint8Array(sig.publicKeyHex)
-          return sig.keyType === 'ed25519'
-            ? new SignatureWithPublicKey.Ed25519(sigBytes, pubKeyBytes)
-            : new SignatureWithPublicKey.Secp256k1(sigBytes)
-        }
-      )
-
-      // 3. Fee payer key
-      const feePayerKey = new PrivateKey.Ed25519(feePayerPrivateKeyHex)
-
-      // 4. Compute the child subintent hash (needed for USE_CHILD + children array)
-      const childHash = await RadixEngineToolkit.SubintentV2.hash(
-        partialTx.rootSubintent
-      )
-
-      // 5. Build main transaction header
-      const transactionHeader: TransactionHeaderV2 = {
-        notaryPublicKey: feePayerKey.publicKey(),
-        notaryIsSignatory: true,
-        tipBasisPoints: 0
-      }
-
-      // 6. Main intent: USE_CHILD + lock_fee + yield_to_child
-      const mainManifest = `USE_CHILD
-  NamedIntent("withdrawal")
-  Intent("${childHash.id}")
-;
-CALL_METHOD
-  Address("${feePayerAccountAddress}")
-  "lock_fee"
-  Decimal("10")
-;
-YIELD_TO_CHILD
-  NamedIntent("withdrawal")
-;
-`
-
-      const mainIntentHeader: IntentHeaderV2 = {
-        networkId,
-        startEpochInclusive: currentEpoch,
-        endEpochExclusive: currentEpoch + 10,
-        intentDiscriminator: Number(randomDiscriminator())
-      }
-
-      const rootIntentCore: IntentCoreV2 = {
-        header: mainIntentHeader,
-        instructions: mainManifest,
-        blobs: [],
-        message: { kind: 'None' },
-        children: [childHash.hash]
-      }
-
-      // 7. Build the notarized transaction V2
-      const builder = await TransactionV2Builder.new()
-      const notarized = await builder
-        .header(transactionHeader)
-        .rootIntentCore(rootIntentCore)
-        .addSignedSubintent(partialTx.rootSubintent, signaturesWithPk)
-        .notarize(feePayerKey)
-
-      // 7. Compile to hex
-      const compiledBytes =
-        await RadixEngineToolkit.NotarizedTransactionV2.compile(notarized)
-      const notarizedTransactionHex =
-        Convert.Uint8Array.toHexString(compiledBytes)
-
-      // 8. Get intent hash
-      const txHash =
-        await RadixEngineToolkit.NotarizedTransactionV2.hash(notarized)
-
-      return {
-        notarizedTransactionHex,
-        intentHash: txHash.id
-      }
-    },
-    catch: (e) => new TransactionCompositionError({ message: String(e) })
-  })
-
 // --- Errors ---
 
 import { Data } from 'effect'
@@ -289,12 +187,6 @@ export class SubintentBuildError extends Data.TaggedError(
 
 export class SignatureExtractionError extends Data.TaggedError(
   'SignatureExtractionError'
-)<{
-  message: string
-}> {}
-
-export class TransactionCompositionError extends Data.TaggedError(
-  'TransactionCompositionError'
 )<{
   message: string
 }> {}

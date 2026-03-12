@@ -77,18 +77,26 @@ const requestWalletSignature = (
     const rdtRef = yield* RadixDappToolkit
     const rdt = yield* Ref.get(rdtRef)
 
-    const maxTs = new Date(proposal.maxProposerTimestamp)
+    const maxTs = new Date(
+      proposal.maxProposerTimestamp.endsWith('Z')
+        ? proposal.maxProposerTimestamp
+        : proposal.maxProposerTimestamp + 'Z'
+    )
     const expirationSeconds = Math.floor(maxTs.getTime() / 1000)
 
     const request = SubintentRequestBuilder()
       .manifest(ensureYieldToParent(proposal.manifest))
-      .setExpiration('atTime', expirationSeconds)
-      .message('')
       .header({
-        startEpochInclusive: proposal.epochMin!,
-        endEpochExclusive: proposal.epochMax!,
+        startEpochInclusive: proposal.epochMin,
+        endEpochExclusive: proposal.epochMax,
+        maxProposerTimestampExclusive: Math.floor(maxTs.getTime() / 1000),
+        minProposerTimestampInclusive: Math.floor(
+          new Date(proposal.createdAt).getTime() / 1000
+        ),
         intentDiscriminator: Number(proposal.intentDiscriminator)
       })
+      .setExpiration('atTime', expirationSeconds)
+      .message('')
 
     const result = yield* Effect.promise(() =>
       rdt.walletApi.sendPreAuthorizationRequest(request)

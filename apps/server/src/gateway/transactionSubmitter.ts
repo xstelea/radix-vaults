@@ -25,9 +25,14 @@ export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()
           })
         ),
 
-      submitNotarizedHex: (
-        _notarizedTransactionHex: string
-      ): Effect.Effect<void, TransactionSubmitError> =>
+      submitWithSubintent: (_args: {
+        partialTransactionHex: string
+        signatures: ReadonlyArray<{
+          publicKeyHex: string
+          signatureHex: string
+          keyType: 'ed25519' | 'secp256k1'
+        }>
+      }): Effect.Effect<{ intentHash: string }, TransactionSubmitError> =>
         Effect.fail(
           new TransactionSubmitError({
             message:

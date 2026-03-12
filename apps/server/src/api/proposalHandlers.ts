@@ -15,8 +15,10 @@ import { Effect, Layer } from 'effect'
 import { ORM } from '../db/orm'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
-import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
-import { TransactionSubmitter } from '../gateway/transactionSubmitter'
+import {
+  TransactionStatusChecker,
+  TransactionStatusCheckerLive
+} from '../gateway/transactionStatusChecker'
 import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 import { ProposalRepo } from '../handlers/proposalRepo'
 import { ProposalsHandler } from '../handlers/proposals'
@@ -150,8 +152,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
   Layer.provide(ProposalRepo.Default),
   Layer.provide(ListVaultsRepo.Default),
   Layer.provide(AccessRuleValidator.Default),
-  Layer.provide(TransactionSubmitter.Default),
-  Layer.provide(TransactionStatusChecker.Default),
+  Layer.provide(TransactionStatusCheckerLive),
   Layer.provide(GetLedgerStateService.Default),
   Layer.provide(PreviewTransaction.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),

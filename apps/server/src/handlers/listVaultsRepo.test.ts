@@ -55,14 +55,14 @@ const seedVaultRows = Effect.gen(function* () {
   `
 
   yield* sql`
-    INSERT INTO proposals (vault_address, status, manifest, max_proposer_timestamp, created_by, intent_discriminator)
+    INSERT INTO proposals (vault_address, status, manifest, max_proposer_timestamp, created_by, intent_discriminator, epoch_min, epoch_max)
     VALUES
-      ('account_tdx_2_1qalpha', 'created', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '1'),
-      ('account_tdx_2_1qalpha', 'ready', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '2'),
-      ('account_tdx_2_1qalpha', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '3'),
-      ('account_tdx_2_1qbeta', 'signing', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '4'),
-      ('account_tdx_2_1qbeta', 'failed', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '5'),
-      ('account_tdx_2_1qgamma', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '6')
+      ('account_tdx_2_1qalpha', 'created', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '1', 100, 200),
+      ('account_tdx_2_1qalpha', 'ready', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '2', 100, 200),
+      ('account_tdx_2_1qalpha', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '3', 100, 200),
+      ('account_tdx_2_1qbeta', 'signing', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '4', 100, 200),
+      ('account_tdx_2_1qbeta', 'failed', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '5', 100, 200),
+      ('account_tdx_2_1qgamma', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '6', 100, 200)
   `
 })
 

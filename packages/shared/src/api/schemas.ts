@@ -139,8 +139,8 @@ export const CreateProposalResponseSchema = Schema.Struct({
   createdAt: Schema.String,
   subintentHash: Schema.NullOr(Schema.String),
   intentDiscriminator: Schema.String,
-  epochMin: Schema.NullOr(Schema.Number),
-  epochMax: Schema.NullOr(Schema.Number)
+  epochMin: Schema.Number,
+  epochMax: Schema.Number
 })
 
 export const ProposalListItemSchema = Schema.Struct({
@@ -174,8 +174,8 @@ export const ProposalDetailSchema = Schema.Struct({
   createdAt: Schema.String,
   subintentHash: Schema.NullOr(Schema.String),
   intentDiscriminator: Schema.String,
-  epochMin: Schema.NullOr(Schema.Number),
-  epochMax: Schema.NullOr(Schema.Number),
+  epochMin: Schema.Number,
+  epochMax: Schema.Number,
   signatureProgress: SignatureProgressSchema,
   transactionIntentHash: Schema.NullOr(Schema.String),
   submittedAt: Schema.NullOr(Schema.String),

@@ -19,14 +19,13 @@ import {
   GetLedgerStateService,
   PreviewTransaction
 } from '@radix-effects/gateway'
-import { Config, Effect, Redacted } from 'effect'
+import { Config, DateTime, Effect, Option } from 'effect'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import {
   buildUnsignedSubintent,
   computePublicKeyHash,
   computeSubintentHashFromSignedPartial,
-  extractSignatureFromHex,
-  reconstructAndCompose
+  extractSignatureFromHex
 } from '../gateway/subintentBuilder'
 import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
@@ -39,13 +38,6 @@ const isExpired = (maxProposerTimestamp: string): boolean => {
   const deadline = new Date(maxProposerTimestamp)
   return !isNaN(deadline.getTime()) && deadline.getTime() < Date.now()
 }
-
-const ED25519_RESOURCE_SUFFIX = 'ed25sg'
-
-const keyTypeFromResource = (
-  resourceAddress: string
-): 'ed25519' | 'secp256k1' =>
-  resourceAddress.endsWith(ED25519_RESOURCE_SUFFIX) ? 'ed25519' : 'secp256k1'
 
 const extractPreviewErrorMessage = (e: { _tag: string; message?: string }) => {
   try {
@@ -108,11 +100,18 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           const ledgerState = yield* getLedgerState({}).pipe(Effect.orDie)
           const currentEpoch = ledgerState.epoch
 
-          // Parse maxProposerTimestamp to ms for subintent header
-          const maxTs = new Date(maxProposerTimestamp)
-          const maxProposerTimestampMs = !isNaN(maxTs.getTime())
-            ? maxTs.getTime()
-            : undefined
+          // Capture creation time once — used for both subintent header and DB record
+          const createdAt = yield* DateTime.now
+          const createdAtDate = DateTime.toDateUtc(createdAt)
+
+          const toEpochSec = (dt: DateTime.DateTime) =>
+            Math.floor(DateTime.toEpochMillis(dt) / 1000)
+
+          // Parse maxProposerTimestamp to seconds for subintent header
+          const maxProposerTimestampSec = Option.map(
+            DateTime.make(maxProposerTimestamp),
+            toEpochSec
+          ).pipe(Option.getOrUndefined)
 
           // Build unsigned subintent
           const subintent = yield* buildUnsignedSubintent(
@@ -120,7 +119,8 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             networkId,
             currentEpoch,
             currentEpoch + 100,
-            maxProposerTimestampMs
+            maxProposerTimestampSec,
+            toEpochSec(createdAt)
           ).pipe(Effect.orDie)
 
           return yield* proposalRepo.insert({
@@ -128,6 +128,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             manifest,
             maxProposerTimestamp,
             createdBy,
+            createdAt: createdAtDate,
             subintentHash: subintent.subintentHash,
             intentDiscriminator: subintent.intentDiscriminator,
             partialTransactionHex: subintent.partialTransactionHex,
@@ -256,7 +257,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             .pipe(Effect.orDie)
 
           const matchingSigner = accessRule.signers.find(
-            (s) => s.localId === `<${signerKeyHash}>`
+            (s) => s.localId === `[${signerKeyHash}]`
           )
           if (!matchingSigner) {
             return yield* new NotEligibleSignerError({
@@ -264,9 +265,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          const signerKeyType = keyTypeFromResource(
-            matchingSigner.resourceAddress
-          )
+          const signerKeyType = extracted.keyType
 
           // Persist signature with full cryptographic data
           yield* proposalRepo
@@ -357,49 +356,24 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Compose the NotarizedTransactionV2 from collected signatures
-          const feePayerKeyHex = yield* Config.string(
-            'FEE_PAYER_PRIVATE_KEY_HEX'
-          ).pipe(Config.redacted, Effect.orDie)
-
-          const ledgerState = yield* getLedgerState({}).pipe(Effect.orDie)
-
-          const { notarizedTransactionHex, intentHash } =
-            yield* reconstructAndCompose(
-              proposal.partialTransactionHex,
-              signatures.map((s) => ({
+          // Compose V2 transaction from collected signatures and submit
+          const { intentHash } = yield* transactionSubmitter
+            .submitWithSubintent({
+              partialTransactionHex: proposal.partialTransactionHex,
+              signatures: signatures.map((s) => ({
                 publicKeyHex: s.signerPublicKey,
                 signatureHex: s.signatureBytes,
                 keyType: s.signerKeyType as 'ed25519' | 'secp256k1'
-              })),
-              Redacted.value(feePayerKeyHex) as string,
-              transactionSubmitter.feePayerAddress,
-              networkId,
-              ledgerState.epoch
-            ).pipe(
-              Effect.catchAll((e) =>
-                Effect.fail(
-                  new ProposalSubmitFailedError({
-                    message: `Transaction composition failed: ${e.message}`
-                  })
-                )
-              )
-            )
-
-          // Submit the compiled notarized transaction
-          yield* transactionSubmitter
-            .submitNotarizedHex(notarizedTransactionHex)
+              }))
+            })
             .pipe(
               Effect.catchTag('TransactionSubmitError', (e) =>
                 Effect.fail(
-                  new ProposalSubmitFailedError({
-                    message: e.message
-                  })
+                  new ProposalSubmitFailedError({ message: e.message })
                 )
               )
             )
 
-          // Persist submission
           yield* proposalRepo.setSubmitted(proposalId, intentHash)
 
           return { intentHash, status: 'submitted' as const }

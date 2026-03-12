@@ -52,8 +52,8 @@ export const proposals = pgTable('proposals', {
     length: 64
   }).notNull(),
   partialTransactionHex: text('partial_transaction_hex'),
-  epochMin: integer('epoch_min'),
-  epochMax: integer('epoch_max'),
+  epochMin: integer('epoch_min').notNull(),
+  epochMax: integer('epoch_max').notNull(),
   transactionIntentHash: varchar('transaction_intent_hash', { length: 255 }),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
   statusReason: text('status_reason'),
