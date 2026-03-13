@@ -25,5 +25,8 @@ node_modules/
 **/test-results/
 **/playwright-report/
 
+# Bootstrap config (generated per-environment)
+apps/cli/bootstrap.json
+
 # Husky generated internals
 .husky/_/

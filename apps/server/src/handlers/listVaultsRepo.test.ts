@@ -10,7 +10,8 @@ import path from 'node:path'
 import pg from 'pg'
 import { ORM } from '../db/orm'
 import { PgContainer } from '../test/PgContainer'
-import { ListVaultsRepo, VaultNotFoundError } from './listVaultsRepo'
+import { VaultNotFoundError } from '@radix-vaults/shared'
+import { ListVaultsRepo } from './listVaultsRepo'
 
 const resolveMigrationsFolder = () => {
   const candidates = [

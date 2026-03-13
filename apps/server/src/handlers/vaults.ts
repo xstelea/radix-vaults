@@ -1,11 +1,14 @@
-import type {
-  CreateVaultResponse,
-  ImportVaultResponse,
-  VaultAddress as VaultAddressType,
-  VaultDetail,
-  VaultSigners
+import {
+  AuthConfig,
+  CreateVaultFailedError,
+  ThresholdExceedsSignersError,
+  type CreateVaultResponse,
+  type ImportVaultResponse,
+  type VaultAddress as VaultAddressType,
+  type VaultAlreadyExistsError,
+  type VaultDetail,
+  type VaultSigners
 } from '@radix-vaults/shared'
-import { AuthConfig } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import {
   AccessRuleValidator,
@@ -18,21 +21,8 @@ import {
   type TransactionSubmitError
 } from '../gateway/transactionSubmitter'
 import { VaultAddress } from '@radix-vaults/shared'
-import {
-  ImportVaultRepo,
-  type VaultAlreadyExistsDbError
-} from './importVaultRepo'
+import { ImportVaultRepo } from './importVaultRepo'
 import { ListVaultsRepo } from './listVaultsRepo'
-
-export class ThresholdExceedsSignersHandlerError {
-  readonly _tag = 'ThresholdExceedsSignersHandlerError'
-  constructor(readonly message: string) {}
-}
-
-export class CreateVaultFailedHandlerError {
-  readonly _tag = 'CreateVaultFailedHandlerError'
-  constructor(readonly message: string) {}
-}
 
 export class VaultsHandler extends Effect.Service<VaultsHandler>()(
   '@radix-vaults/server/handlers/VaultsHandler',
@@ -76,7 +66,7 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         ImportVaultResponse,
         | UnsupportedRuleError
         | EntityNotFoundOnLedgerError
-        | VaultAlreadyExistsDbError
+        | VaultAlreadyExistsError
       > =>
         Effect.gen(function* () {
           yield* accessRuleValidator.validate(accountAddress)
@@ -92,8 +82,8 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         threshold: number
       ): Effect.Effect<
         CreateVaultResponse,
-        | ThresholdExceedsSignersHandlerError
-        | CreateVaultFailedHandlerError
+        | ThresholdExceedsSignersError
+        | CreateVaultFailedError
         | TransactionSubmitError
       > =>
         Effect.gen(function* () {
@@ -104,9 +94,9 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
           const signers = accessRule.signers
           if (threshold > signers.length) {
             return yield* Effect.fail(
-              new ThresholdExceedsSignersHandlerError(
-                `Threshold ${threshold} exceeds number of team signers (${signers.length})`
-              )
+              new ThresholdExceedsSignersError({
+                message: `Threshold ${threshold} exceeds number of team signers (${signers.length})`
+              })
             )
           }
 
@@ -128,9 +118,9 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
 
           if (!accountAddress) {
             return yield* Effect.fail(
-              new CreateVaultFailedHandlerError(
-                `No account address found in transaction receipt. Entities: ${entities.join(', ')}`
-              )
+              new CreateVaultFailedError({
+                message: `No account address found in transaction receipt. Entities: ${entities.join(', ')}`
+              })
             )
           }
 

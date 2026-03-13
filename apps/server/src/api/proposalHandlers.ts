@@ -2,8 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import {
   AppApi,
   CurrentSession,
-  ProposalNotFoundError,
-  VaultNotFoundErrorSchema
+  ProposalNotFoundError
 } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { ProposalsHandler } from '../handlers/proposals'
@@ -36,23 +35,13 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
               })
             )
             return result
-          }).pipe(
-            Effect.catchTags({
-              VaultNotFoundError: (e) =>
-                new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress })
-            })
-          )
+          })
       )
       .handle('list', ({ path: { vaultAddress } }) =>
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
           return yield* proposalsHandler.list(vaultAddress)
-        }).pipe(
-          Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress })
-          })
-        )
+        })
       )
       .handle('detail', ({ path: { vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
@@ -60,8 +49,6 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           return yield* proposalsHandler.getDetail(vaultAddress, proposalId)
         }).pipe(
           Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
               new ProposalNotFoundError({ proposalId: e.proposalId })
           })
@@ -92,8 +79,6 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             return result
           }).pipe(
             Effect.catchTags({
-              VaultNotFoundError: (e) =>
-                new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
               ProposalNotFoundDbError: (e) =>
                 new ProposalNotFoundError({ proposalId: e.proposalId })
             })
@@ -112,8 +97,6 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           return result
         }).pipe(
           Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
               new ProposalNotFoundError({ proposalId: e.proposalId })
           })
@@ -125,8 +108,6 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           return yield* proposalsHandler.refreshStatus(vaultAddress, proposalId)
         }).pipe(
           Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
             ProposalNotFoundDbError: (e) =>
               new ProposalNotFoundError({ proposalId: e.proposalId })
           })

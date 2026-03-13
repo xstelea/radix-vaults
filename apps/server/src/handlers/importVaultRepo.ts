@@ -1,14 +1,11 @@
 import { vaults } from '@radix-vaults/database'
-import type { VaultAddress } from '@radix-vaults/shared'
-import { Data, Effect } from 'effect'
+import {
+  VaultAlreadyExistsError,
+  type VaultAddress
+} from '@radix-vaults/shared'
+import { Effect } from 'effect'
 import { eq } from 'drizzle-orm'
 import { ORM } from '../db/orm'
-
-export class VaultAlreadyExistsDbError extends Data.TaggedError(
-  'VaultAlreadyExistsDbError'
-)<{
-  accountAddress: VaultAddress
-}> {}
 
 export class ImportVaultRepo extends Effect.Service<ImportVaultRepo>()(
   '@radix-vaults/server/handlers/ImportVaultRepo',
@@ -26,7 +23,7 @@ export class ImportVaultRepo extends Effect.Service<ImportVaultRepo>()(
             .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
           if (existing.length > 0) {
-            return yield* new VaultAlreadyExistsDbError({ accountAddress })
+            return yield* new VaultAlreadyExistsError({ accountAddress })
           }
 
           yield* db
