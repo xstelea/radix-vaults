@@ -11,9 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TeamIndexRouteImport } from './routes/team/index'
 import { Route as VaultsCreateRouteImport } from './routes/vaults/create'
 import { Route as VaultsAddRouteImport } from './routes/vaults/add'
+import { Route as TeamRemoveMemberRouteImport } from './routes/team/remove-member'
+import { Route as TeamChangeThresholdRouteImport } from './routes/team/change-threshold'
+import { Route as TeamAddMemberRouteImport } from './routes/team/add-member'
 import { Route as VaultsVaultIdIndexRouteImport } from './routes/vaults/$vaultId/index'
+import { Route as TeamProposalsIndexRouteImport } from './routes/team/proposals/index'
+import { Route as TeamProposalsProposalIdRouteImport } from './routes/team/proposals/$proposalId'
 import { Route as VaultsVaultIdProposalsNewRouteImport } from './routes/vaults/$vaultId/proposals/new'
 import { Route as VaultsVaultIdProposalsProposalIdRouteImport } from './routes/vaults/$vaultId/proposals/$proposalId'
 
@@ -27,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamIndexRoute = TeamIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TeamRoute,
+} as any)
 const VaultsCreateRoute = VaultsCreateRouteImport.update({
   id: '/vaults/create',
   path: '/vaults/create',
@@ -37,10 +48,35 @@ const VaultsAddRoute = VaultsAddRouteImport.update({
   path: '/vaults/add',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamRemoveMemberRoute = TeamRemoveMemberRouteImport.update({
+  id: '/remove-member',
+  path: '/remove-member',
+  getParentRoute: () => TeamRoute,
+} as any)
+const TeamChangeThresholdRoute = TeamChangeThresholdRouteImport.update({
+  id: '/change-threshold',
+  path: '/change-threshold',
+  getParentRoute: () => TeamRoute,
+} as any)
+const TeamAddMemberRoute = TeamAddMemberRouteImport.update({
+  id: '/add-member',
+  path: '/add-member',
+  getParentRoute: () => TeamRoute,
+} as any)
 const VaultsVaultIdIndexRoute = VaultsVaultIdIndexRouteImport.update({
   id: '/vaults/$vaultId/',
   path: '/vaults/$vaultId/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TeamProposalsIndexRoute = TeamProposalsIndexRouteImport.update({
+  id: '/proposals/',
+  path: '/proposals/',
+  getParentRoute: () => TeamRoute,
+} as any)
+const TeamProposalsProposalIdRoute = TeamProposalsProposalIdRouteImport.update({
+  id: '/proposals/$proposalId',
+  path: '/proposals/$proposalId',
+  getParentRoute: () => TeamRoute,
 } as any)
 const VaultsVaultIdProposalsNewRoute =
   VaultsVaultIdProposalsNewRouteImport.update({
@@ -57,18 +93,29 @@ const VaultsVaultIdProposalsProposalIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/team': typeof TeamRoute
+  '/team': typeof TeamRouteWithChildren
+  '/team/add-member': typeof TeamAddMemberRoute
+  '/team/change-threshold': typeof TeamChangeThresholdRoute
+  '/team/remove-member': typeof TeamRemoveMemberRoute
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
+  '/team/': typeof TeamIndexRoute
+  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
+  '/team/proposals/': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/team': typeof TeamRoute
+  '/team/add-member': typeof TeamAddMemberRoute
+  '/team/change-threshold': typeof TeamChangeThresholdRoute
+  '/team/remove-member': typeof TeamRemoveMemberRoute
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
+  '/team': typeof TeamIndexRoute
+  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
+  '/team/proposals': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
@@ -76,9 +123,15 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/team': typeof TeamRoute
+  '/team': typeof TeamRouteWithChildren
+  '/team/add-member': typeof TeamAddMemberRoute
+  '/team/change-threshold': typeof TeamChangeThresholdRoute
+  '/team/remove-member': typeof TeamRemoveMemberRoute
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
+  '/team/': typeof TeamIndexRoute
+  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
+  '/team/proposals/': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
   '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
   '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
@@ -88,17 +141,28 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/team'
+    | '/team/add-member'
+    | '/team/change-threshold'
+    | '/team/remove-member'
     | '/vaults/add'
     | '/vaults/create'
+    | '/team/'
+    | '/team/proposals/$proposalId'
+    | '/team/proposals/'
     | '/vaults/$vaultId/'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/team'
+    | '/team/add-member'
+    | '/team/change-threshold'
+    | '/team/remove-member'
     | '/vaults/add'
     | '/vaults/create'
+    | '/team'
+    | '/team/proposals/$proposalId'
+    | '/team/proposals'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
@@ -106,8 +170,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/team'
+    | '/team/add-member'
+    | '/team/change-threshold'
+    | '/team/remove-member'
     | '/vaults/add'
     | '/vaults/create'
+    | '/team/'
+    | '/team/proposals/$proposalId'
+    | '/team/proposals/'
     | '/vaults/$vaultId/'
     | '/vaults/$vaultId/proposals/$proposalId'
     | '/vaults/$vaultId/proposals/new'
@@ -115,7 +185,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  TeamRoute: typeof TeamRoute
+  TeamRoute: typeof TeamRouteWithChildren
   VaultsAddRoute: typeof VaultsAddRoute
   VaultsCreateRoute: typeof VaultsCreateRoute
   VaultsVaultIdIndexRoute: typeof VaultsVaultIdIndexRoute
@@ -139,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/': {
+      id: '/team/'
+      path: '/'
+      fullPath: '/team/'
+      preLoaderRoute: typeof TeamIndexRouteImport
+      parentRoute: typeof TeamRoute
+    }
     '/vaults/create': {
       id: '/vaults/create'
       path: '/vaults/create'
@@ -153,12 +230,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VaultsAddRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/remove-member': {
+      id: '/team/remove-member'
+      path: '/remove-member'
+      fullPath: '/team/remove-member'
+      preLoaderRoute: typeof TeamRemoveMemberRouteImport
+      parentRoute: typeof TeamRoute
+    }
+    '/team/change-threshold': {
+      id: '/team/change-threshold'
+      path: '/change-threshold'
+      fullPath: '/team/change-threshold'
+      preLoaderRoute: typeof TeamChangeThresholdRouteImport
+      parentRoute: typeof TeamRoute
+    }
+    '/team/add-member': {
+      id: '/team/add-member'
+      path: '/add-member'
+      fullPath: '/team/add-member'
+      preLoaderRoute: typeof TeamAddMemberRouteImport
+      parentRoute: typeof TeamRoute
+    }
     '/vaults/$vaultId/': {
       id: '/vaults/$vaultId/'
       path: '/vaults/$vaultId'
       fullPath: '/vaults/$vaultId/'
       preLoaderRoute: typeof VaultsVaultIdIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/team/proposals/': {
+      id: '/team/proposals/'
+      path: '/proposals'
+      fullPath: '/team/proposals/'
+      preLoaderRoute: typeof TeamProposalsIndexRouteImport
+      parentRoute: typeof TeamRoute
+    }
+    '/team/proposals/$proposalId': {
+      id: '/team/proposals/$proposalId'
+      path: '/proposals/$proposalId'
+      fullPath: '/team/proposals/$proposalId'
+      preLoaderRoute: typeof TeamProposalsProposalIdRouteImport
+      parentRoute: typeof TeamRoute
     }
     '/vaults/$vaultId/proposals/new': {
       id: '/vaults/$vaultId/proposals/new'
@@ -177,9 +289,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface TeamRouteChildren {
+  TeamAddMemberRoute: typeof TeamAddMemberRoute
+  TeamChangeThresholdRoute: typeof TeamChangeThresholdRoute
+  TeamRemoveMemberRoute: typeof TeamRemoveMemberRoute
+  TeamIndexRoute: typeof TeamIndexRoute
+  TeamProposalsProposalIdRoute: typeof TeamProposalsProposalIdRoute
+  TeamProposalsIndexRoute: typeof TeamProposalsIndexRoute
+}
+
+const TeamRouteChildren: TeamRouteChildren = {
+  TeamAddMemberRoute: TeamAddMemberRoute,
+  TeamChangeThresholdRoute: TeamChangeThresholdRoute,
+  TeamRemoveMemberRoute: TeamRemoveMemberRoute,
+  TeamIndexRoute: TeamIndexRoute,
+  TeamProposalsProposalIdRoute: TeamProposalsProposalIdRoute,
+  TeamProposalsIndexRoute: TeamProposalsIndexRoute,
+}
+
+const TeamRouteWithChildren = TeamRoute._addFileChildren(TeamRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  TeamRoute: TeamRoute,
+  TeamRoute: TeamRouteWithChildren,
   VaultsAddRoute: VaultsAddRoute,
   VaultsCreateRoute: VaultsCreateRoute,
   VaultsVaultIdIndexRoute: VaultsVaultIdIndexRoute,

@@ -5,18 +5,18 @@ import {
   useAtomRefresh,
   useAtomValue
 } from '@effect-atom/atom-react'
-import type { ProposalDetail } from '@radix-vaults/shared'
-import { ProposalId, VaultAddress } from '@radix-vaults/shared'
+import type { TeamProposalDetail } from '@radix-vaults/shared'
+import { ProposalId } from '@radix-vaults/shared'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Exit } from 'effect'
 import { sessionAtom } from '@/atom/auth'
 import {
-  ProposalDetailKey,
-  proposalDetailAtom,
-  refreshProposalStatus,
-  signProposal,
-  submitProposal
-} from '@/atom/proposals'
+  TeamProposalDetailKey,
+  teamProposalDetailAtom,
+  refreshTeamProposalStatus,
+  signTeamProposal,
+  submitTeamProposal
+} from '@/atom/teamProposals'
 import { TransactionPreviewCard } from '@/components/transaction-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,53 +37,9 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
-  component: ProposalDetailPage
+export const Route = createFileRoute('/team/proposals/$proposalId')({
+  component: TeamProposalDetailPage
 })
-
-function ProposalDetailPage() {
-  const { vaultId, proposalId } = Route.useParams()
-
-  return (
-    <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
-        <Link to="/" className="hover:text-foreground">
-          Home
-        </Link>
-        <span className="mx-2">/</span>
-        <Link
-          to="/vaults/$vaultId"
-          params={{ vaultId }}
-          className="hover:text-foreground"
-        >
-          Vault
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-foreground font-medium">
-          Proposal #{proposalId}
-        </span>
-      </nav>
-
-      <ClientOnly
-        fallback={
-          <>
-            <Card>
-              <CardHeader>
-                <Skeleton className="h-7 w-48" />
-                <Skeleton className="h-4 w-2/3" />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Skeleton className="h-40 w-full" />
-              </CardContent>
-            </Card>
-          </>
-        }
-      >
-        <ProposalDetailContent />
-      </ClientOnly>
-    </main>
-  )
-}
 
 const statusVariant: Record<
   string,
@@ -99,14 +55,60 @@ const statusVariant: Record<
   invalid: 'destructive'
 }
 
+const typeLabel: Record<string, string> = {
+  add_member: 'Add Member',
+  remove_member: 'Remove Member',
+  change_threshold: 'Change Threshold'
+}
+
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
-function ProposalDetailContent() {
-  const { vaultId, proposalId } = Route.useParams()
-  const vaultAddress = VaultAddress.make(vaultId)
-  const detailAtom = proposalDetailAtom(
-    ProposalDetailKey({
-      vaultAddress,
+function TeamProposalDetailPage() {
+  const { proposalId } = Route.useParams()
+
+  return (
+    <main className="max-w-5xl space-y-6">
+      <nav className="text-sm text-muted-foreground">
+        <Link to="/" className="hover:text-foreground">
+          Home
+        </Link>
+        <span className="mx-2">/</span>
+        <Link to="/team" className="hover:text-foreground">
+          Team
+        </Link>
+        <span className="mx-2">/</span>
+        <Link to="/team/proposals" className="hover:text-foreground">
+          Proposals
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-foreground font-medium">
+          Proposal #{proposalId}
+        </span>
+      </nav>
+
+      <ClientOnly
+        fallback={
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-7 w-48" />
+              <Skeleton className="h-4 w-2/3" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Skeleton className="h-40 w-full" />
+            </CardContent>
+          </Card>
+        }
+      >
+        <TeamProposalDetailContent />
+      </ClientOnly>
+    </main>
+  )
+}
+
+function TeamProposalDetailContent() {
+  const { proposalId } = Route.useParams()
+  const detailAtom = teamProposalDetailAtom(
+    TeamProposalDetailKey({
       proposalId: ProposalId.make(Number(proposalId))
     })
   )
@@ -146,10 +148,15 @@ function ProposalDetailContent() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-2xl">
-                Proposal #{proposal.id}
+                Team Proposal #{proposal.id}
               </CardTitle>
-              <CardDescription className="font-mono text-xs">
-                {proposal.vaultAddress}
+              <CardDescription>
+                <Badge variant="outline" className="mr-2">
+                  {typeLabel[proposal.type] ?? proposal.type}
+                </Badge>
+                <span className="font-mono text-xs">
+                  {proposal.entityAddress}
+                </span>
               </CardDescription>
             </div>
             <Button variant="outline" onClick={refresh}>
@@ -205,22 +212,12 @@ function ProposalDetailContent() {
           </Card>
         )}
 
-        <SignatureProgressCard
-          proposal={proposal}
-          vaultAddress={vaultAddress}
-          onSigned={refresh}
-        />
-
-        <SubmitCard
-          proposal={proposal}
-          vaultAddress={vaultAddress}
-          onSubmitted={refresh}
-        />
+        <SignatureProgressCard proposal={proposal} onSigned={refresh} />
+        <SubmitCard proposal={proposal} onSubmitted={refresh} />
 
         {proposal.transactionIntentHash && (
           <TransactionInfoCard
             proposal={proposal}
-            vaultAddress={vaultAddress}
             onStatusRefreshed={refresh}
           />
         )}
@@ -247,15 +244,13 @@ function ProposalDetailContent() {
 
 function SignatureProgressCard({
   proposal,
-  vaultAddress,
   onSigned
 }: {
-  proposal: ProposalDetail
-  vaultAddress: VaultAddress
+  proposal: TeamProposalDetail
   onSigned: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
-  const [, dispatch] = useAtom(signProposal, { mode: 'promiseExit' })
+  const [, dispatch] = useAtom(signTeamProposal, { mode: 'promiseExit' })
   const [signing, setSigning] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -271,7 +266,6 @@ function SignatureProgressCard({
     setSigning(true)
     try {
       const exit = await dispatch({
-        vaultAddress,
         proposalId: proposal.id,
         proposal
       })
@@ -282,7 +276,7 @@ function SignatureProgressCard({
     } finally {
       setSigning(false)
     }
-  }, [vaultAddress, proposal, onSigned, dispatch])
+  }, [proposal, onSigned, dispatch])
 
   return (
     <Card>
@@ -342,15 +336,13 @@ function SignatureProgressCard({
 
 function SubmitCard({
   proposal,
-  vaultAddress,
   onSubmitted
 }: {
-  proposal: ProposalDetail
-  vaultAddress: VaultAddress
+  proposal: TeamProposalDetail
   onSubmitted: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
-  const [, dispatch] = useAtom(submitProposal, { mode: 'promiseExit' })
+  const [, dispatch] = useAtom(submitTeamProposal, { mode: 'promiseExit' })
   const [submitting, setSubmitting] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -364,7 +356,7 @@ function SubmitCard({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
+      const exit = await dispatch({ proposalId: proposal.id })
       Exit.match(exit, {
         onSuccess: () => onSubmitted(),
         onFailure: () => {}
@@ -394,15 +386,15 @@ function SubmitCard({
 
 function TransactionInfoCard({
   proposal,
-  vaultAddress,
   onStatusRefreshed
 }: {
-  proposal: ProposalDetail
-  vaultAddress: VaultAddress
+  proposal: TeamProposalDetail
   onStatusRefreshed: () => void
 }) {
   const sessionResult = useAtomValue(sessionAtom)
-  const [, dispatch] = useAtom(refreshProposalStatus, { mode: 'promiseExit' })
+  const [, dispatch] = useAtom(refreshTeamProposalStatus, {
+    mode: 'promiseExit'
+  })
   const [checking, setChecking] = useState(false)
 
   const session = Result.builder(sessionResult)
@@ -416,7 +408,7 @@ function TransactionInfoCard({
   const handleCheckStatus = useCallback(async () => {
     setChecking(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
+      const exit = await dispatch({ proposalId: proposal.id })
       Exit.match(exit, {
         onSuccess: () => onStatusRefreshed(),
         onFailure: () => {}
@@ -424,7 +416,7 @@ function TransactionInfoCard({
     } finally {
       setChecking(false)
     }
-  }, [vaultAddress, proposal.id, onStatusRefreshed, dispatch])
+  }, [proposal.id, onStatusRefreshed, dispatch])
 
   return (
     <Card>

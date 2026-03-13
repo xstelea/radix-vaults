@@ -32,7 +32,8 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
           .leftJoin(
             proposals,
             and(
-              eq(proposals.vaultAddress, vaults.accountAddress),
+              eq(proposals.entityAddress, vaults.accountAddress),
+              eq(proposals.type, 'vault'),
               inArray(proposals.status, pendingStatuses)
             )
           )

@@ -22,6 +22,7 @@ import { PgClientLive } from './db/pgClient'
 import { AuthHandlersLive } from './api/authHandlers'
 import { ProposalHandlersLive } from './api/proposalHandlers'
 import { TeamHandlersLive } from './api/teamHandlers'
+import { TeamProposalHandlersLive } from './api/teamProposalHandlers'
 import { VaultHandlersLive } from './api/vaultHandlers'
 import { SessionMiddlewareLive } from './api/sessionMiddleware'
 
@@ -62,6 +63,7 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(VaultHandlersLive),
   Layer.provide(TeamHandlersLive),
   Layer.provide(ProposalHandlersLive),
+  Layer.provide(TeamProposalHandlersLive),
   Layer.provide(HealthHandlersLive),
   Layer.provide(SessionMiddlewareLive),
   Layer.provide(TransactionSubmitterLayer)

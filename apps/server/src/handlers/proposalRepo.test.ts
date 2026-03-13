@@ -81,7 +81,8 @@ describe('ProposalRepo', () => {
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
           repo.insert({
-            vaultAddress: VAULT,
+            entityAddress: VAULT,
+            type: 'vault' as const,
             manifest: 'CALL_METHOD Address("test") "deposit" ;',
             maxProposerTimestamp: '2026-12-31T23:59:59',
             createdBy: 'account_tdx_2_1qcreator',
@@ -99,7 +100,7 @@ describe('ProposalRepo', () => {
         expect(result.manifest).toBe('CALL_METHOD Address("test") "deposit" ;')
         expect(result.maxProposerTimestamp).toBe('2026-12-31T23:59:59')
         expect(result.createdBy).toBe('account_tdx_2_1qcreator')
-        expect(result.vaultAddress).toBe(VAULT)
+        expect(result.entityAddress).toBe(VAULT)
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )
@@ -120,7 +121,8 @@ describe('ProposalRepo', () => {
         yield* runWithRepo(pgClientLayer, (repo) =>
           Effect.gen(function* () {
             yield* repo.insert({
-              vaultAddress: VAULT,
+              entityAddress: VAULT,
+              type: 'vault' as const,
               manifest: 'manifest1',
               maxProposerTimestamp: '2026-12-31',
               createdBy: 'creator1',
@@ -132,7 +134,8 @@ describe('ProposalRepo', () => {
               epochMax: 200
             })
             yield* repo.insert({
-              vaultAddress: VAULT,
+              entityAddress: VAULT,
+              type: 'vault' as const,
               manifest: 'manifest2',
               maxProposerTimestamp: '2026-12-31',
               createdBy: 'creator2',
@@ -172,7 +175,8 @@ describe('ProposalRepo', () => {
 
         const inserted = yield* runWithRepo(pgClientLayer, (repo) =>
           repo.insert({
-            vaultAddress: VAULT,
+            entityAddress: VAULT,
+            type: 'vault' as const,
             manifest: 'CALL_METHOD ...',
             maxProposerTimestamp: '2026-12-31',
             createdBy: 'creator',

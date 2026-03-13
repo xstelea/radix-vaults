@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import { useAtom } from '@effect-atom/atom-react'
-import type { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { Exit } from 'effect'
 import { previewProposal } from '@/atom/proposals'
 import { Button } from '@/components/ui/button'
@@ -14,24 +13,19 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-interface AccountInteraction {
+interface ResourceChange {
   accountAddress: string
-  direction: 'withdraw' | 'deposit'
+  resourceAddress: string
+  amount: string
 }
 
 interface PreviewResult {
   receipt: Record<string, unknown> | null
   logs: Array<{ level: string; message: string }>
-  accountInteractions: AccountInteraction[]
+  resourceChanges: ResourceChange[]
 }
 
-export function TransactionPreviewCard({
-  vaultAddress,
-  proposalId
-}: {
-  vaultAddress: VaultAddress
-  proposalId: ProposalId
-}) {
+export function TransactionPreviewCard({ manifest }: { manifest: string }) {
   const [, dispatch] = useAtom(previewProposal, { mode: 'promiseExit' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +36,7 @@ export function TransactionPreviewCard({
     setResult(null)
     setLoading(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId })
+      const exit = await dispatch({ manifest })
       Exit.match(exit, {
         onSuccess: (r) => setResult(r as PreviewResult),
         onFailure: (cause) => setError(String(cause))
@@ -50,7 +44,7 @@ export function TransactionPreviewCard({
     } finally {
       setLoading(false)
     }
-  }, [vaultAddress, proposalId, dispatch])
+  }, [manifest, dispatch])
 
   const receipt = result?.receipt as Record<string, unknown> | null | undefined
   // RET receipt uses `kind`, gateway receipt uses `status`
@@ -121,9 +115,9 @@ export function TransactionPreviewCard({
             />
           )}
 
-          {/* Account interactions */}
-          {result.accountInteractions.length > 0 && (
-            <AccountInteractions interactions={result.accountInteractions} />
+          {/* Resource changes */}
+          {result.resourceChanges.length > 0 && (
+            <ResourceChanges changes={result.resourceChanges} />
           )}
 
           {/* Logs */}
@@ -150,41 +144,74 @@ export function TransactionPreviewCard({
   )
 }
 
-function AccountInteractions({
-  interactions
-}: {
-  interactions: AccountInteraction[]
-}) {
+const DASHBOARD_BASE =
+  Number(import.meta.env.VITE_NETWORK_ID ?? '2') === 1
+    ? 'https://dashboard.radixdlt.com'
+    : 'https://stokenet-dashboard.radixdlt.com'
+
+function dashboardUrl(address: string) {
+  if (address.startsWith('account_'))
+    return `${DASHBOARD_BASE}/account/${address}`
+  if (address.startsWith('resource_'))
+    return `${DASHBOARD_BASE}/resource/${address}`
+  return `${DASHBOARD_BASE}/component/${address}`
+}
+
+function ResourceChanges({ changes }: { changes: ResourceChange[] }) {
+  const sorted = [...changes].sort(
+    (a, b) =>
+      a.accountAddress.localeCompare(b.accountAddress) ||
+      a.resourceAddress.localeCompare(b.resourceAddress)
+  )
+
+  const truncate = (addr: string) => `${addr.slice(0, 12)}...${addr.slice(-8)}`
+
   return (
     <div className="space-y-2">
       <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Affected Accounts
+        Resource Changes
       </h3>
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Account</TableHead>
-            <TableHead className="text-right">Direction</TableHead>
+            <TableHead>Resource</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {interactions.map((interaction, i) => {
-            const isWithdraw = interaction.direction === 'withdraw'
+          {sorted.map((change, i) => {
+            const isNegative = change.amount.startsWith('-')
             return (
               <TableRow key={i}>
-                <TableCell
-                  className="font-mono text-xs"
-                  title={interaction.accountAddress}
-                >
-                  {interaction.accountAddress.slice(0, 12)}...
-                  {interaction.accountAddress.slice(-8)}
+                <TableCell className="font-mono text-xs">
+                  <a
+                    href={dashboardUrl(change.accountAddress)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-muted-foreground/40 hover:decoration-foreground"
+                    title={change.accountAddress}
+                  >
+                    {truncate(change.accountAddress)}
+                  </a>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  <a
+                    href={dashboardUrl(change.resourceAddress)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-muted-foreground/40 hover:decoration-foreground"
+                    title={change.resourceAddress}
+                  >
+                    {truncate(change.resourceAddress)}
+                  </a>
                 </TableCell>
                 <TableCell
-                  className={`text-right text-xs font-medium ${
-                    isWithdraw ? 'text-red-600' : 'text-emerald-600'
+                  className={`text-right font-mono text-xs font-medium ${
+                    isNegative ? 'text-red-600' : 'text-emerald-600'
                   }`}
                 >
-                  {isWithdraw ? 'Withdraw' : 'Deposit'}
+                  {change.amount}
                 </TableCell>
               </TableRow>
             )
@@ -196,39 +223,20 @@ function AccountInteractions({
 }
 
 function FeeSummary({ feeSummary }: { feeSummary: Record<string, string> }) {
-  const fields = [
-    ['Execution Cost (XRD)', feeSummary.xrd_total_execution_cost],
-    ['Finalization Cost (XRD)', feeSummary.xrd_total_finalization_cost],
-    ['Storage Cost (XRD)', feeSummary.xrd_total_storage_cost],
-    ['Royalty Cost (XRD)', feeSummary.xrd_total_royalty_cost],
-    ['Tipping Cost (XRD)', feeSummary.xrd_total_tipping_cost]
-  ].filter(([, v]) => v != null) as [string, string][]
-
-  if (fields.length === 0) return null
+  const total = [
+    feeSummary.xrd_total_execution_cost,
+    feeSummary.xrd_total_finalization_cost,
+    feeSummary.xrd_total_storage_cost,
+    feeSummary.xrd_total_royalty_cost,
+    feeSummary.xrd_total_tipping_cost
+  ].reduce((sum, v) => sum + Number(v ?? 0), 0)
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Fee Estimate
-      </h3>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Fee Type</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {fields.map(([label, value]) => (
-            <TableRow key={label}>
-              <TableCell className="text-sm">{label}</TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                {value}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div className="flex items-center justify-between rounded-md border border-border bg-muted/50 px-4 py-3">
+      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Estimated Fee
+      </span>
+      <span className="font-mono text-sm">{total} XRD</span>
     </div>
   )
 }

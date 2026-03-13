@@ -33,7 +33,8 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
           const signers = accessRule.signers.map((s) => ({
             signerPublicKey: s.localId,
             signerKeyType: keyTypeFromResource(s.resourceAddress),
-            signerKeyHash: s.localId
+            signerKeyHash: s.localId,
+            nonFungibleGlobalId: `${s.resourceAddress}:${s.localId}`
           }))
 
           const holders = yield* getResourceHolders({
