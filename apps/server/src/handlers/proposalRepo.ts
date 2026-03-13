@@ -1,4 +1,4 @@
-import { proposals, proposalSignatures } from '@radix-vaults/database'
+import { proposals, proposalSignatures, vaults } from '@radix-vaults/database'
 import {
   EntityAddress,
   ProposalId,
@@ -8,8 +8,10 @@ import {
   type VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, lt } from 'drizzle-orm'
 import { ORM } from '../db/orm'
+
+const PENDING_STATUSES = ['created', 'signing', 'ready']
 
 export class ProposalNotFoundDbError extends Data.TaggedError(
   'ProposalNotFoundDbError'
@@ -316,12 +318,62 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(eq(proposals.id, proposalId))
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
+      const listAllPending = () =>
+        Effect.gen(function* () {
+          yield* db
+            .update(proposals)
+            .set({
+              status: 'expired',
+              statusReason: 'Proposal expired: deadline passed'
+            })
+            .where(
+              and(
+                inArray(proposals.status, PENDING_STATUSES),
+                lt(proposals.maxProposerTimestamp, new Date().toISOString())
+              )
+            )
+            .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
+          return yield* db
+            .select({
+              id: proposals.id,
+              entityAddress: proposals.entityAddress,
+              entityName: vaults.name,
+              type: proposals.type,
+              status: proposals.status,
+              createdBy: proposals.createdBy,
+              createdAt: proposals.createdAt
+            })
+            .from(proposals)
+            .leftJoin(
+              vaults,
+              eq(proposals.entityAddress, vaults.accountAddress)
+            )
+            .where(inArray(proposals.status, PENDING_STATUSES))
+            .orderBy(desc(proposals.createdAt))
+            .pipe(
+              Effect.map((rows) =>
+                rows.map((row) => ({
+                  id: ProposalId.make(row.id),
+                  entityAddress: EntityAddress.make(row.entityAddress),
+                  entityName: row.entityName ?? null,
+                  type: row.type as ProposalType,
+                  status: row.status,
+                  createdBy: row.createdBy,
+                  createdAt: row.createdAt.toISOString()
+                }))
+              ),
+              Effect.catchTags({ SqlError: Effect.die })
+            )
+        })
+
       return {
         insert,
         listByVault,
         getById,
         listByTeam,
         getByIdTeam,
+        listAllPending,
         addSignature,
         getSignatures,
         updateStatus,

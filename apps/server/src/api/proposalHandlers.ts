@@ -5,21 +5,7 @@ import {
   ProposalNotFoundError,
   VaultNotFoundErrorSchema
 } from '@radix-vaults/shared'
-import {
-  GetEntityDetailsVaultAggregated,
-  GetLedgerStateService,
-  PreviewTransaction
-} from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
-import { ORM } from '../db/orm'
-import { AccessRuleValidator } from '../gateway/accessRuleValidator'
-import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
-import {
-  TransactionStatusChecker,
-  TransactionStatusCheckerLive
-} from '../gateway/transactionStatusChecker'
-import { ListVaultsRepo } from '../handlers/listVaultsRepo'
-import { ProposalRepo } from '../handlers/proposalRepo'
 import { ProposalsHandler } from '../handlers/proposals'
 
 export const ProposalHandlersLive = HttpApiBuilder.group(
@@ -146,15 +132,4 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           })
         )
       )
-).pipe(
-  Layer.provide(ProposalsHandler.Default),
-  Layer.provide(ProposalRepo.Default),
-  Layer.provide(ListVaultsRepo.Default),
-  Layer.provide(AccessRuleValidator.Default),
-  Layer.provide(TransactionStatusCheckerLive),
-  Layer.provide(GetLedgerStateService.Default),
-  Layer.provide(PreviewTransaction.Default),
-  Layer.provide(GetEntityDetailsVaultAggregated.Default),
-  Layer.provide(ORM.Default),
-  Layer.provide(GatewayApiClientLayer)
-)
+).pipe(Layer.provide(ProposalsHandler.Default))

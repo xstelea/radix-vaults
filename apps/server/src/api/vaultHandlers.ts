@@ -1,21 +1,13 @@
 import { HttpApiBuilder } from '@effect/platform'
 import {
   AppApi,
-  AuthConfig,
   CreateVaultFailedError,
   ThresholdExceedsSignersError,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError
 } from '@radix-vaults/shared'
-import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
 import { Effect, Layer } from 'effect'
-import { ORM } from '../db/orm'
-import { AccessRuleValidator } from '../gateway/accessRuleValidator'
-import { GatewayApiClientLayer } from '../gateway/gatewayApiClient'
-import { TransactionSubmitter } from '../gateway/transactionSubmitter'
-import { ImportVaultRepo } from '../handlers/importVaultRepo'
 import { VaultsHandler } from '../handlers/vaults'
-import { ListVaultsRepo } from '../handlers/listVaultsRepo'
 
 export const VaultHandlersLive = HttpApiBuilder.group(
   AppApi,
@@ -78,13 +70,4 @@ export const VaultHandlersLive = HttpApiBuilder.group(
           })
         )
       )
-).pipe(
-  Layer.provide(VaultsHandler.Default),
-  Layer.provide(ListVaultsRepo.Default),
-  Layer.provide(ImportVaultRepo.Default),
-  Layer.provide(AccessRuleValidator.Default),
-  Layer.provide(GetEntityDetailsVaultAggregated.Default),
-  Layer.provide(ORM.Default),
-  Layer.provide(AuthConfig.Live),
-  Layer.provide(GatewayApiClientLayer)
-)
+).pipe(Layer.provide(VaultsHandler.Default))

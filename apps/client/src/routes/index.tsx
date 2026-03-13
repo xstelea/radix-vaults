@@ -1,6 +1,12 @@
-import { Link, ClientOnly } from '@tanstack/react-router'
+import {
+  Link,
+  ClientOnly,
+  useNavigate,
+  createFileRoute
+} from '@tanstack/react-router'
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
-import { vaultsListAtom } from '@/atom/vaults'
+import { pendingProposalsAtom } from '@/atom/pendingProposals'
+import type { PendingProposalListItem } from '@radix-vaults/shared'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,8 +17,14 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-
-import { createFileRoute } from '@tanstack/react-router'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 
 export const Route = createFileRoute('/')({
   component: HomePage
@@ -24,9 +36,9 @@ function HomePage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <CardTitle className="text-2xl">Vault Dashboard</CardTitle>
+            <CardTitle className="text-2xl">Dashboard</CardTitle>
             <CardDescription>
-              Public vault read surface with pending proposal counts.
+              Overview of pending proposals across all vaults.
             </CardDescription>
           </div>
           <ClientOnly
@@ -36,106 +48,155 @@ function HomePage() {
               </Button>
             }
           >
-            <RefreshVaultsButton />
+            <RefreshButton />
           </ClientOnly>
         </CardHeader>
       </Card>
-      <ClientOnly fallback={<DashboardSkeleton />}>
-        <VaultsList />
+      <ClientOnly
+        fallback={
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-7 w-48" />
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+        }
+      >
+        <PendingProposalsSection />
       </ClientOnly>
     </main>
   )
 }
 
-function RefreshVaultsButton() {
-  const refreshVaults = useAtomRefresh(vaultsListAtom)
+function RefreshButton() {
+  const refreshPending = useAtomRefresh(pendingProposalsAtom)
   return (
-    <Button variant="outline" onClick={refreshVaults}>
+    <Button variant="outline" onClick={() => refreshPending()}>
       Refresh
     </Button>
   )
 }
 
-function VaultsList() {
-  const vaultsResult = useAtomValue(vaultsListAtom)
-  const refreshVaults = useAtomRefresh(vaultsListAtom)
+const statusVariant: Record<
+  string,
+  'default' | 'secondary' | 'outline' | 'destructive'
+> = {
+  created: 'outline',
+  signing: 'secondary',
+  ready: 'default'
+}
 
-  return Result.builder(vaultsResult)
-    .onInitialOrWaiting(() => <DashboardSkeleton />)
+const typeLabel: Record<string, string> = {
+  vault: 'Vault',
+  add_member: 'Add Member',
+  remove_member: 'Remove Member',
+  change_threshold: 'Change Threshold'
+}
+
+function proposalHref(p: PendingProposalListItem) {
+  if (p.type === 'vault') {
+    return `/vaults/${p.entityAddress}/proposals/${p.id}`
+  }
+  return `/team/proposals/${p.id}`
+}
+
+function ProposalRow({ proposal: p }: { proposal: PendingProposalListItem }) {
+  const navigate = useNavigate()
+  return (
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => navigate({ to: proposalHref(p) })}
+    >
+      <TableCell className="font-medium">#{p.id}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{typeLabel[p.type] ?? p.type}</Badge>
+      </TableCell>
+      <TableCell className="max-w-[200px] truncate font-mono text-xs">
+        {p.entityName ?? `${p.entityAddress.slice(0, 20)}...`}
+      </TableCell>
+      <TableCell>
+        <Badge variant={statusVariant[p.status] ?? 'outline'}>{p.status}</Badge>
+      </TableCell>
+      <TableCell className="font-mono text-xs">
+        {p.createdBy.slice(0, 20)}...
+      </TableCell>
+      <TableCell className="text-xs text-muted-foreground">
+        {new Date(p.createdAt).toLocaleString()}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+function PendingProposalsSection() {
+  const result = useAtomValue(pendingProposalsAtom)
+  const refresh = useAtomRefresh(pendingProposalsAtom)
+
+  return Result.builder(result)
+    .onInitialOrWaiting(() => (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-7 w-48" />
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+    ))
     .onFailure((cause) => (
       <Card className="border-red-900/20 bg-red-50/80">
         <CardHeader>
-          <CardTitle className="text-base">Could not load vaults</CardTitle>
+          <CardTitle className="text-base">
+            Could not load pending proposals
+          </CardTitle>
           <CardDescription className="text-red-900/90">
             {String(cause)}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" onClick={refreshVaults}>
+          <Button variant="outline" onClick={refresh}>
             Retry
           </Button>
         </CardContent>
       </Card>
     ))
-    .onSuccess((vaults) => {
-      if (vaults.length === 0) {
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">No vaults yet</CardTitle>
-              <CardDescription>
-                Create or import a vault to see it on the dashboard.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )
-      }
-
-      return (
-        <div className="grid gap-3">
-          {vaults.map((vault) => (
-            <Link
-              key={vault.accountAddress}
-              to="/vaults/$vaultId"
-              params={{ vaultId: vault.accountAddress }}
-            >
-              <Card className="transition hover:-translate-y-0.5 hover:shadow-md hover:border-border">
-                <CardContent className="flex items-center justify-between gap-3 py-5">
-                  <div className="min-w-0">
-                    <h2 className="truncate text-base font-semibold">
-                      {vault.name}
-                    </h2>
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                      {vault.accountAddress}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">
-                    {vault.pendingProposalCount} pending
-                  </Badge>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )
-    })
-    .render()
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="grid gap-3">
-      {Array.from({ length: 3 }).map((_, index) => (
-        <Card key={index}>
-          <CardContent className="flex items-center justify-between gap-3 py-5">
-            <div className="w-full space-y-2">
-              <Skeleton className="h-4 w-1/3" />
-              <Skeleton className="h-3 w-4/5" />
-            </div>
-            <Skeleton className="h-6 w-20 rounded-full" />
+    .onSuccess((proposals) => (
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending Proposals</CardTitle>
+          <CardDescription>
+            {proposals.length === 0
+              ? 'No pending proposals.'
+              : `${proposals.length} pending proposal${proposals.length === 1 ? '' : 's'}`}
+          </CardDescription>
+        </CardHeader>
+        {proposals.length > 0 && (
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Entity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created By</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {proposals.map((p) => (
+                  <ProposalRow key={p.id} proposal={p} />
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
+        )}
+      </Card>
+    ))
+    .render()
 }
