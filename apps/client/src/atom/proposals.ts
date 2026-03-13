@@ -4,19 +4,21 @@ import type {
   ProposalId,
   VaultAddress
 } from '@radix-vaults/shared'
-import { SubintentRequestBuilder } from '@radixdlt/radix-dapp-toolkit'
-import { Data, Effect, Layer, Option, Ref } from 'effect'
+import { Data, Effect, Layer, Option } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
+import { requestWalletSignature } from '@/atom/walletSignature'
 import { AppApiClient } from '@/lib/apiClient'
 import { disconnectOnUnauthorized } from '@/lib/disconnectOnUnauthorized'
 import { RadixDappToolkit } from '@/lib/radixDappToolkit'
+import { GatewayService } from '@/services/gateway'
 import { ProposalService } from '@/services/proposal'
 import { withToast } from '@/atom/withToast'
 
 const runtime = makeAtomRuntime(
-  Layer.merge(
+  Layer.mergeAll(
     ProposalService.Default,
-    RadixDappToolkit.Live.pipe(Layer.provide(AppApiClient.Default))
+    RadixDappToolkit.Live.pipe(Layer.provide(AppApiClient.Default)),
+    GatewayService.Default
   )
 )
 
@@ -65,57 +67,6 @@ export const createProposal = runtime.fn(
       })
     )
 )
-
-const ensureYieldToParent = (manifest: string): string => {
-  const trimmed = manifest.trim()
-  if (trimmed.endsWith('YIELD_TO_PARENT;')) return trimmed
-  return `${trimmed}\nYIELD_TO_PARENT;\n`
-}
-
-const requestWalletSignature = (
-  proposal: ProposalDetail
-): Effect.Effect<string, WalletSigningError, RadixDappToolkit> =>
-  Effect.gen(function* () {
-    const rdtRef = yield* RadixDappToolkit
-    const rdt = yield* Ref.get(rdtRef)
-
-    const maxTs = new Date(
-      proposal.maxProposerTimestamp.endsWith('Z')
-        ? proposal.maxProposerTimestamp
-        : proposal.maxProposerTimestamp + 'Z'
-    )
-    const expirationSeconds = Math.floor(maxTs.getTime() / 1000)
-
-    const request = SubintentRequestBuilder()
-      .manifest(ensureYieldToParent(proposal.manifest))
-      .header({
-        startEpochInclusive: proposal.epochMin,
-        endEpochExclusive: proposal.epochMax,
-        maxProposerTimestampExclusive: Math.floor(maxTs.getTime() / 1000),
-        minProposerTimestampInclusive: Math.floor(
-          new Date(proposal.createdAt).getTime() / 1000
-        ),
-        intentDiscriminator: Number(proposal.intentDiscriminator)
-      })
-      .setExpiration('atTime', expirationSeconds)
-      .message('')
-
-    const result = yield* Effect.promise(() =>
-      rdt.walletApi.sendPreAuthorizationRequest(request)
-    )
-
-    if (result.isErr()) {
-      return yield* new WalletSigningError({
-        message: result.error.message ?? 'Wallet rejected the signing request'
-      })
-    }
-
-    return result.value.signedPartialTransaction
-  })
-
-class WalletSigningError extends Data.TaggedError('WalletSigningError')<{
-  message: string
-}> {}
 
 export const signProposal = runtime.fn(
   (args: {
@@ -192,12 +143,11 @@ export const refreshProposalStatus = runtime.fn(
     )
 )
 
-export const previewProposal = runtime.fn(
-  (args: { vaultAddress: VaultAddress; proposalId: ProposalId }) =>
-    Effect.gen(function* () {
-      const svc = yield* ProposalService
-      return yield* svc.preview(args.vaultAddress, args.proposalId)
-    })
+export const previewProposal = runtime.fn((args: { manifest: string }) =>
+  Effect.gen(function* () {
+    const gateway = yield* GatewayService
+    return yield* gateway.previewManifest(args.manifest)
+  })
 )
 
 interface ProposalDetailKey {

@@ -1,11 +1,14 @@
 import { proposals, proposalSignatures } from '@radix-vaults/database'
 import {
+  EntityAddress,
   ProposalId,
   VaultAddress,
+  type EntityAddress as EntityAddressType,
+  type ProposalType,
   type VaultAddress as VaultAddressType
 } from '@radix-vaults/shared'
 import { Data, Effect } from 'effect'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 export class ProposalNotFoundDbError extends Data.TaggedError(
@@ -21,6 +24,12 @@ export class DuplicateSignatureDbError extends Data.TaggedError(
   signerAccountAddress: string
 }> {}
 
+const TEAM_TYPES: ProposalType[] = [
+  'add_member',
+  'remove_member',
+  'change_threshold'
+]
+
 export class ProposalRepo extends Effect.Service<ProposalRepo>()(
   '@radix-vaults/server/handlers/ProposalRepo',
   {
@@ -28,7 +37,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
       const db = yield* ORM
 
       const insert = (input: {
-        vaultAddress: VaultAddressType
+        entityAddress: string
+        type: ProposalType
         manifest: string
         maxProposerTimestamp: string
         createdBy: string
@@ -42,7 +52,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         db
           .insert(proposals)
           .values({
-            vaultAddress: input.vaultAddress,
+            entityAddress: input.entityAddress,
+            type: input.type,
             status: 'created',
             manifest: input.manifest,
             maxProposerTimestamp: input.maxProposerTimestamp,
@@ -60,7 +71,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
               const row = rows[0]!
               return {
                 id: ProposalId.make(row.id),
-                vaultAddress: VaultAddress.make(row.vaultAddress),
+                entityAddress: EntityAddress.make(row.entityAddress),
+                type: row.type as ProposalType,
                 status: row.status,
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
@@ -79,20 +91,25 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         db
           .select({
             id: proposals.id,
-            vaultAddress: proposals.vaultAddress,
+            entityAddress: proposals.entityAddress,
             status: proposals.status,
             createdBy: proposals.createdBy,
             createdAt: proposals.createdAt
           })
           .from(proposals)
-          .where(eq(proposals.vaultAddress, vaultAddress))
+          .where(
+            and(
+              eq(proposals.entityAddress, vaultAddress),
+              eq(proposals.type, 'vault')
+            )
+          )
           .orderBy(desc(proposals.createdAt))
           .pipe(
             Effect.map((rows) =>
               rows.map((row) => ({
                 ...row,
                 id: ProposalId.make(row.id),
-                vaultAddress: VaultAddress.make(row.vaultAddress),
+                vaultAddress: VaultAddress.make(row.entityAddress),
                 createdAt: row.createdAt.toISOString()
               }))
             ),
@@ -109,7 +126,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(
             and(
               eq(proposals.id, proposalId),
-              eq(proposals.vaultAddress, vaultAddress)
+              eq(proposals.entityAddress, vaultAddress),
+              eq(proposals.type, 'vault')
             )
           )
           .limit(1)
@@ -121,7 +139,72 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
               }
               return Effect.succeed({
                 id: ProposalId.make(row.id),
-                vaultAddress: VaultAddress.make(row.vaultAddress),
+                vaultAddress: VaultAddress.make(row.entityAddress),
+                status: row.status,
+                manifest: row.manifest,
+                maxProposerTimestamp: row.maxProposerTimestamp,
+                createdBy: row.createdBy,
+                subintentHash: row.subintentHash,
+                intentDiscriminator: row.intentDiscriminator,
+                partialTransactionHex: row.partialTransactionHex,
+                epochMin: row.epochMin,
+                epochMax: row.epochMax,
+                transactionIntentHash: row.transactionIntentHash,
+                submittedAt: row.submittedAt?.toISOString() ?? null,
+                statusReason: row.statusReason ?? null,
+                createdAt: row.createdAt.toISOString()
+              })
+            }),
+            Effect.catchTags({ SqlError: Effect.die })
+          )
+
+      const listByTeam = () =>
+        db
+          .select({
+            id: proposals.id,
+            entityAddress: proposals.entityAddress,
+            type: proposals.type,
+            status: proposals.status,
+            createdBy: proposals.createdBy,
+            createdAt: proposals.createdAt
+          })
+          .from(proposals)
+          .where(inArray(proposals.type, TEAM_TYPES))
+          .orderBy(desc(proposals.createdAt))
+          .pipe(
+            Effect.map((rows) =>
+              rows.map((row) => ({
+                ...row,
+                id: ProposalId.make(row.id),
+                entityAddress: EntityAddress.make(row.entityAddress),
+                type: row.type as ProposalType,
+                createdAt: row.createdAt.toISOString()
+              }))
+            ),
+            Effect.catchTags({ SqlError: Effect.die })
+          )
+
+      const getByIdTeam = (proposalId: ProposalId) =>
+        db
+          .select()
+          .from(proposals)
+          .where(
+            and(
+              eq(proposals.id, proposalId),
+              inArray(proposals.type, TEAM_TYPES)
+            )
+          )
+          .limit(1)
+          .pipe(
+            Effect.flatMap((rows) => {
+              const row = rows[0]
+              if (!row) {
+                return Effect.fail(new ProposalNotFoundDbError({ proposalId }))
+              }
+              return Effect.succeed({
+                id: ProposalId.make(row.id),
+                entityAddress: EntityAddress.make(row.entityAddress),
+                type: row.type as ProposalType,
                 status: row.status,
                 manifest: row.manifest,
                 maxProposerTimestamp: row.maxProposerTimestamp,
@@ -237,6 +320,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         insert,
         listByVault,
         getById,
+        listByTeam,
+        getByIdTeam,
         addSignature,
         getSignatures,
         updateStatus,

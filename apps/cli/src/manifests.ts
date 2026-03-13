@@ -129,16 +129,12 @@ export async function buildCreateBadgeResourceManifest(input: {
     addrs
   )
 
-  // NamedAddress works in CALL_METHOD args but not in TAKE_FROM_WORKTOP
-  // (which requires ResourceAddress). So: deposit all to fee payer first,
-  // then withdraw+deposit 1 at a time per recipient.
   const distribute = input.recipients
     .map(
       (recipient) =>
         `CALL_METHOD
-    Address("${input.feePayerAddress}")
-    "withdraw"
     NamedAddress("badge_address")
+    "mint"
     Decimal("1")
 ;
 CALL_METHOD
@@ -161,20 +157,19 @@ ALLOCATE_GLOBAL_ADDRESS
     AddressReservation("badge_reservation")
     NamedAddress("badge_address")
 ;
-CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
+CREATE_FUNGIBLE_RESOURCE
     Enum<2u8>(
-        ${accessRule}
+        Enum<0u8>()
     )
     true
     0u8
-    Decimal("${input.recipients.length}")
     Tuple(
-        Enum<0u8>(),
-        Enum<0u8>(),
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
-        Enum<0u8>(),
-        Enum<0u8>()
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
+        Enum<1u8>(Tuple(Enum<1u8>(Enum<1u8>()), Enum<1u8>(Enum<1u8>()))),
+        Enum<1u8>(Tuple(Enum<1u8>(Enum<0u8>()), Enum<1u8>(Enum<1u8>())))
     )
     Tuple(
         Map<String, Tuple>(
@@ -184,11 +179,9 @@ CREATE_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
     )
     Enum<1u8>(AddressReservation("badge_reservation"))
 ;
-CALL_METHOD
-    Address("${input.feePayerAddress}")
-    "try_deposit_batch_or_abort"
-    Expression("ENTIRE_WORKTOP")
-    Enum<0u8>()
-;
-${distribute}`
+${distribute}
+SET_OWNER_ROLE
+    NamedAddress("badge_address")
+    ${accessRule}
+;`
 }

@@ -18,7 +18,10 @@ import {
 import { ProposalId } from '../proposalId'
 import { VaultAddress } from '../vaultAddress'
 import {
+  AddMemberRequestSchema,
   AlreadySignedError,
+  BadgeVaultNotFoundError,
+  ChangeThresholdRequestSchema,
   CreateProposalRequestSchema,
   CreateProposalResponseSchema,
   CreateVaultFailedError,
@@ -26,8 +29,9 @@ import {
   CreateVaultResponseSchema,
   ImportVaultRequestSchema,
   ImportVaultResponseSchema,
+  MemberAlreadyExistsError,
+  MemberNotFoundError,
   NotEligibleSignerError,
-  PreviewProposalResponseSchema,
   ProposalDetailSchema,
   ProposalExpiredError,
   ProposalInvalidError,
@@ -40,10 +44,15 @@ import {
   ProposalStatusCheckFailedError,
   ProposalSubmitFailedError,
   RefreshStatusResponseSchema,
+  RemoveMemberRequestSchema,
   SignProposalRequestSchema,
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
   TeamOverviewSchema,
+  TeamProposalCreateResponseSchema,
+  TeamProposalDetailSchema,
+  TeamProposalListItemSchema,
+  TeamProposalNotFoundError,
   ThresholdExceedsSignersError,
   UnsupportedAccessRuleError,
   VaultAlreadyExistsError,
@@ -238,22 +247,101 @@ export class ProposalsGroup extends HttpApiGroup.make('proposals')
       .addError(ProposalNotSubmittedError)
       .addError(ProposalStatusCheckFailedError)
       .middleware(SessionMiddleware)
+  ) {}
+
+// --- Team proposal endpoints ---
+export class TeamProposalsGroup extends HttpApiGroup.make('teamProposals')
+  .add(
+    HttpApiEndpoint.post('addMember', '/team/proposals/add-member')
+      .setPayload(AddMemberRequestSchema)
+      .addSuccess(TeamProposalCreateResponseSchema)
+      .addError(ProposalPreviewFailedError)
+      .addError(MemberAlreadyExistsError)
+      .addError(ThresholdExceedsSignersError)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .middleware(SessionMiddleware)
   )
   .add(
-    HttpApiEndpoint.post(
-      'preview',
-      '/vaults/:vaultAddress/proposals/:proposalId/preview'
+    HttpApiEndpoint.post('removeMember', '/team/proposals/remove-member')
+      .setPayload(RemoveMemberRequestSchema)
+      .addSuccess(TeamProposalCreateResponseSchema)
+      .addError(ProposalPreviewFailedError)
+      .addError(MemberNotFoundError)
+      .addError(BadgeVaultNotFoundError)
+      .addError(ThresholdExceedsSignersError)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post('changeThreshold', '/team/proposals/change-threshold')
+      .setPayload(ChangeThresholdRequestSchema)
+      .addSuccess(TeamProposalCreateResponseSchema)
+      .addError(ProposalPreviewFailedError)
+      .addError(VaultNotFoundErrorSchema, { status: 404 })
+      .addError(ThresholdExceedsSignersError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.get('list', '/team/proposals').addSuccess(
+      Schema.Array(TeamProposalListItemSchema)
     )
+  )
+  .add(
+    HttpApiEndpoint.get('detail', '/team/proposals/:proposalId')
       .setPath(
         Schema.Struct({
-          vaultAddress: VaultAddress,
           proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
         })
       )
-      .addSuccess(PreviewProposalResponseSchema)
-      .addError(VaultNotFoundErrorSchema, { status: 404 })
-      .addError(ProposalNotFoundError)
-      .addError(ProposalPreviewFailedError)
+      .addSuccess(TeamProposalDetailSchema)
+      .addError(TeamProposalNotFoundError)
+  )
+  .add(
+    HttpApiEndpoint.post('sign', '/team/proposals/:proposalId/sign')
+      .setPath(
+        Schema.Struct({
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
+        })
+      )
+      .setPayload(SignProposalRequestSchema)
+      .addSuccess(SignProposalResponseSchema)
+      .addError(TeamProposalNotFoundError)
+      .addError(ProposalNotSignableError)
+      .addError(ProposalExpiredError)
+      .addError(NotEligibleSignerError)
+      .addError(AlreadySignedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post('submit', '/team/proposals/:proposalId/submit')
+      .setPath(
+        Schema.Struct({
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
+        })
+      )
+      .addSuccess(SubmitProposalResponseSchema)
+      .addError(TeamProposalNotFoundError)
+      .addError(ProposalNotReadyError)
+      .addError(ProposalExpiredError)
+      .addError(ProposalInvalidError)
+      .addError(ProposalSubmitFailedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.post(
+      'refreshStatus',
+      '/team/proposals/:proposalId/refresh-status'
+    )
+      .setPath(
+        Schema.Struct({
+          proposalId: Schema.NumberFromString.pipe(Schema.brand('ProposalId'))
+        })
+      )
+      .addSuccess(RefreshStatusResponseSchema)
+      .addError(TeamProposalNotFoundError)
+      .addError(ProposalNotSubmittedError)
+      .addError(ProposalStatusCheckFailedError)
+      .middleware(SessionMiddleware)
   ) {}
 
 // --- Health endpoint ---
@@ -269,4 +357,5 @@ export class AppApi extends HttpApi.make('radix-vaults')
   .add(VaultsGroup)
   .add(TeamGroup)
   .add(ProposalsGroup)
+  .add(TeamProposalsGroup)
   .add(HealthGroup) {}

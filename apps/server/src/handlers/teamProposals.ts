@@ -1,10 +1,16 @@
 import type {
   AccountAddress,
+  AddMemberRequest,
+  ChangeThresholdRequest,
   ProposalId,
-  VaultAddress as VaultAddressType
+  RemoveMemberRequest
 } from '@radix-vaults/shared'
 import {
   AlreadySignedError,
+  AuthConfig,
+  BadgeVaultNotFoundError,
+  MemberAlreadyExistsError,
+  MemberNotFoundError,
   NotEligibleSignerError,
   ProposalExpiredError,
   ProposalInvalidError,
@@ -13,14 +19,22 @@ import {
   ProposalNotSubmittedError,
   ProposalPreviewFailedError,
   ProposalStatusCheckFailedError,
-  ProposalSubmitFailedError
+  ProposalSubmitFailedError,
+  ThresholdExceedsSignersError
 } from '@radix-vaults/shared'
 import {
+  GetEntityDetailsVaultAggregated,
   GetLedgerStateService,
   PreviewTransaction
 } from '@radix-effects/gateway'
 import { Config, DateTime, Effect, Option } from 'effect'
+import type { ParsedSigner } from '../gateway/accessRuleValidator'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+import {
+  buildAddMemberManifest,
+  buildChangeThresholdManifest,
+  buildRemoveMemberManifest
+} from '../gateway/manifests'
 import {
   buildUnsignedSubintent,
   computePublicKeyHash,
@@ -52,10 +66,26 @@ const extractPreviewErrorMessage = (e: { _tag: string; message?: string }) => {
   return e.message ?? String(e)
 }
 
-export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
-  '@radix-vaults/server/handlers/ProposalsHandler',
+/**
+ * Parse a NonFungibleGlobalId string like "resource_sim1...ed25sg...:[ hex ]"
+ * into a ParsedSigner { resourceAddress, localId }.
+ */
+const parseVirtualBadge = (
+  virtualBadge: string
+): { resourceAddress: string; localId: string } => {
+  const colonIdx = virtualBadge.indexOf(':')
+  if (colonIdx === -1) throw new Error(`Invalid virtualBadge: ${virtualBadge}`)
+  return {
+    resourceAddress: virtualBadge.slice(0, colonIdx),
+    localId: virtualBadge.slice(colonIdx + 1)
+  }
+}
+
+export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()(
+  '@radix-vaults/server/handlers/TeamProposalsHandler',
   {
     effect: Effect.gen(function* () {
+      const authConfig = yield* AuthConfig
       const listVaultsRepo = yield* ListVaultsRepo
       const proposalRepo = yield* ProposalRepo
       const previewFn = yield* PreviewTransaction
@@ -63,17 +93,20 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const transactionSubmitter = yield* TransactionSubmitter
       const transactionStatusChecker = yield* TransactionStatusChecker
       const getLedgerState = yield* GetLedgerStateService
+      const getEntityDetails = yield* GetEntityDetailsVaultAggregated
       const networkId = yield* Config.number('NETWORK_ID')
 
-      const create = (
-        vaultAddress: VaultAddressType,
+      const badgeAddress = authConfig.teamMemberBadgeAddress
+
+      const buildSubintentAndStore = (
         manifest: string,
-        maxProposerTimestamp: string,
-        createdBy: string
+        entityAddress: string,
+        type: 'add_member' | 'remove_member' | 'change_threshold',
+        createdBy: string,
+        maxProposerTimestamp: string
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-
+          // Preview the manifest
           yield* previewFn({
             payload: {
               manifest,
@@ -96,24 +129,20 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             )
           )
 
-          // Fetch current epoch for subintent header bounds
           const ledgerState = yield* getLedgerState({}).pipe(Effect.orDie)
           const currentEpoch = ledgerState.epoch
 
-          // Capture creation time once — used for both subintent header and DB record
           const createdAt = yield* DateTime.now
           const createdAtDate = DateTime.toDateUtc(createdAt)
 
           const toEpochSec = (dt: DateTime.DateTime) =>
             Math.floor(DateTime.toEpochMillis(dt) / 1000)
 
-          // Parse maxProposerTimestamp to seconds for subintent header
           const maxProposerTimestampSec = Option.map(
             DateTime.make(maxProposerTimestamp),
             toEpochSec
           ).pipe(Option.getOrUndefined)
 
-          // Compute epoch range that outlasts maxProposerTimestamp
           const nowSec = toEpochSec(createdAt)
           const secondsUntilExpiry =
             (maxProposerTimestampSec ?? nowSec) - nowSec
@@ -121,7 +150,6 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           const computedEpochMax =
             currentEpoch + Math.max(epochsNeeded * 2, 100)
 
-          // Build unsigned subintent
           const subintent = yield* buildUnsignedSubintent(
             manifest,
             networkId,
@@ -131,9 +159,9 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             toEpochSec(createdAt)
           ).pipe(Effect.orDie)
 
-          const result = yield* proposalRepo.insert({
-            entityAddress: vaultAddress,
-            type: 'vault',
+          return yield* proposalRepo.insert({
+            entityAddress,
+            type,
             manifest,
             maxProposerTimestamp,
             createdBy,
@@ -144,24 +172,290 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             epochMin: subintent.epochMin,
             epochMax: subintent.epochMax
           })
-          return { ...result, vaultAddress }
         })
 
-      const list = (vaultAddress: VaultAddressType) =>
+      const createAddMember = (input: AddMemberRequest, createdBy: string) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          return yield* proposalRepo.listByVault(vaultAddress)
+          // 1. Fetch current signers from badge resource
+          const accessRule = yield* accessRuleValidator
+            .validate(badgeAddress)
+            .pipe(Effect.orDie)
+
+          // 2. Parse new signer identity
+          const newSigner = parseVirtualBadge(input.virtualBadge)
+
+          // 3. Validate new signer not already in set
+          const alreadyExists = accessRule.signers.some(
+            (s) =>
+              s.resourceAddress === newSigner.resourceAddress &&
+              s.localId === newSigner.localId
+          )
+          if (alreadyExists) {
+            return yield* new MemberAlreadyExistsError({
+              message: 'This signer is already in the team'
+            })
+          }
+
+          // 4. New signer set = existing + new
+          const newSigners: ParsedSigner[] = [...accessRule.signers, newSigner]
+
+          // 5. Validate badge threshold
+          if (input.badgeThreshold > newSigners.length) {
+            return yield* new ThresholdExceedsSignersError({
+              message: `Badge threshold ${input.badgeThreshold} exceeds new signer count ${newSigners.length}`
+            })
+          }
+
+          // 6. Fetch all vaults from DB and validate vault thresholds
+          const vaults = yield* listVaultsRepo.list()
+          const vaultMap = new Map(vaults.map((v) => [v.accountAddress, v]))
+          for (const vt of input.vaultThresholds) {
+            if (!vaultMap.has(vt.vaultAddress)) {
+              return yield* new ThresholdExceedsSignersError({
+                message: `Vault ${vt.vaultAddress} not found`
+              })
+            }
+            if (vt.threshold > newSigners.length) {
+              return yield* new ThresholdExceedsSignersError({
+                message: `Vault threshold ${vt.threshold} for ${vt.vaultAddress} exceeds new signer count ${newSigners.length}`
+              })
+            }
+          }
+
+          // 7. Build manifest
+          const maxProposerTimestamp = new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+          )
+            .toISOString()
+            .slice(0, 19)
+
+          const manifest = yield* Effect.promise(() =>
+            buildAddMemberManifest({
+              badgeResource: badgeAddress,
+              recipientAccount: input.accountAddress,
+              badgeRoleEntry: {
+                entityAddress: badgeAddress,
+                signers: newSigners,
+                threshold: input.badgeThreshold
+              },
+              vaultRoleEntries: input.vaultThresholds.map((vt) => ({
+                entityAddress: vt.vaultAddress,
+                signers: newSigners,
+                threshold: vt.threshold
+              })),
+              networkId
+            })
+          )
+
+          // 8. Preview, build subintent, store
+          return yield* buildSubintentAndStore(
+            manifest,
+            badgeAddress,
+            'add_member',
+            createdBy,
+            maxProposerTimestamp
+          )
         })
+
+      const createRemoveMember = (
+        input: RemoveMemberRequest,
+        createdBy: string
+      ) =>
+        Effect.gen(function* () {
+          // 1. Fetch current signers
+          const accessRule = yield* accessRuleValidator
+            .validate(badgeAddress)
+            .pipe(Effect.orDie)
+
+          // 2. Parse signer to remove
+          const removeSigner = parseVirtualBadge(input.virtualBadge)
+
+          // 3. Validate signer exists
+          const exists = accessRule.signers.some(
+            (s) =>
+              s.resourceAddress === removeSigner.resourceAddress &&
+              s.localId === removeSigner.localId
+          )
+          if (!exists) {
+            return yield* new MemberNotFoundError({
+              message: 'This signer is not in the team'
+            })
+          }
+
+          // 4. New signer set = existing - removed
+          const newSigners = accessRule.signers.filter(
+            (s) =>
+              !(
+                s.resourceAddress === removeSigner.resourceAddress &&
+                s.localId === removeSigner.localId
+              )
+          )
+
+          if (newSigners.length === 0) {
+            return yield* new ThresholdExceedsSignersError({
+              message: 'Cannot remove the last signer'
+            })
+          }
+
+          // 5. Validate thresholds
+          if (input.badgeThreshold > newSigners.length) {
+            return yield* new ThresholdExceedsSignersError({
+              message: `Badge threshold ${input.badgeThreshold} exceeds remaining signer count ${newSigners.length}`
+            })
+          }
+
+          const vaults = yield* listVaultsRepo.list()
+          const vaultMap = new Map(vaults.map((v) => [v.accountAddress, v]))
+          for (const vt of input.vaultThresholds) {
+            if (!vaultMap.has(vt.vaultAddress)) {
+              return yield* new ThresholdExceedsSignersError({
+                message: `Vault ${vt.vaultAddress} not found`
+              })
+            }
+            if (vt.threshold > newSigners.length) {
+              return yield* new ThresholdExceedsSignersError({
+                message: `Vault threshold ${vt.threshold} for ${vt.vaultAddress} exceeds remaining signer count ${newSigners.length}`
+              })
+            }
+          }
+
+          // 6. Look up member's internal badge vault
+          const memberDetails = yield* getEntityDetails(
+            [input.memberAddress],
+            undefined,
+            undefined
+          ).pipe(
+            Effect.catchAll(() =>
+              Effect.fail(
+                new BadgeVaultNotFoundError({
+                  message: `Could not fetch entity details for ${input.memberAddress}`
+                })
+              )
+            )
+          )
+
+          const memberEntity = memberDetails[0]
+          if (!memberEntity) {
+            return yield* new BadgeVaultNotFoundError({
+              message: `Entity not found: ${input.memberAddress}`
+            })
+          }
+
+          // Find the fungible vault holding the badge resource
+          const fungibleVaults = (
+            memberEntity.fungible_resources?.items ?? []
+          ).find(
+            (r: { resource_address?: string }) =>
+              r.resource_address === badgeAddress
+          )
+
+          const vaultItems = (
+            fungibleVaults as {
+              vaults?: { items?: Array<{ vault_address?: string }> }
+            }
+          )?.vaults?.items
+          const internalVaultAddress = vaultItems?.[0]?.vault_address
+
+          if (!internalVaultAddress) {
+            return yield* new BadgeVaultNotFoundError({
+              message: `No badge vault found for ${input.memberAddress}`
+            })
+          }
+
+          // 7. Build manifest
+          const maxProposerTimestamp = new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+          )
+            .toISOString()
+            .slice(0, 19)
+
+          const manifest = yield* Effect.promise(() =>
+            buildRemoveMemberManifest({
+              badgeResource: badgeAddress,
+              memberInternalVaultAddress: internalVaultAddress,
+              badgeRoleEntry: {
+                entityAddress: badgeAddress,
+                signers: newSigners,
+                threshold: input.badgeThreshold
+              },
+              vaultRoleEntries: input.vaultThresholds.map((vt) => ({
+                entityAddress: vt.vaultAddress,
+                signers: newSigners,
+                threshold: vt.threshold
+              })),
+              networkId
+            })
+          )
+
+          // 8. Preview, build subintent, store
+          return yield* buildSubintentAndStore(
+            manifest,
+            badgeAddress,
+            'remove_member',
+            createdBy,
+            maxProposerTimestamp
+          )
+        })
+
+      const createChangeThreshold = (
+        input: ChangeThresholdRequest,
+        createdBy: string
+      ) =>
+        Effect.gen(function* () {
+          // 1. Validate vault exists
+          yield* listVaultsRepo.ensureExists(input.vaultAddress)
+
+          // 2. Fetch current signers from vault
+          const accessRule = yield* accessRuleValidator
+            .validate(input.vaultAddress)
+            .pipe(Effect.orDie)
+
+          const signers = accessRule.signers
+
+          // 3. Validate threshold
+          if (input.threshold > signers.length) {
+            return yield* new ThresholdExceedsSignersError({
+              message: `Threshold ${input.threshold} exceeds signer count ${signers.length}`
+            })
+          }
+
+          // 4. Build manifest
+          const maxProposerTimestamp = new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+          )
+            .toISOString()
+            .slice(0, 19)
+
+          const manifest = yield* Effect.promise(() =>
+            buildChangeThresholdManifest({
+              vaultAddress: input.vaultAddress,
+              signers,
+              threshold: input.threshold,
+              networkId
+            })
+          )
+
+          // 5. Preview, build subintent, store
+          return yield* buildSubintentAndStore(
+            manifest,
+            input.vaultAddress,
+            'change_threshold',
+            createdBy,
+            maxProposerTimestamp
+          )
+        })
+
+      const list = () => proposalRepo.listByTeam()
 
       const getSignatureProgress = (
-        vaultAddress: VaultAddressType,
+        entityAddress: string,
         proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
           const signatures = yield* proposalRepo.getSignatures(proposalId)
 
           const accessRule = yield* accessRuleValidator
-            .validate(vaultAddress)
+            .validate(entityAddress)
             .pipe(Effect.orDie)
 
           const threshold =
@@ -181,15 +475,11 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           }
         })
 
-      const getDetail = (
-        vaultAddress: VaultAddressType,
-        proposalId: ProposalId
-      ) =>
+      const getDetail = (proposalId: ProposalId) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
           const signatureProgress = yield* getSignatureProgress(
-            vaultAddress,
+            proposal.entityAddress,
             proposalId
           )
 
@@ -201,14 +491,12 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         })
 
       const sign = (
-        vaultAddress: VaultAddressType,
         proposalId: ProposalId,
         signerAccountAddress: AccountAddress,
         signedPartialTransactionHex: string
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
 
           if (!SIGNABLE_STATUSES.has(proposal.status)) {
             return yield* new ProposalNotSignableError({
@@ -216,14 +504,12 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Check expiry before allowing signature
           if (isExpired(proposal.maxProposerTimestamp)) {
             const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
             yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
             return yield* new ProposalExpiredError({ message: reason })
           }
 
-          // Verify the subintent hash from the signed partial matches our stored hash
           const walletSubintentHash =
             yield* computeSubintentHashFromSignedPartial(
               signedPartialTransactionHex,
@@ -245,7 +531,6 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Extract signature + public key from wallet response
           const extracted = yield* extractSignatureFromHex(
             signedPartialTransactionHex,
             networkId
@@ -259,11 +544,11 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             )
           )
 
-          // Compute key hash and validate against vault access rule
           const signerKeyHash = computePublicKeyHash(extracted.publicKeyHex)
 
+          // Validate against the entity's access rule (badge resource for add/remove, vault for change_threshold)
           const accessRule = yield* accessRuleValidator
-            .validate(vaultAddress)
+            .validate(proposal.entityAddress)
             .pipe(Effect.orDie)
 
           const matchingSigner = accessRule.signers.find(
@@ -271,20 +556,17 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           )
           if (!matchingSigner) {
             return yield* new NotEligibleSignerError({
-              message: 'The signing key does not match any vault signer'
+              message: 'The signing key does not match any authorized signer'
             })
           }
 
-          const signerKeyType = extracted.keyType
-
-          // Persist signature with full cryptographic data
           yield* proposalRepo
             .addSignature({
               proposalId,
               signerAccountAddress,
               signerPublicKey: extracted.publicKeyHex,
               signerKeyHash,
-              signerKeyType,
+              signerKeyType: extracted.keyType,
               signatureBytes: extracted.signatureHex,
               signedPartialTransactionHex
             })
@@ -298,7 +580,6 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
               )
             )
 
-          // Update status based on threshold
           const signatures = yield* proposalRepo.getSignatures(proposalId)
           const threshold =
             accessRule.type === 'CountOf'
@@ -314,12 +595,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ok: true as const }
         })
 
-      const submit = (vaultAddress: VaultAddressType, proposalId: ProposalId) =>
+      const submit = (proposalId: ProposalId) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
 
-          // Idempotent: if already submitted, return existing hash
           if (
             proposal.transactionIntentHash &&
             (proposal.status === 'submitted' || proposal.status === 'committed')
@@ -336,17 +615,15 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Check expiry before submitting
           if (isExpired(proposal.maxProposerTimestamp)) {
             const reason = `Proposal expired: max proposer timestamp ${proposal.maxProposerTimestamp} has passed`
             yield* proposalRepo.setTerminalStatus(proposalId, 'expired', reason)
             return yield* new ProposalExpiredError({ message: reason })
           }
 
-          // Re-check signer threshold — mark invalid on drift
           const signatures = yield* proposalRepo.getSignatures(proposalId)
           const accessRule = yield* accessRuleValidator
-            .validate(vaultAddress)
+            .validate(proposal.entityAddress)
             .pipe(Effect.orDie)
 
           const threshold =
@@ -366,7 +643,6 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             })
           }
 
-          // Compose V2 transaction from collected signatures and submit
           const { intentHash } = yield* transactionSubmitter
             .submitWithSubintent({
               partialTransactionHex: proposal.partialTransactionHex,
@@ -389,15 +665,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { intentHash, status: 'submitted' as const }
         })
 
-      const refreshStatus = (
-        vaultAddress: VaultAddressType,
-        proposalId: ProposalId
-      ) =>
+      const refreshStatus = (proposalId: ProposalId) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
 
-          // Idempotent: if already in terminal state, return current
           if (proposal.status === 'committed' || proposal.status === 'failed') {
             return {
               status: proposal.status,
@@ -448,7 +719,6 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             }
           }
 
-          // Pending or Unknown — no status change
           return {
             status: proposal.status,
             transactionIntentHash: proposal.transactionIntentHash,
@@ -457,7 +727,9 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         })
 
       return {
-        create,
+        createAddMember,
+        createRemoveMember,
+        createChangeThreshold,
         list,
         getDetail,
         sign,

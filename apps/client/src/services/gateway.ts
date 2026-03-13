@@ -1,6 +1,7 @@
 import {
   GatewayApiClient,
-  GetEntityDetailsVaultAggregated
+  GetEntityDetailsVaultAggregated,
+  PreviewTransaction
 } from '@radix-effects/gateway'
 import type { VaultAddress, VaultSigners } from '@radix-vaults/shared'
 import { parseOwnerAccessRule } from '@radix-vaults/shared'
@@ -31,10 +32,12 @@ export class GatewayService extends Effect.Service<GatewayService>()(
     dependencies: [
       GetEntityDetailsVaultAggregated.Default.pipe(
         Layer.provide(GatewayApiClientLayer)
-      )
+      ),
+      PreviewTransaction.Default.pipe(Layer.provide(GatewayApiClientLayer))
     ],
     effect: Effect.gen(function* () {
       const getEntityDetails = yield* GetEntityDetailsVaultAggregated
+      const previewFn = yield* PreviewTransaction
 
       const getVaultSigners = (
         vaultAddress: VaultAddress
@@ -77,7 +80,8 @@ export class GatewayService extends Effect.Service<GatewayService>()(
           const signers = parsed.signers.map((s) => ({
             signerPublicKey: s.localId,
             signerKeyType: keyTypeFromResource(s.resourceAddress),
-            signerKeyHash: s.localId
+            signerKeyHash: s.localId,
+            nonFungibleGlobalId: `${s.resourceAddress}:${s.localId}`
           }))
 
           return { vaultAddress, threshold, signers } satisfies VaultSigners
@@ -108,7 +112,74 @@ export class GatewayService extends Effect.Service<GatewayService>()(
           return String(total)
         })
 
-      return { getVaultSigners, getVaultBalanceXrd } as const
+      const previewManifest = (manifest: string) =>
+        Effect.gen(function* () {
+          const result = yield* previewFn({
+            payload: {
+              manifest,
+              start_epoch_inclusive: 1,
+              end_epoch_exclusive: 2,
+              nonce: 1,
+              signer_public_keys: [],
+              flags: {
+                assume_all_signature_proofs: true,
+                use_free_credit: true,
+                skip_epoch_check: true
+              },
+              opt_ins: {}
+            }
+          })
+
+          const receipt = result.receipt as Record<string, unknown>
+
+          const logs = (result.logs ?? []).map((l) => ({
+            level: l.level,
+            message: l.message
+          }))
+
+          // Parse resource_changes to determine account interactions.
+          // V1 preview returns per-instruction groups: [{ index, resource_changes: [...] }]
+          type ResourceChange = {
+            resource_address: string
+            component_entity: { entity_address: string }
+            amount: string
+          }
+          const groups = result.resource_changes as Array<{
+            resource_changes?: ResourceChange[]
+          }>
+          const changes = groups
+            .flatMap((g) => g.resource_changes ?? [])
+            .filter((c) =>
+              c.component_entity?.entity_address?.startsWith('account_')
+            )
+
+          const aggregated = new Map<string, number>()
+          for (const c of changes) {
+            const key = `${c.component_entity.entity_address}|${c.resource_address}`
+            aggregated.set(key, (aggregated.get(key) ?? 0) + Number(c.amount))
+          }
+
+          const resourceChanges: Array<{
+            accountAddress: string
+            resourceAddress: string
+            amount: string
+          }> = []
+          for (const [key, total] of aggregated) {
+            if (total === 0) continue
+            const separatorIndex = key.indexOf('|')
+            const accountAddress = key.slice(0, separatorIndex)
+            const resourceAddress = key.slice(separatorIndex + 1)
+            resourceChanges.push({
+              accountAddress,
+              resourceAddress,
+              amount: total > 0 ? `+${total}` : String(total)
+            })
+          }
+
+          return { receipt: receipt ?? null, logs, resourceChanges }
+        })
+
+      return { getVaultSigners, getVaultBalanceXrd, previewManifest } as const
     })
   }
 ) {}

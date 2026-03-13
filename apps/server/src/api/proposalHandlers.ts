@@ -146,19 +146,6 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           })
         )
       )
-      .handle('preview', ({ path: { vaultAddress, proposalId } }) =>
-        Effect.gen(function* () {
-          const proposalsHandler = yield* ProposalsHandler
-          return yield* proposalsHandler.preview(vaultAddress, proposalId)
-        }).pipe(
-          Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress }),
-            ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
-      )
 ).pipe(
   Layer.provide(ProposalsHandler.Default),
   Layer.provide(ProposalRepo.Default),

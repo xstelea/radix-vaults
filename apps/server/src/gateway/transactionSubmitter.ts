@@ -6,17 +6,6 @@ export class TransactionSubmitError extends Data.TaggedError(
   message: string
 }> {}
 
-export interface AccountInteraction {
-  accountAddress: string
-  direction: 'withdraw' | 'deposit'
-}
-
-export interface PreviewSubintentResult {
-  receipt: Record<string, unknown> | undefined
-  logs: Array<{ level: string; message: string }>
-  accountInteractions: AccountInteraction[]
-}
-
 export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()(
   '@radix-vaults/server/gateway/TransactionSubmitter',
   {
@@ -44,16 +33,6 @@ export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()
           keyType: 'ed25519' | 'secp256k1'
         }>
       }): Effect.Effect<{ intentHash: string }, TransactionSubmitError> =>
-        Effect.fail(
-          new TransactionSubmitError({
-            message:
-              'TransactionSubmitter not configured. Provide TransactionSubmitterLive layer.'
-          })
-        ),
-
-      previewSubintent: (
-        _partialTransactionHex: string
-      ): Effect.Effect<PreviewSubintentResult, TransactionSubmitError> =>
         Effect.fail(
           new TransactionSubmitError({
             message:

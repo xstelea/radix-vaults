@@ -38,9 +38,8 @@ export const sessions = pgTable('sessions', {
 
 export const proposals = pgTable('proposals', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
-  vaultAddress: varchar('vault_address', { length: 255 })
-    .notNull()
-    .references(() => vaults.accountAddress, { onDelete: 'cascade' }),
+  entityAddress: varchar('entity_address', { length: 255 }).notNull(),
+  type: varchar('type', { length: 32 }).notNull().default('vault'),
   status: varchar('status', { length: 32 }).notNull(),
   manifest: text('manifest').notNull(),
   maxProposerTimestamp: varchar('max_proposer_timestamp', {
