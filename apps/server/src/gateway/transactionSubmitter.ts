@@ -6,9 +6,15 @@ export class TransactionSubmitError extends Data.TaggedError(
   message: string
 }> {}
 
+export interface AccountInteraction {
+  accountAddress: string
+  direction: 'withdraw' | 'deposit'
+}
+
 export interface PreviewSubintentResult {
   receipt: Record<string, unknown> | undefined
   logs: Array<{ level: string; message: string }>
+  accountInteractions: AccountInteraction[]
 }
 
 export class TransactionSubmitter extends Effect.Service<TransactionSubmitter>()(

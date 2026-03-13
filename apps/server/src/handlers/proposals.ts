@@ -113,12 +113,20 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             toEpochSec
           ).pipe(Option.getOrUndefined)
 
+          // Compute epoch range that outlasts maxProposerTimestamp
+          const nowSec = toEpochSec(createdAt)
+          const secondsUntilExpiry =
+            (maxProposerTimestampSec ?? nowSec) - nowSec
+          const epochsNeeded = Math.ceil(secondsUntilExpiry / 300)
+          const computedEpochMax =
+            currentEpoch + Math.max(epochsNeeded * 2, 100)
+
           // Build unsigned subintent
           const subintent = yield* buildUnsignedSubintent(
             manifest,
             networkId,
             currentEpoch,
-            currentEpoch + 100,
+            computedEpochMax,
             maxProposerTimestampSec,
             toEpochSec(createdAt)
           ).pipe(Effect.orDie)
@@ -472,7 +480,8 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
 
           return {
             receipt: result.receipt ?? null,
-            logs: result.logs
+            logs: result.logs,
+            accountInteractions: result.accountInteractions
           }
         })
 

@@ -14,9 +14,15 @@ import {
   TableRow
 } from '@/components/ui/table'
 
+interface AccountInteraction {
+  accountAddress: string
+  direction: 'withdraw' | 'deposit'
+}
+
 interface PreviewResult {
   receipt: Record<string, unknown> | null
   logs: Array<{ level: string; message: string }>
+  accountInteractions: AccountInteraction[]
 }
 
 export function TransactionPreviewCard({
@@ -115,6 +121,11 @@ export function TransactionPreviewCard({
             />
           )}
 
+          {/* Account interactions */}
+          {result.accountInteractions.length > 0 && (
+            <AccountInteractions interactions={result.accountInteractions} />
+          )}
+
           {/* Logs */}
           {result.logs.length > 0 && (
             <div className="space-y-2">
@@ -136,6 +147,51 @@ export function TransactionPreviewCard({
         </CardContent>
       )}
     </Card>
+  )
+}
+
+function AccountInteractions({
+  interactions
+}: {
+  interactions: AccountInteraction[]
+}) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Affected Accounts
+      </h3>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Account</TableHead>
+            <TableHead className="text-right">Direction</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {interactions.map((interaction, i) => {
+            const isWithdraw = interaction.direction === 'withdraw'
+            return (
+              <TableRow key={i}>
+                <TableCell
+                  className="font-mono text-xs"
+                  title={interaction.accountAddress}
+                >
+                  {interaction.accountAddress.slice(0, 12)}...
+                  {interaction.accountAddress.slice(-8)}
+                </TableCell>
+                <TableCell
+                  className={`text-right text-xs font-medium ${
+                    isWithdraw ? 'text-red-600' : 'text-emerald-600'
+                  }`}
+                >
+                  {isWithdraw ? 'Withdraw' : 'Deposit'}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 

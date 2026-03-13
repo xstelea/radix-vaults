@@ -8,6 +8,7 @@ import { SubintentRequestBuilder } from '@radixdlt/radix-dapp-toolkit'
 import { Data, Effect, Layer, Option, Ref } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
 import { AppApiClient } from '@/lib/apiClient'
+import { disconnectOnUnauthorized } from '@/lib/disconnectOnUnauthorized'
 import { RadixDappToolkit } from '@/lib/radixDappToolkit'
 import { ProposalService } from '@/services/proposal'
 import { withToast } from '@/atom/withToast'
@@ -50,6 +51,7 @@ export const createProposal = runtime.fn(
         args.maxProposerTimestamp
       )
     }).pipe(
+      disconnectOnUnauthorized,
       Effect.catchTags({
         ProposalPreviewFailedError: (e) =>
           Effect.fail(new CreateProposalError({ message: e.message })),
@@ -135,6 +137,7 @@ export const signProposal = runtime.fn(
         signedPartialTransactionHex
       )
     }).pipe(
+      disconnectOnUnauthorized,
       withToast({
         whenLoading: 'Signing proposal...',
         whenSuccess: 'Proposal signed successfully',
@@ -150,6 +153,7 @@ export const submitProposal = runtime.fn(
       const svc = yield* ProposalService
       return yield* svc.submit(args.vaultAddress, args.proposalId)
     }).pipe(
+      disconnectOnUnauthorized,
       withToast({
         whenLoading: 'Submitting transaction...',
         whenSuccess: ({ result }) =>
@@ -166,6 +170,7 @@ export const refreshProposalStatus = runtime.fn(
       const svc = yield* ProposalService
       return yield* svc.refreshStatus(args.vaultAddress, args.proposalId)
     }).pipe(
+      disconnectOnUnauthorized,
       withToast({
         whenLoading: 'Checking status...',
         whenSuccess: ({ result }) => {

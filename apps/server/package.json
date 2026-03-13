@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "dev:inspect": "tsx --inspect-brk src/main.ts",
     "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
     "start": "node dist/main.js",
     "lint": "oxlint .",

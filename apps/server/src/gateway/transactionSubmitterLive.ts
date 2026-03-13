@@ -19,12 +19,14 @@ import {
   Convert,
   PrivateKey,
   RadixEngineToolkit,
-  type PreviewTransactionV2 as RETPreviewTransactionV2
+  type PreviewTransactionV2 as RETPreviewTransactionV2,
+  type SubintentV2 as RETSubintentV2
 } from '@steleaio/radix-engine-toolkit'
 import { Config, ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
 import {
   TransactionSubmitError,
   TransactionSubmitter,
+  type AccountInteraction,
   type PreviewSubintentResult
 } from './transactionSubmitter'
 
@@ -288,7 +290,7 @@ YIELD_TO_CHILD
               RadixEngineToolkit.SubintentV2.hash(partialTx.rootSubintent)
             )
 
-            // 3. Get V2 headers (auto-fills epoch, uses fee payer as notary)
+            // 3. Get V2 headers (auto-fills epoch from current ledger)
             const { transactionHeader, intentHeader } = yield* headerV2Service({
               networkId: NetworkId.make(networkId),
               startEpochInclusive: Option.none(),
@@ -346,11 +348,20 @@ YIELD_TO_CHILD
               }
             } satisfies schemas.SubintentV2
 
-            // 6. Build TransactionIntentV2
+            // 6. Build TransactionIntentV2 — override root intent epoch
+            //    range to match child so they overlap for preview
+            //    (skip_epoch_check handles the expired-epoch case).
+            const previewIntentHeader = {
+              ...intentHeader,
+              startEpochInclusive: Epoch.make(
+                childCore.header.startEpochInclusive
+              ),
+              endEpochExclusive: Epoch.make(childCore.header.endEpochExclusive)
+            }
             const intent: schemas.TransactionIntentV2 = {
               transactionHeader,
               rootIntentCore: {
-                header: intentHeader,
+                header: previewIntentHeader,
                 instructions: rootManifest,
                 blobs: [],
                 message: { kind: 'None' as const },
@@ -395,7 +406,8 @@ YIELD_TO_CHILD
                 },
                 opt_ins: {
                   radix_engine_toolkit_receipt: true,
-                  logs: true
+                  logs: true,
+                  core_api_receipt: true
                 }
               }
             })
@@ -408,12 +420,32 @@ YIELD_TO_CHILD
                 | undefined) ??
               (result.receipt as Record<string, unknown> | undefined)
 
+            // Static analysis of the child subintent manifest to extract
+            // which accounts are withdrawn from / deposited into.
+            const analysis = yield* Effect.tryPromise(() =>
+              RadixEngineToolkit.SubintentV2.staticallyAnalyze(
+                childSubintent as unknown as RETSubintentV2
+              )
+            )
+
+            const accountInteractions: AccountInteraction[] = [
+              ...analysis.accounts_withdrawn_from.map((accountAddress) => ({
+                accountAddress,
+                direction: 'withdraw' as const
+              })),
+              ...analysis.accounts_deposited_into.map((accountAddress) => ({
+                accountAddress,
+                direction: 'deposit' as const
+              }))
+            ]
+
             return {
               receipt,
               logs: (result.logs ?? []).map((l) => ({
                 level: l.level,
                 message: l.message
-              }))
+              })),
+              accountInteractions
             }
           }).pipe(
             Effect.provide(AppLayer),

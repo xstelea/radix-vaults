@@ -1,11 +1,19 @@
 import { Atom } from '@effect-atom/atom-react'
 import type { VaultAddress } from '@radix-vaults/shared'
-import { Effect, Option } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
+import { AppApiClient } from '@/lib/apiClient'
+import { disconnectOnUnauthorized } from '@/lib/disconnectOnUnauthorized'
+import { RadixDappToolkit } from '@/lib/radixDappToolkit'
 import { VaultService } from '@/services/vault'
 import { withToast } from '@/atom/withToast'
 
-const runtime = makeAtomRuntime(VaultService.Default)
+const runtime = makeAtomRuntime(
+  Layer.merge(
+    VaultService.Default,
+    RadixDappToolkit.Live.pipe(Layer.provide(AppApiClient.Default))
+  )
+)
 
 export const vaultsListAtom = runtime
   .atom(
@@ -22,6 +30,7 @@ export const createVault = runtime.fn(
       const svc = yield* VaultService
       return yield* svc.createVault(args.name, args.threshold)
     }).pipe(
+      disconnectOnUnauthorized,
       withToast({
         whenLoading: 'Creating vault...',
         whenSuccess: 'Vault created successfully',
@@ -36,6 +45,7 @@ export const importVault = runtime.fn(
       const svc = yield* VaultService
       return yield* svc.importVault(args.accountAddress, args.name)
     }).pipe(
+      disconnectOnUnauthorized,
       withToast({
         whenLoading: 'Importing vault...',
         whenSuccess: 'Vault imported successfully',

@@ -301,9 +301,15 @@ export const PreviewProposalLogSchema = Schema.Struct({
   message: Schema.String
 })
 
+export const AccountInteractionSchema = Schema.Struct({
+  accountAddress: Schema.String,
+  direction: Schema.Literal('withdraw', 'deposit')
+})
+
 export const PreviewProposalResponseSchema = Schema.Struct({
   receipt: Schema.NullOr(Schema.Unknown),
-  logs: Schema.Array(PreviewProposalLogSchema)
+  logs: Schema.Array(PreviewProposalLogSchema),
+  accountInteractions: Schema.Array(AccountInteractionSchema)
 })
 
 export type PreviewProposalResponse = typeof PreviewProposalResponseSchema.Type
