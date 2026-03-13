@@ -423,3 +423,17 @@ export type TeamProposalListItem = typeof TeamProposalListItemSchema.Type
 export type TeamProposalDetail = typeof TeamProposalDetailSchema.Type
 export type TeamProposalCreateResponse =
   typeof TeamProposalCreateResponseSchema.Type
+
+// --- Dashboard schemas ---
+
+export const PendingProposalListItemSchema = Schema.Struct({
+  id: ProposalId,
+  entityAddress: EntityAddress,
+  entityName: Schema.NullOr(Schema.String),
+  type: ProposalType,
+  status: Schema.String,
+  createdBy: Schema.String,
+  createdAt: Schema.String
+})
+
+export type PendingProposalListItem = typeof PendingProposalListItemSchema.Type

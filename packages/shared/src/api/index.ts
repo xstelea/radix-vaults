@@ -32,6 +32,7 @@ import {
   MemberAlreadyExistsError,
   MemberNotFoundError,
   NotEligibleSignerError,
+  PendingProposalListItemSchema,
   ProposalDetailSchema,
   ProposalExpiredError,
   ProposalInvalidError,
@@ -344,6 +345,14 @@ export class TeamProposalsGroup extends HttpApiGroup.make('teamProposals')
       .middleware(SessionMiddleware)
   ) {}
 
+// --- Dashboard endpoints ---
+export class DashboardGroup extends HttpApiGroup.make('dashboard').add(
+  HttpApiEndpoint.get(
+    'pendingProposals',
+    '/dashboard/pending-proposals'
+  ).addSuccess(Schema.Array(PendingProposalListItemSchema))
+) {}
+
 // --- Health endpoint ---
 export class HealthGroup extends HttpApiGroup.make('health').add(
   HttpApiEndpoint.get('check', '/health').addSuccess(
@@ -358,4 +367,5 @@ export class AppApi extends HttpApi.make('radix-vaults')
   .add(TeamGroup)
   .add(ProposalsGroup)
   .add(TeamProposalsGroup)
+  .add(DashboardGroup)
   .add(HealthGroup) {}

@@ -53,7 +53,7 @@ function AddVaultPage() {
       },
       onSuccess: () => {
         refreshVaults()
-        navigate({ to: '/' })
+        navigate({ to: '/vaults' })
       }
     })
   }
@@ -63,6 +63,10 @@ function AddVaultPage() {
       <nav className="text-sm text-muted-foreground">
         <Link to="/" className="hover:text-foreground">
           Home
+        </Link>
+        <span className="mx-2">/</span>
+        <Link to="/vaults" className="hover:text-foreground">
+          Vaults
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">Import Vault</span>
@@ -119,7 +123,7 @@ function AddVaultPage() {
               <Button type="submit" disabled={submitting}>
                 {submitting ? 'Importing...' : 'Import Vault'}
               </Button>
-              <Link to="/">
+              <Link to="/vaults">
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>

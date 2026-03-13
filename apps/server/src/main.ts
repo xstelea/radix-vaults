@@ -5,7 +5,13 @@ import {
 } from '@effect/platform'
 import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { AppApi, AuthConfig } from '@radix-vaults/shared'
-import { GetFungibleBalance } from '@radix-effects/gateway'
+import {
+  GetEntityDetailsVaultAggregated,
+  GetFungibleBalance,
+  GetLedgerStateService,
+  GetResourceHoldersService,
+  PreviewTransaction
+} from '@radix-effects/gateway'
 import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
 import { flow } from 'effect/Function'
 import { createServer } from 'node:http'
@@ -13,13 +19,19 @@ import { BadgeChecker } from './auth/badgeChecker'
 import { ChallengeStore } from './auth/challengeStore'
 import { RolaVerifier } from './auth/rola'
 import { SessionStore } from './auth/sessionStore'
+import { AccessRuleValidator } from './gateway/accessRuleValidator'
 import { GatewayApiClientLayer } from './gateway/gatewayApiClient'
+import { TransactionStatusCheckerLive } from './gateway/transactionStatusChecker'
 import { TransactionSubmitter } from './gateway/transactionSubmitter'
 import { TransactionSubmitterLive } from './gateway/transactionSubmitterLive'
 import { DatabaseMigrations } from './db/migrate'
 import { ORM } from './db/orm'
 import { PgClientLive } from './db/pgClient'
+import { ImportVaultRepo } from './handlers/importVaultRepo'
+import { ListVaultsRepo } from './handlers/listVaultsRepo'
+import { ProposalRepo } from './handlers/proposalRepo'
 import { AuthHandlersLive } from './api/authHandlers'
+import { DashboardHandlersLive } from './api/dashboardHandlers'
 import { ProposalHandlersLive } from './api/proposalHandlers'
 import { TeamHandlersLive } from './api/teamHandlers'
 import { TeamProposalHandlersLive } from './api/teamProposalHandlers'
@@ -58,15 +70,39 @@ const TransactionSubmitterLayer = TransactionSubmitterLive.pipe(
   Layer.catchAll(() => TransactionSubmitter.Default)
 )
 
+const GatewayServicesLive = Layer.mergeAll(
+  GetEntityDetailsVaultAggregated.Default,
+  GetLedgerStateService.Default,
+  PreviewTransaction.Default,
+  GetResourceHoldersService.Default,
+  TransactionStatusCheckerLive
+).pipe(Layer.provide(GatewayApiClientLayer))
+
+const RepoServicesLive = Layer.mergeAll(
+  ListVaultsRepo.Default,
+  ImportVaultRepo.Default,
+  ProposalRepo.Default
+).pipe(Layer.provide(ORM.Default))
+
 const ApiLive = HttpApiBuilder.api(AppApi).pipe(
+  // handler groups
   Layer.provide(AuthHandlersLive),
   Layer.provide(VaultHandlersLive),
   Layer.provide(TeamHandlersLive),
   Layer.provide(ProposalHandlersLive),
   Layer.provide(TeamProposalHandlersLive),
+  Layer.provide(DashboardHandlersLive),
   Layer.provide(HealthHandlersLive),
   Layer.provide(SessionMiddlewareLive),
-  Layer.provide(TransactionSubmitterLayer)
+  Layer.provide(TransactionSubmitterLayer),
+  // shared services
+  Layer.provide(AccessRuleValidator.Default),
+  Layer.provide(GatewayServicesLive),
+  Layer.provide(RepoServicesLive),
+  Layer.provide(AuthServicesLive),
+  Layer.provide(ORM.Default),
+  Layer.provide(AuthConfig.Live),
+  Layer.provide(GatewayApiClientLayer)
 )
 
 const loggerSkipOptions = HttpMiddleware.make((httpApp) =>
@@ -93,7 +129,6 @@ const ServerLive = HttpApiBuilder.serve(
     )
   ),
   Layer.provide(ApiLive),
-  Layer.provide(AuthServicesLive),
   Layer.provide(NodeHttpServer.layer(() => createServer(), { port })),
   Layer.provideMerge(PgClientLive)
 )

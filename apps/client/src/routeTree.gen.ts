@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VaultsIndexRouteImport } from './routes/vaults/index'
 import { Route as TeamIndexRouteImport } from './routes/team/index'
 import { Route as VaultsCreateRouteImport } from './routes/vaults/create'
 import { Route as VaultsAddRouteImport } from './routes/vaults/add'
@@ -31,6 +32,11 @@ const TeamRoute = TeamRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VaultsIndexRoute = VaultsIndexRouteImport.update({
+  id: '/vaults/',
+  path: '/vaults/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TeamIndexRoute = TeamIndexRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
   '/team/': typeof TeamIndexRoute
+  '/vaults/': typeof VaultsIndexRoute
   '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
   '/team/proposals/': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
   '/team': typeof TeamIndexRoute
+  '/vaults': typeof VaultsIndexRoute
   '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
   '/team/proposals': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId': typeof VaultsVaultIdIndexRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/vaults/add': typeof VaultsAddRoute
   '/vaults/create': typeof VaultsCreateRoute
   '/team/': typeof TeamIndexRoute
+  '/vaults/': typeof VaultsIndexRoute
   '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
   '/team/proposals/': typeof TeamProposalsIndexRoute
   '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/vaults/add'
     | '/vaults/create'
     | '/team/'
+    | '/vaults/'
     | '/team/proposals/$proposalId'
     | '/team/proposals/'
     | '/vaults/$vaultId/'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/vaults/add'
     | '/vaults/create'
     | '/team'
+    | '/vaults'
     | '/team/proposals/$proposalId'
     | '/team/proposals'
     | '/vaults/$vaultId'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/vaults/add'
     | '/vaults/create'
     | '/team/'
+    | '/vaults/'
     | '/team/proposals/$proposalId'
     | '/team/proposals/'
     | '/vaults/$vaultId/'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   TeamRoute: typeof TeamRouteWithChildren
   VaultsAddRoute: typeof VaultsAddRoute
   VaultsCreateRoute: typeof VaultsCreateRoute
+  VaultsIndexRoute: typeof VaultsIndexRoute
   VaultsVaultIdIndexRoute: typeof VaultsVaultIdIndexRoute
   VaultsVaultIdProposalsProposalIdRoute: typeof VaultsVaultIdProposalsProposalIdRoute
   VaultsVaultIdProposalsNewRoute: typeof VaultsVaultIdProposalsNewRoute
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vaults/': {
+      id: '/vaults/'
+      path: '/vaults'
+      fullPath: '/vaults/'
+      preLoaderRoute: typeof VaultsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/team/': {
@@ -314,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   TeamRoute: TeamRouteWithChildren,
   VaultsAddRoute: VaultsAddRoute,
   VaultsCreateRoute: VaultsCreateRoute,
+  VaultsIndexRoute: VaultsIndexRoute,
   VaultsVaultIdIndexRoute: VaultsVaultIdIndexRoute,
   VaultsVaultIdProposalsProposalIdRoute: VaultsVaultIdProposalsProposalIdRoute,
   VaultsVaultIdProposalsNewRoute: VaultsVaultIdProposalsNewRoute,
