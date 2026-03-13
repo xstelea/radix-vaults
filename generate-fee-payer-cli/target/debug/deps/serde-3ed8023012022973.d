@@ -1,0 +1,14 @@
+/Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/deps/serde-3ed8023012022973.d: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/build/serde-2d91f1bc73869294/out/private.rs
+
+/Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/deps/libserde-3ed8023012022973.rlib: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/build/serde-2d91f1bc73869294/out/private.rs
+
+/Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/deps/libserde-3ed8023012022973.rmeta: /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/build/serde-2d91f1bc73869294/out/private.rs
+
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/Users/alex/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/build/serde-2d91f1bc73869294/out/private.rs:
+
+# env-dep:OUT_DIR=/Users/alex/Projects/radix-vaults/.repos/multisig/generate-fee-payer-cli/target/debug/build/serde-2d91f1bc73869294/out

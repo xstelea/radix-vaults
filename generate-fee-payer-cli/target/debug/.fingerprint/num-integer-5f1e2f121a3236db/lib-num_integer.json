@@ -1,0 +1,20 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"i128\"]",
+  "declared_features": "[\"default\", \"i128\", \"std\"]",
+  "target": 7628309033881264685,
+  "profile": 5347358027863023418,
+  "path": 2063591302909180458,
+  "deps": [[5157631553186200874, "num_traits", false, 547484090056970696]],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/num-integer-5f1e2f121a3236db/dep-lib-num_integer",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

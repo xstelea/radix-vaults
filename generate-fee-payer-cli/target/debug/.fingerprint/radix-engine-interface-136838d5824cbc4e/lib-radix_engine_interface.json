@@ -1,0 +1,39 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"default\", \"std\"]",
+  "declared_features": "[\"alloc\", \"arbitrary\", \"default\", \"fuzzing\", \"std\"]",
+  "target": 9189061445623925150,
+  "profile": 5347358027863023418,
+  "path": 1658226408486618069,
+  "deps": [
+    [530211389790465181, "hex", false, 8145420410358731722],
+    [5861473325980886737, "regex", false, 9206864251458402319],
+    [
+      7798171926633871387,
+      "radix_blueprint_schema_init",
+      false,
+      16014557731537210834
+    ],
+    [8333901414106276855, "const_sha1", false, 13087925072099901986],
+    [9486258299374518029, "radix_rust", false, 14126846107259202808],
+    [10435729446543529114, "bitflags", false, 2617816578363562039],
+    [11128047202774985226, "sbor", false, 14940801976980581164],
+    [11664806729342524143, "radix_common", false, 8281989606723986459],
+    [13795362694956882968, "serde_json", false, 8459358149987353481],
+    [15364576148834874936, "strum", false, 1406898648651851568],
+    [15783457611110303525, "radix_common_derive", false, 2891530976365374617],
+    [17605717126308396068, "paste", false, 209090244575891808],
+    [17917672826516349275, "lazy_static", false, 2154660242077698968]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/radix-engine-interface-136838d5824cbc4e/dep-lib-radix_engine_interface",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

@@ -1,0 +1,24 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[]",
+  "declared_features": "[]",
+  "target": 8517095135847510326,
+  "profile": 5347358027863023418,
+  "path": 11592924185689143073,
+  "deps": [
+    [10290949638698642930, "build_script_build", false, 6745088624447319562],
+    [12589608519315293066, "core_foundation_sys", false, 14918105521976255603],
+    [18365559012052052344, "libc", false, 15738692217037087487]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/system-configuration-sys-bdce7a7538466788/dep-lib-system_configuration_sys",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

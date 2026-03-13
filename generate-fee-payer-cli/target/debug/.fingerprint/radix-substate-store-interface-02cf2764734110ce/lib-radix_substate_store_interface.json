@@ -1,0 +1,26 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"std\"]",
+  "declared_features": "[\"alloc\", \"default\", \"std\"]",
+  "target": 13316960827988764972,
+  "profile": 5347358027863023418,
+  "path": 12393385945074325056,
+  "deps": [
+    [530211389790465181, "hex", false, 8145420410358731722],
+    [9486258299374518029, "radix_rust", false, 14126846107259202808],
+    [11128047202774985226, "sbor", false, 14940801976980581164],
+    [11664806729342524143, "radix_common", false, 8281989606723986459],
+    [11903278875415370753, "itertools", false, 9861719463751768997]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/radix-substate-store-interface-02cf2764734110ce/dep-lib-radix_substate_store_interface",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

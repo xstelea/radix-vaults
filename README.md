@@ -96,16 +96,25 @@ pnpm dev                           # Start client + server
 
 Client: `http://localhost:3000` | Server: `http://localhost:3001`
 
+### Generate Fee Payer
+
+Rust CLI that generates an Ed25519 keypair for paying transaction fees. On Stokenet it can also fund the account from the faucet. Requires Rust toolchain.
+
+```bash
+cd generate-fee-payer-cli
+cargo run                      # Interactive: pick network, optionally fund from faucet
+```
+
+Add the printed `FEE_PAYER_PRIVATE_KEY_HEX` to your `.envrc` / `.env`.
+
 ### Bootstrap CLI
 
-One-time setup to create on-chain team infrastructure before the web app can operate.
+One-time setup to create on-chain team infrastructure before the web app can operate. Requires `FEE_PAYER_PRIVATE_KEY_HEX` in environment.
 
 ```bash
 pnpm bootstrap init            # Interactive config -> bootstrap.json
 pnpm bootstrap run             # Create team account + mint badges
 ```
-
-Requires `FEE_PAYER_PRIVATE_KEY_HEX` in environment.
 
 ## Project Structure
 

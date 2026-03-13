@@ -1,0 +1,36 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[]",
+  "declared_features": "[]",
+  "target": 14376468526657752296,
+  "profile": 6675295047989516842,
+  "path": 4942398508502643691,
+  "deps": [
+    [530211389790465181, "hex", false, 8145420410358731722],
+    [7244058819997729774, "reqwest", false, 9606439241143863878],
+    [8082513789501025383, "inquire", false, 7365232520070401278],
+    [9291412455974555808, "radix_transactions", false, 8311736983123778546],
+    [
+      11139747049281451124,
+      "radix_engine_interface",
+      false,
+      4011469013809416273
+    ],
+    [11664806729342524143, "radix_common", false, 8281989606723986459],
+    [12478428894219133322, "anyhow", false, 5657725492971369367],
+    [13208667028893622512, "rand", false, 12619182954562178639],
+    [13548984313718623784, "serde", false, 4306654044479192716],
+    [13795362694956882968, "serde_json", false, 8459358149987353481]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/generate-fee-payer-cli-09600b9d94daa747/dep-bin-generate-fee-payer-cli",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

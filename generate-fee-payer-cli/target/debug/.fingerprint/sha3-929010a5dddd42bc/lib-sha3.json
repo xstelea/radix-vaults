@@ -1,0 +1,23 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"std\"]",
+  "declared_features": "[\"asm\", \"default\", \"oid\", \"reset\", \"std\"]",
+  "target": 12406678234532442241,
+  "profile": 5347358027863023418,
+  "path": 5477656681102551131,
+  "deps": [
+    [11306548876293198846, "keccak", false, 16101057366685436830],
+    [17475753849556516473, "digest", false, 3769494756057822976]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/sha3-929010a5dddd42bc/dep-lib-sha3",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

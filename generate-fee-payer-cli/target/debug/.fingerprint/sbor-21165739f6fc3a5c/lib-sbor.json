@@ -1,0 +1,27 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"std\"]",
+  "declared_features": "[\"alloc\", \"arbitrary\", \"default\", \"fuzzing\", \"serde\", \"std\", \"trace\"]",
+  "target": 6005492756432401003,
+  "profile": 5347358027863023418,
+  "path": 18344833472946404434,
+  "deps": [
+    [530211389790465181, "hex", false, 17417673259030874216],
+    [8333901414106276855, "const_sha1", false, 13087925072099901986],
+    [8669975227191282058, "sbor_derive", false, 10853490116180451670],
+    [9486258299374518029, "radix_rust", false, 17091759963051004234],
+    [17605717126308396068, "paste", false, 209090244575891808],
+    [17917672826516349275, "lazy_static", false, 2154660242077698968]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/sbor-21165739f6fc3a5c/dep-lib-sbor",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}

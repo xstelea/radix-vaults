@@ -1,0 +1,23 @@
+{
+  "rustc": 3280874526983305941,
+  "features": "[\"more_lengths\"]",
+  "declared_features": "[\"more_lengths\", \"serde\", \"zeroize\"]",
+  "target": 13084005262763373425,
+  "profile": 5347358027863023418,
+  "path": 3754036458760498713,
+  "deps": [
+    [857979250431893282, "typenum", false, 3224224481676894279],
+    [10520923840501062997, "build_script_build", false, 5422998115791503157]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/generic-array-7fb4ff54108b6a50/dep-lib-generic_array",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "config": 2069994364910194474,
+  "compile_kind": 0
+}
