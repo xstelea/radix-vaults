@@ -63,6 +63,7 @@ const AuthServicesLive = Layer.mergeAll(
   Layer.provide(ORM.Default),
   Layer.provide(AuthConfig.Live),
   Layer.provide(GetFungibleBalance.Default),
+  Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(GatewayApiClientLayer)
 )
 

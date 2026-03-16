@@ -1,5 +1,7 @@
 import type { HexString, SignedChallenge } from '@radix-vaults/shared'
 import { AuthConfig } from '@radix-vaults/shared'
+import { GetEntityDetailsVaultAggregated } from '@radix-effects/gateway'
+import { PublicKey, RadixEngineToolkit } from '@radixdlt/radix-engine-toolkit'
 import { blake2b } from '@noble/hashes/blake2.js'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
@@ -81,26 +83,85 @@ const createPublicKeyHash = (publicKeyHex: HexString) =>
     catch: () => new RolaVerificationError({ reason: 'couldNotHashPublicKey' })
   })
 
+const deriveVirtualAddress = (
+  signedChallenge: SignedChallenge,
+  networkId: number
+): Effect.Effect<string, RolaVerificationError> =>
+  Effect.tryPromise({
+    try: () => {
+      const { publicKey, curve } = signedChallenge.proof
+      if (signedChallenge.type === 'persona')
+        return RadixEngineToolkit.Derive.virtualIdentityAddressFromPublicKey(
+          new PublicKey.Ed25519(publicKey),
+          networkId
+        )
+      if (curve === 'curve25519')
+        return RadixEngineToolkit.Derive.virtualAccountAddressFromPublicKey(
+          new PublicKey.Ed25519(publicKey),
+          networkId
+        )
+      if (curve === 'secp256k1')
+        return RadixEngineToolkit.Derive.virtualAccountAddressFromPublicKey(
+          new PublicKey.Secp256k1(publicKey),
+          networkId
+        )
+      return Promise.reject(new Error('Unsupported curve'))
+    },
+    catch: () => new RolaVerificationError({ reason: 'couldNotDeriveAddress' })
+  })
+
 export class RolaVerifier extends Effect.Service<RolaVerifier>()(
   '@radix-vaults/server/auth/RolaVerifier',
   {
     effect: Effect.gen(function* () {
       const config = yield* AuthConfig
+      const getEntityDetails = yield* GetEntityDetailsVaultAggregated
+
+      const getOwnerKeysRawHex = (address: string) =>
+        getEntityDetails([address], undefined, undefined).pipe(
+          Effect.map(
+            (details) =>
+              details[0]?.metadata?.items.find((i) => i.key === 'owner_keys')
+                ?.value.raw_hex ?? ''
+          ),
+          Effect.mapError(
+            () =>
+              new RolaVerificationError({
+                reason: 'couldNotVerifyPublicKeyOnLedger'
+              })
+          )
+        )
 
       const verify = (
         signedChallenge: SignedChallenge
       ): Effect.Effect<void, RolaVerificationError> =>
         Effect.gen(function* () {
-          yield* createPublicKeyHash(signedChallenge.proof.publicKey)
+          const publicKeyHash = yield* createPublicKeyHash(
+            signedChallenge.proof.publicKey
+          )
           const signatureMessage = yield* createSignatureMessage(
             signedChallenge.challenge,
             config.dAppDefinitionAddress,
             config.expectedOrigin
           )
           yield* verifySignature(signedChallenge, signatureMessage)
-          // Gateway owner_keys verification deferred until Gateway
-          // integration lands. Signature verification + badge balance
-          // check provides the actual authorization gate.
+
+          const [ownerKeysHex, derivedAddress] = yield* Effect.all([
+            getOwnerKeysRawHex(signedChallenge.address),
+            deriveVirtualAddress(signedChallenge, config.networkId)
+          ])
+
+          const ownerKeysSet = ownerKeysHex.length > 0
+          const ownerKeysMatch =
+            ownerKeysSet &&
+            ownerKeysHex.toUpperCase().includes(publicKeyHash.toUpperCase())
+          const derivedAddressMatch =
+            !ownerKeysSet && derivedAddress === signedChallenge.address
+
+          if (!ownerKeysMatch && !derivedAddressMatch)
+            yield* Effect.fail(
+              new RolaVerificationError({ reason: 'invalidPublicKey' })
+            )
         })
 
       return { verify } as const
