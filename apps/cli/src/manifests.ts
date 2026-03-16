@@ -1,6 +1,6 @@
 import { RadixEngineToolkit } from '@radixdlt/radix-engine-toolkit'
 import { blake2b } from '@noble/hashes/blake2.js'
-import type { Signer } from './config'
+import type { Member, Signer } from './config'
 
 export type NetworkId = number
 
@@ -114,37 +114,110 @@ ${entries}
         )`
 }
 
+/**
+ * Resolve a member's virtual badge NonFungibleGlobalId and Bytes local ID.
+ */
+function resolveMemberBadgeInfo(
+  member: Member,
+  addrs: NetworkAddresses
+): { resource: string; localId: string; nfgid: string } {
+  const { resource, localId } = resolveSignerNFG(member.signer, addrs)
+  return {
+    resource,
+    localId,
+    nfgid: `${resource}:[${localId}]`
+  }
+}
+
 export async function buildCreateBadgeResourceManifest(input: {
   feePayerAddress: string
-  signers: ReadonlyArray<Signer>
+  members: ReadonlyArray<Member>
   threshold: number
   networkId: NetworkId
-  recipients: ReadonlyArray<string>
   badgeName: string
 }): Promise<string> {
   const addrs = await getNetworkAddresses(input.networkId)
-  const accessRule = buildMultisigAccessRule(
-    input.signers,
-    input.threshold,
-    addrs
-  )
+  const signers = input.members.map((m) => m.signer)
+  const accessRule = buildMultisigAccessRule(signers, input.threshold, addrs)
 
-  const distribute = input.recipients
+  const resolvedMembers = input.members.map((m) => ({
+    ...m,
+    badge: resolveMemberBadgeInfo(m, addrs)
+  }))
+
+  // Build initial supply entries: Map<NonFungibleLocalId, Tuple>
+  const initialSupplyEntries = resolvedMembers
     .map(
-      (recipient) =>
+      (m) =>
+        `        NonFungibleLocalId("[${m.badge.localId}]") => Tuple(Tuple("${m.name}", "${m.badge.nfgid}"))`
+    )
+    .join(',\n')
+
+  // Distribution strategy: deposit all NFTs to fee payer, then withdraw per member.
+  // This avoids TAKE_NON_FUNGIBLES_FROM_WORKTOP which rejects NamedAddress in toolkit v1.0.6.
+  // CALL_METHOD accepts NamedAddress as a method argument, so withdraw_non_fungibles works.
+  const distribute = resolvedMembers
+    .map(
+      (m) =>
         `CALL_METHOD
+    Address("${input.feePayerAddress}")
+    "withdraw_non_fungibles"
     NamedAddress("badge_address")
-    "mint"
-    Decimal("1")
+    Array<NonFungibleLocalId>(NonFungibleLocalId("[${m.badge.localId}]"))
 ;
 CALL_METHOD
-    Address("${recipient}")
+    Address("${m.recipientAccount}")
     "try_deposit_batch_or_abort"
     Expression("ENTIRE_WORKTOP")
     Enum<0u8>()
 ;`
     )
     .join('\n')
+
+  // NonFungibleDataSchema::Local for Tuple { name: String, mfa_virtual_resource: String }
+  //
+  // Schema breakdown:
+  //   NonFungibleDataSchema::Local (variant 0)
+  //     VersionedScryptoSchema::V1 (variant 0 — define_single_versioned! uses VERSION_N = N-1)
+  //       SchemaV1 = Tuple(type_kinds, type_metadata, type_validations)
+  //         type_kinds: [TypeKind::Tuple { field_types: [WellKnown(12), WellKnown(12)] }]
+  //         type_metadata: [TypeMetadata { type_name: None, child_names: NamedFields(["name", "mfa_virtual_resource"]) }]
+  //         type_validations: [TypeValidation::None]
+  //     LocalTypeId::SchemaLocalIndex(0) (variant 1)
+  //     mutable_fields: []
+  //
+  // WellKnown discriminator = 0, SchemaLocalIndex discriminator = 1
+  // TypeKind::Tuple discriminator = 14
+  // String well-known type ID = 12
+  const nftSchema = `Enum<0u8>(
+        Enum<0u8>(
+            Tuple(
+                Array<Enum>(
+                    Enum<14u8>(
+                        Array<Enum>(
+                            Enum<0u8>(12u8),
+                            Enum<0u8>(12u8)
+                        )
+                    )
+                ),
+                Array<Tuple>(
+                    Tuple(
+                        Enum<0u8>(),
+                        Enum<1u8>(
+                            Enum<0u8>(
+                                Array<String>("name", "mfa_virtual_resource")
+                            )
+                        )
+                    )
+                ),
+                Array<Enum>(
+                    Enum<0u8>()
+                )
+            )
+        ),
+        Enum<1u8>(0u64),
+        Array<String>()
+    )`
 
   return `CALL_METHOD
     Address("${input.feePayerAddress}")
@@ -153,23 +226,28 @@ CALL_METHOD
 ;
 ALLOCATE_GLOBAL_ADDRESS
     Address("${addrs.resourcePackage}")
-    "FungibleResourceManager"
+    "NonFungibleResourceManager"
     AddressReservation("badge_reservation")
     NamedAddress("badge_address")
 ;
-CREATE_FUNGIBLE_RESOURCE
+CREATE_NON_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
     Enum<2u8>(
         Enum<0u8>()
     )
+    Enum<2u8>()
     true
-    0u8
+    ${nftSchema}
+    Map<NonFungibleLocalId, Tuple>(
+${initialSupplyEntries}
+    )
     Tuple(
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
-        Enum<1u8>(Tuple(Enum<0u8>(), Enum<1u8>(Enum<1u8>()))),
-        Enum<1u8>(Tuple(Enum<1u8>(Enum<1u8>()), Enum<1u8>(Enum<1u8>()))),
-        Enum<1u8>(Tuple(Enum<1u8>(Enum<0u8>()), Enum<1u8>(Enum<1u8>())))
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
+        Enum<0u8>(),
+        Enum<1u8>(Tuple(Enum<0u8>(), Enum<0u8>())),
+        Enum<0u8>(),
+        Enum<0u8>(),
+        Enum<0u8>()
     )
     Tuple(
         Map<String, Tuple>(
@@ -179,9 +257,16 @@ CREATE_FUNGIBLE_RESOURCE
     )
     Enum<1u8>(AddressReservation("badge_reservation"))
 ;
+CALL_METHOD
+    Address("${input.feePayerAddress}")
+    "try_deposit_batch_or_abort"
+    Expression("ENTIRE_WORKTOP")
+    Enum<0u8>()
+;
 ${distribute}
-SET_OWNER_ROLE
+CALL_ROLE_ASSIGNMENT_METHOD
     NamedAddress("badge_address")
+    "set_owner"
     ${accessRule}
 ;`
 }

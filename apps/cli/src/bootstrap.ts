@@ -87,10 +87,9 @@ export const runBootstrap = (
     const createBadgeManifest = yield* Effect.promise(() =>
       buildCreateBadgeResourceManifest({
         feePayerAddress,
-        signers: config.signers,
+        members: config.members,
         threshold: config.threshold,
         networkId,
-        recipients: config.badgeRecipients,
         badgeName: config.badgeName
       })
     )
@@ -112,9 +111,9 @@ export const runBootstrap = (
 
     yield* Effect.logInfo(`Badge resource created: ${teamMemberBadgeAddress}`)
 
-    if (config.badgeRecipients.length > 0) {
+    if (config.members.length > 0) {
       yield* Effect.logInfo(
-        `Badges distributed to ${config.badgeRecipients.length} recipient(s)`
+        `Badges distributed to ${config.members.length} member(s)`
       )
     }
 

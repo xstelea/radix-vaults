@@ -7,9 +7,9 @@ import { NodeHttpServer, NodeRuntime } from '@effect/platform-node'
 import { AppApi, AuthConfig } from '@radix-vaults/shared'
 import {
   GetEntityDetailsVaultAggregated,
-  GetFungibleBalance,
   GetLedgerStateService,
   GetResourceHoldersService,
+  NonFungibleData,
   PreviewTransaction
 } from '@radix-effects/gateway'
 import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
@@ -62,7 +62,6 @@ const AuthServicesLive = Layer.mergeAll(
 ).pipe(
   Layer.provide(ORM.Default),
   Layer.provide(AuthConfig.Live),
-  Layer.provide(GetFungibleBalance.Default),
   Layer.provide(GetEntityDetailsVaultAggregated.Default),
   Layer.provide(GatewayApiClientLayer)
 )
@@ -76,6 +75,7 @@ const GatewayServicesLive = Layer.mergeAll(
   GetLedgerStateService.Default,
   PreviewTransaction.Default,
   GetResourceHoldersService.Default,
+  NonFungibleData.Default,
   TransactionStatusCheckerLive
 ).pipe(Layer.provide(GatewayApiClientLayer))
 

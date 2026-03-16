@@ -61,7 +61,8 @@ export class AccessRuleValidator extends Effect.Service<AccessRuleValidator>()(
           if (
             !entityDetails ||
             (entityDetails.type !== 'Component' &&
-              entityDetails.type !== 'FungibleResource') ||
+              entityDetails.type !== 'FungibleResource' &&
+              entityDetails.type !== 'NonFungibleResource') ||
             !entityDetails.role_assignments
           ) {
             return yield* new UnsupportedRuleError({

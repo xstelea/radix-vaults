@@ -31,16 +31,17 @@
     "@steleaio/radix-engine-toolkit": "2.0.0-dev.5",
     "drizzle-orm": "catalog:",
     "effect": "^3.19.19",
-    "pg": "catalog:"
+    "pg": "catalog:",
+    "sbor-ez-mode": "^0.2.0"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.15.6",
+    "@typescript/native-preview": "catalog:",
     "oxlint": "catalog:",
     "tsx": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

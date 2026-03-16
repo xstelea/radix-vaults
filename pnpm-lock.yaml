@@ -370,6 +370,9 @@ importers:
       pg:
         specifier: 'catalog:'
         version: 8.20.0
+      sbor-ez-mode:
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@effect/vitest':
         specifier: 'catalog:'

@@ -29,10 +29,7 @@ export const runCommand = Command.make('run', { config }, ({ config }) =>
       `Network: ${bootstrapConfig.networkId === 1 ? 'mainnet' : 'stokenet'}`
     )
     yield* Effect.logInfo(
-      `Signers: ${bootstrapConfig.signers.length}, Threshold: ${bootstrapConfig.threshold}`
-    )
-    yield* Effect.logInfo(
-      `Badge recipients: ${bootstrapConfig.badgeRecipients.length}`
+      `Members: ${bootstrapConfig.members.length}, Threshold: ${bootstrapConfig.threshold}`
     )
 
     const feePayerAddress = yield* Effect.tryPromise({

@@ -32,13 +32,18 @@ export const SignerSchema = Schema.Union(
 
 export type Signer = typeof SignerSchema.Type
 
+export const MemberSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
+  signer: SignerSchema,
+  recipientAccount: Schema.String.pipe(Schema.minLength(1))
+})
+
+export type Member = typeof MemberSchema.Type
+
 export const BootstrapConfigSchema = Schema.Struct({
   networkId: Schema.Literal(1, 2),
-  signers: Schema.NonEmptyArray(SignerSchema),
+  members: Schema.NonEmptyArray(MemberSchema),
   threshold: Schema.Int.pipe(Schema.greaterThan(0)),
-  badgeRecipients: Schema.NonEmptyArray(
-    Schema.String.pipe(Schema.minLength(1))
-  ),
   badgeName: Schema.optionalWith(Schema.String, {
     default: () => 'Team Member Badge'
   })
@@ -71,9 +76,9 @@ export const readBootstrapConfig = (
       )
     )
 
-    if (config.threshold > config.signers.length) {
+    if (config.threshold > config.members.length) {
       return yield* new BootstrapConfigError({
-        message: `Threshold (${config.threshold}) exceeds number of signers (${config.signers.length})`
+        message: `Threshold (${config.threshold}) exceeds number of members (${config.members.length})`
       })
     }
 

@@ -132,6 +132,8 @@ function buildSetOwnerRoleInstructions(
 export async function buildAddMemberManifest(input: {
   badgeResource: string
   recipientAccount: string
+  name: string
+  virtualBadge: string
   badgeRoleEntry: SetOwnerRoleEntry
   vaultRoleEntries: ReadonlyArray<SetOwnerRoleEntry>
   networkId: number
@@ -143,9 +145,14 @@ export async function buildAddMemberManifest(input: {
     addrs
   )
 
-  return `MINT_FUNGIBLE
+  const colonIdx = input.virtualBadge.indexOf(':')
+  const localId = input.virtualBadge.slice(colonIdx + 1)
+
+  return `MINT_NON_FUNGIBLE
     Address("${input.badgeResource}")
-    Decimal("1")
+    Map<NonFungibleLocalId, Tuple>(
+        NonFungibleLocalId("${localId}") => Tuple(Tuple("${input.name}", "${input.virtualBadge}"))
+    )
 ;
 TAKE_ALL_FROM_WORKTOP
     Address("${input.badgeResource}")
@@ -163,6 +170,7 @@ ${setOwnerInstructions}`
 export async function buildRemoveMemberManifest(input: {
   badgeResource: string
   memberInternalVaultAddress: string
+  nftLocalId: string
   badgeRoleEntry: SetOwnerRoleEntry
   vaultRoleEntries: ReadonlyArray<SetOwnerRoleEntry>
   networkId: number
@@ -174,9 +182,9 @@ export async function buildRemoveMemberManifest(input: {
     addrs
   )
 
-  return `RECALL_FROM_VAULT
+  return `RECALL_NON_FUNGIBLES_FROM_VAULT
     Address("${input.memberInternalVaultAddress}")
-    Decimal("1")
+    Array<NonFungibleLocalId>(NonFungibleLocalId("${input.nftLocalId}"))
 ;
 TAKE_ALL_FROM_WORKTOP
     Address("${input.badgeResource}")

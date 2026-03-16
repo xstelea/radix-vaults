@@ -30,13 +30,24 @@ const ED25519_KEY_3 =
 
 const VALID_CONFIG = {
   networkId: 2,
-  signers: [
-    { publicKey: ED25519_KEY_1 },
-    { publicKey: ED25519_KEY_2 },
-    { publicKey: ED25519_KEY_3 }
+  members: [
+    {
+      name: 'Alice',
+      signer: { publicKey: ED25519_KEY_1 },
+      recipientAccount: 'account_tdx_2_test1'
+    },
+    {
+      name: 'Bob',
+      signer: { publicKey: ED25519_KEY_2 },
+      recipientAccount: 'account_tdx_2_test2'
+    },
+    {
+      name: 'Carol',
+      signer: { publicKey: ED25519_KEY_3 },
+      recipientAccount: 'account_tdx_2_test3'
+    }
   ],
   threshold: 2,
-  badgeRecipients: ['account_tdx_2_test1', 'account_tdx_2_test2'],
   badgeName: 'Test Badge'
 }
 
@@ -46,12 +57,17 @@ describe('BootstrapConfigSchema', () => {
   it('accepts valid config with defaults', () => {
     const result = Schema.decodeUnknownSync(BootstrapConfigSchema)({
       networkId: 2,
-      signers: [{ publicKey: ED25519_KEY_1 }],
-      threshold: 1,
-      badgeRecipients: ['account_test']
+      members: [
+        {
+          name: 'Alice',
+          signer: { publicKey: ED25519_KEY_1 },
+          recipientAccount: 'account_test'
+        }
+      ],
+      threshold: 1
     })
     expect(result.badgeName).toBe('Team Member Badge')
-    const signer = result.signers[0]
+    const signer = result.members[0].signer
     assert('keyType' in signer)
     expect(signer.keyType).toBe('ed25519')
   })
@@ -65,11 +81,11 @@ describe('BootstrapConfigSchema', () => {
     ).toThrow()
   })
 
-  it('rejects empty signers', () => {
+  it('rejects empty members', () => {
     expect(() =>
       Schema.decodeUnknownSync(BootstrapConfigSchema)({
         ...VALID_CONFIG,
-        signers: []
+        members: []
       })
     ).toThrow()
   })
@@ -78,7 +94,13 @@ describe('BootstrapConfigSchema', () => {
     expect(() =>
       Schema.decodeUnknownSync(BootstrapConfigSchema)({
         ...VALID_CONFIG,
-        signers: [{ publicKey: 'not-hex' }]
+        members: [
+          {
+            name: 'Bad',
+            signer: { publicKey: 'not-hex' },
+            recipientAccount: 'account_test'
+          }
+        ]
       })
     ).toThrow()
   })
@@ -94,7 +116,7 @@ describe('BootstrapConfigSchema', () => {
 })
 
 describe('readBootstrapConfig', () => {
-  it('rejects threshold exceeding signer count', async () => {
+  it('rejects threshold exceeding member count', async () => {
     // Write a temp file with invalid threshold
     const fs = await import('node:fs/promises')
     const os = await import('node:os')
@@ -133,35 +155,48 @@ describe('deriveSignatureBadgeLocalId', () => {
 })
 
 describe('buildCreateBadgeResourceManifest', () => {
-  it('creates resource and distributes in a single manifest', async () => {
+  it('creates NFT resource and distributes in a single manifest', async () => {
     const manifest = await buildCreateBadgeResourceManifest({
       feePayerAddress: 'account_tdx_2_feepayer',
-      signers: [
-        { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
-        { publicKey: ED25519_KEY_2, keyType: 'ed25519' }
+      members: [
+        {
+          name: 'Alice',
+          signer: { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
+          recipientAccount: 'account_tdx_2_alice'
+        },
+        {
+          name: 'Bob',
+          signer: { publicKey: ED25519_KEY_2, keyType: 'ed25519' },
+          recipientAccount: 'account_tdx_2_bob'
+        }
       ],
       threshold: 2,
       networkId: 2,
-      recipients: [
-        'account_tdx_2_alice',
-        'account_tdx_2_bob',
-        'account_tdx_2_carol'
-      ],
       badgeName: 'Test Badge'
     })
 
     expect(manifest).toContain('ALLOCATE_GLOBAL_ADDRESS')
-    expect(manifest).toContain('FungibleResourceManager')
-    expect(manifest).toContain('CREATE_FUNGIBLE_RESOURCE')
+    expect(manifest).toContain('NonFungibleResourceManager')
+    expect(manifest).toContain(
+      'CREATE_NON_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY'
+    )
     expect(manifest).toContain('AddressReservation("badge_reservation")')
     expect(manifest).toContain('"Test Badge"')
     expect(manifest).toContain('NamedAddress("badge_address")')
     expect(manifest).toContain('account_tdx_2_alice')
     expect(manifest).toContain('account_tdx_2_bob')
-    expect(manifest).toContain('account_tdx_2_carol')
-    expect(manifest).toContain('"mint"')
+    expect(manifest).toContain('"withdraw_non_fungibles"')
     expect(manifest).toContain('try_deposit_batch_or_abort')
-    expect(manifest).toContain('SET_OWNER_ROLE')
+    expect(manifest).toContain('CALL_ROLE_ASSIGNMENT_METHOD')
+    expect(manifest).toContain('"set_owner"')
+    // NFT-specific: entries map with names
+    expect(manifest).toContain('"Alice"')
+    expect(manifest).toContain('"Bob"')
+    // Schema includes field names
+    expect(manifest).toContain('"name"')
+    expect(manifest).toContain('"mfa_virtual_resource"')
+    // Bytes ID type
+    expect(manifest).toContain('Enum<2u8>()')
   })
 })
 
@@ -172,9 +207,19 @@ const makeConfig = (
 ): BootstrapConfig =>
   Schema.decodeSync(BootstrapConfigSchema)({
     networkId: 2,
-    signers: [{ publicKey: ED25519_KEY_1 }, { publicKey: ED25519_KEY_2 }],
+    members: [
+      {
+        name: 'Alice',
+        signer: { publicKey: ED25519_KEY_1 },
+        recipientAccount: 'account_tdx_2_recipient1'
+      },
+      {
+        name: 'Bob',
+        signer: { publicKey: ED25519_KEY_2 },
+        recipientAccount: 'account_tdx_2_recipient2'
+      }
+    ],
     threshold: 2,
-    badgeRecipients: ['account_tdx_2_recipient1'],
     badgeName: 'Test Badge',
     ...overrides
   })
@@ -253,9 +298,13 @@ describe('runBootstrap', () => {
     const layer = makeMockTxLayer({})
 
     const config = makeConfig({
-      signers: [
-        { publicKey: ED25519_KEY_1, keyType: 'ed25519' }
-      ] as BootstrapConfig['signers']
+      members: [
+        {
+          name: 'Alice',
+          signer: { publicKey: ED25519_KEY_1, keyType: 'ed25519' },
+          recipientAccount: 'account_tdx_2_recipient1'
+        }
+      ] as BootstrapConfig['members']
     })
 
     const exit = await Effect.runPromiseExit(

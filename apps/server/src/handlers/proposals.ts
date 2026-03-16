@@ -250,10 +250,10 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
             signedPartialTransactionHex,
             networkId
           ).pipe(
-            Effect.catchAll(() =>
+            Effect.catchAll((e) =>
               Effect.fail(
                 new NotEligibleSignerError({
-                  message: 'Failed to extract signature from signed partial'
+                  message: `Failed to extract signature from signed partial: ${e.message}`
                 })
               )
             )

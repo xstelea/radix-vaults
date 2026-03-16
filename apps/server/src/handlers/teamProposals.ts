@@ -233,6 +233,8 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             buildAddMemberManifest({
               badgeResource: badgeAddress,
               recipientAccount: input.accountAddress,
+              name: input.name,
+              virtualBadge: input.virtualBadge,
               badgeRoleEntry: {
                 entityAddress: badgeAddress,
                 signers: newSigners,
@@ -341,16 +343,16 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             })
           }
 
-          // Find the fungible vault holding the badge resource
-          const fungibleVaults = (
-            memberEntity.fungible_resources?.items ?? []
+          // Find the non-fungible vault holding the badge resource
+          const nfResource = (
+            memberEntity.non_fungible_resources?.items ?? []
           ).find(
             (r: { resource_address?: string }) =>
               r.resource_address === badgeAddress
           )
 
           const vaultItems = (
-            fungibleVaults as {
+            nfResource as {
               vaults?: { items?: Array<{ vault_address?: string }> }
             }
           )?.vaults?.items
@@ -361,6 +363,11 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
               message: `No badge vault found for ${input.memberAddress}`
             })
           }
+
+          // Extract NFT local ID from virtualBadge
+          const nftLocalId = input.virtualBadge.slice(
+            input.virtualBadge.indexOf(':') + 1
+          )
 
           // 7. Build manifest
           const maxProposerTimestamp = new Date(
@@ -373,6 +380,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             buildRemoveMemberManifest({
               badgeResource: badgeAddress,
               memberInternalVaultAddress: internalVaultAddress,
+              nftLocalId,
               badgeRoleEntry: {
                 entityAddress: badgeAddress,
                 signers: newSigners,
@@ -531,14 +539,21 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             })
           }
 
+          // Debug: compare stored vs wallet hex lengths
+          const storedHexLen = proposal.partialTransactionHex?.length ?? 0
+          const walletHexLen = signedPartialTransactionHex.length
+          yield* Effect.logInfo(
+            `Sign debug: storedHexLen=${storedHexLen}, walletHexLen=${walletHexLen}, diff=${walletHexLen - storedHexLen}`
+          )
+
           const extracted = yield* extractSignatureFromHex(
             signedPartialTransactionHex,
             networkId
           ).pipe(
-            Effect.catchAll(() =>
+            Effect.catchAll((e) =>
               Effect.fail(
                 new NotEligibleSignerError({
-                  message: 'Failed to extract signature from signed partial'
+                  message: `Failed to extract signature from signed partial: ${e.message}`
                 })
               )
             )

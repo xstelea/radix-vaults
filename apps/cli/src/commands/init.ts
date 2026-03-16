@@ -7,78 +7,81 @@ const output = Options.text('output').pipe(
   Options.withDefault('bootstrap.json')
 )
 
-type Signer =
-  | { publicKey: string; keyType: 'ed25519' | 'secp256k1' }
-  | { virtualBadge: string }
+type Member = {
+  name: string
+  signer:
+    | { publicKey: string; keyType: 'ed25519' | 'secp256k1' }
+    | { virtualBadge: string }
+  recipientAccount: string
+}
 
-const collectSigners = Effect.gen(function* () {
-  const signers: Signer[] = []
+const collectMembers = Effect.gen(function* () {
+  const members: Member[] = []
 
   yield* Effect.logInfo(
-    'Add signers (at least one required). Enter empty input when done.'
+    'Add team members (at least one required). Enter empty name when done.'
   )
 
   while (true) {
-    const num = signers.length + 1
-    const input = yield* Prompt.text({
-      message: `Signer ${num} — public key (64 hex) or badge (resource_...:[hex])`,
+    const num = members.length + 1
+    const name = yield* Prompt.text({
+      message: `Member ${num} — name`,
       default: ''
     })
 
-    if (!input) {
-      if (signers.length === 0) {
-        yield* Effect.logWarning('At least one signer is required.')
+    if (!name) {
+      if (members.length === 0) {
+        yield* Effect.logWarning('At least one member is required.')
         continue
       }
       break
     }
 
-    if (/^[0-9a-fA-F]{64}$/.test(input)) {
+    const signerInput = yield* Prompt.text({
+      message: `Member ${num} — public key (64 hex) or badge (resource_...:[hex])`,
+      default: ''
+    })
+
+    if (!signerInput) {
+      yield* Effect.logWarning('Signer is required for each member.')
+      continue
+    }
+
+    let signer: Member['signer']
+    if (/^[0-9a-fA-F]{64}$/.test(signerInput)) {
       const keyType = yield* Prompt.select({
-        message: `Signer ${num} key type`,
+        message: `Member ${num} key type`,
         choices: [
           { title: 'ed25519', value: 'ed25519' as const },
           { title: 'secp256k1', value: 'secp256k1' as const }
         ]
       })
-      signers.push({ publicKey: input, keyType })
-    } else if (/^resource_(?:rdx|tdx_\d+_)\w+:\[[0-9a-fA-F]+\]$/.test(input)) {
-      signers.push({ virtualBadge: input })
+      signer = { publicKey: signerInput, keyType }
+    } else if (
+      /^resource_(?:rdx|tdx_\d+_)\w+:\[[0-9a-fA-F]+\]$/.test(signerInput)
+    ) {
+      signer = { virtualBadge: signerInput }
     } else {
       yield* Effect.logWarning(
         'Invalid input. Enter a 64-hex public key or a NonFungibleGlobalId.'
       )
+      continue
     }
-  }
 
-  return signers
-})
-
-const collectRecipients = Effect.gen(function* () {
-  const recipients: string[] = []
-
-  yield* Effect.logInfo(
-    'Add badge recipient account addresses (at least one). Enter empty to finish.'
-  )
-
-  while (true) {
-    const addr = yield* Prompt.text({
-      message: `Recipient ${recipients.length + 1} address`,
+    const recipientAccount = yield* Prompt.text({
+      message: `Member ${num} — recipient account address`,
       default: ''
     })
 
-    if (!addr) {
-      if (recipients.length === 0) {
-        yield* Effect.logWarning('At least one recipient is required.')
-        continue
-      }
-      break
+    if (!recipientAccount) {
+      yield* Effect.logWarning('Recipient account is required.')
+      continue
     }
 
-    recipients.push(addr)
+    members.push({ name, signer, recipientAccount })
   }
 
-  return recipients
+  return members
 })
 
 export const initCommand = Command.make('init', { output }, ({ output }) =>
@@ -94,26 +97,23 @@ export const initCommand = Command.make('init', { output }, ({ output }) =>
       ]
     })
 
-    // 2. Signers
-    const signers = yield* collectSigners
+    // 2. Members (name + signer + recipient)
+    const members = yield* collectMembers
 
     // 3. Threshold
     const threshold = yield* Prompt.integer({
       message: 'Signature threshold',
       min: 1,
-      max: signers.length,
+      max: members.length,
       validate: (value) =>
-        value > signers.length
+        value > members.length
           ? Effect.fail(
-              `Threshold (${value}) cannot exceed number of signers (${signers.length})`
+              `Threshold (${value}) cannot exceed number of members (${members.length})`
             )
           : Effect.succeed(value)
     })
 
-    // 4. Badge recipients
-    const badgeRecipients = yield* collectRecipients
-
-    // 5. Badge name
+    // 4. Badge name
     const badgeName = yield* Prompt.text({
       message: 'Badge name',
       default: 'Team Member Badge'
@@ -122,9 +122,8 @@ export const initCommand = Command.make('init', { output }, ({ output }) =>
     // Build config object
     const config = {
       networkId,
-      signers,
+      members,
       threshold,
-      badgeRecipients,
       ...(badgeName !== 'Team Member Badge' ? { badgeName } : {})
     }
 
