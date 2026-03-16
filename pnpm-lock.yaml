@@ -259,7 +259,7 @@ importers:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.4)
       nitro:
-        specifier: latest
+        specifier: ^3.0.260311-beta
         version: 3.0.260311-beta(drizzle-orm@0.45.1(@types/pg@8.18.0)(pg@8.20.0))(jiti@2.6.1)(rollup@4.59.0)(vite@7.3.1(@types/node@24.11.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
       react:
         specifier: 'catalog:'
@@ -6585,7 +6585,7 @@ snapshots:
   h3@2.0.1-rc.14(crossws@0.4.4(srvx@0.11.12)):
     dependencies:
       rou3: 0.7.12
-      srvx: 0.11.8
+      srvx: 0.11.12
     optionalDependencies:
       crossws: 0.4.4(srvx@0.11.12)
 
