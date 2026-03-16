@@ -1,7 +1,8 @@
 import { HttpApiBuilder } from '@effect/platform'
 import { AppApi } from '@radix-vaults/shared'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { ProposalRepo } from '../handlers/proposalRepo'
+import { TeamHandler } from '../handlers/team'
 
 export const DashboardHandlersLive = HttpApiBuilder.group(
   AppApi,
@@ -10,7 +11,22 @@ export const DashboardHandlersLive = HttpApiBuilder.group(
     handlers.handle('pendingProposals', () =>
       Effect.gen(function* () {
         const repo = yield* ProposalRepo
-        return yield* repo.listAllPending()
+        const teamHandler = yield* TeamHandler
+        const [proposals, overview] = yield* Effect.all([
+          repo.listAllPending(),
+          teamHandler.getOverview()
+        ])
+
+        const nameByAddress = new Map(
+          overview.badgeHolders.map((h) => [h.holderAddress, h.name])
+        )
+
+        return proposals.map((p) => ({
+          ...p,
+          createdByName: nameByAddress.get(p.createdBy) ?? null,
+          entityName:
+            p.entityName ?? (p.type !== 'vault' ? 'Team' : p.entityName)
+        }))
       })
     )
-)
+).pipe(Layer.provide(TeamHandler.Default))

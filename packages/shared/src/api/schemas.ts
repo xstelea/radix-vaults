@@ -160,11 +160,13 @@ export const ProposalListItemSchema = Schema.Struct({
   vaultAddress: VaultAddress,
   status: Schema.String,
   createdBy: Schema.String,
+  createdByName: Schema.NullOr(Schema.String),
   createdAt: Schema.String
 })
 
 export const ProposalSignatureSchema = Schema.Struct({
   signerAccountAddress: Schema.String,
+  signerName: Schema.NullOr(Schema.String),
   signerKeyHash: Schema.String,
   signerKeyType: Schema.Literal('ed25519', 'secp256k1'),
   signedAt: Schema.String
@@ -183,6 +185,7 @@ export const ProposalDetailSchema = Schema.Struct({
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
+  createdByName: Schema.NullOr(Schema.String),
   createdAt: Schema.String,
   subintentHash: Schema.NullOr(Schema.String),
   intentDiscriminator: Schema.String,
@@ -351,6 +354,7 @@ export const TeamProposalListItemSchema = Schema.Struct({
   type: ProposalType,
   status: Schema.String,
   createdBy: Schema.String,
+  createdByName: Schema.NullOr(Schema.String),
   createdAt: Schema.String
 })
 
@@ -362,6 +366,7 @@ export const TeamProposalDetailSchema = Schema.Struct({
   manifest: Schema.String,
   maxProposerTimestamp: Schema.String,
   createdBy: Schema.String,
+  createdByName: Schema.NullOr(Schema.String),
   createdAt: Schema.String,
   subintentHash: Schema.NullOr(Schema.String),
   intentDiscriminator: Schema.String,
@@ -437,6 +442,7 @@ export const PendingProposalListItemSchema = Schema.Struct({
   type: ProposalType,
   status: Schema.String,
   createdBy: Schema.String,
+  createdByName: Schema.NullOr(Schema.String),
   createdAt: Schema.String
 })
 

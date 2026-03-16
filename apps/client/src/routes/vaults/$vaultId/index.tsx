@@ -289,7 +289,7 @@ function ProposalListSection() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
-                      {p.createdBy.slice(0, 20)}...
+                      {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(p.createdAt).toLocaleString()}

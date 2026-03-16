@@ -100,6 +100,7 @@ const statusVariant: Record<
 }
 
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
+const TERMINAL_STATUSES = new Set(['committed', 'failed', 'expired', 'invalid'])
 
 function ProposalDetailContent() {
   const { vaultId, proposalId } = Route.useParams()
@@ -175,7 +176,7 @@ function ProposalDetailContent() {
                   Created By
                 </p>
                 <p className="mt-1 truncate font-mono text-xs">
-                  {proposal.createdBy}
+                  {proposal.createdByName ?? proposal.createdBy}
                 </p>
               </CardContent>
             </Card>
@@ -225,7 +226,9 @@ function ProposalDetailContent() {
           />
         )}
 
-        <TransactionPreviewCard manifest={proposal.manifest} />
+        {!TERMINAL_STATUSES.has(proposal.status) && (
+          <TransactionPreviewCard manifest={proposal.manifest} />
+        )}
 
         <Card>
           <CardHeader>
@@ -306,8 +309,6 @@ function SignatureProgressCard({
             <TableHeader>
               <TableRow>
                 <TableHead>Signer</TableHead>
-                <TableHead>Key Type</TableHead>
-                <TableHead>Key Hash</TableHead>
                 <TableHead>Signed At</TableHead>
               </TableRow>
             </TableHeader>
@@ -315,13 +316,8 @@ function SignatureProgressCard({
               {signatureProgress.signatures.map((sig) => (
                 <TableRow key={sig.signerAccountAddress}>
                   <TableCell className="font-mono text-xs">
-                    {sig.signerAccountAddress.slice(0, 20)}...
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{sig.signerKeyType}</Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {sig.signerKeyHash.slice(0, 16)}...
+                    {sig.signerName ??
+                      `${sig.signerAccountAddress.slice(0, 20)}...`}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(sig.signedAt).toLocaleString()}
