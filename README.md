@@ -12,11 +12,11 @@ A full-stack TypeScript application for creating and managing multi-signature ac
 - **Proposal lifecycle** — create transaction proposals, collect threshold signatures, submit to network
 - **Threshold signing** — each vault defines its own signer set and approval threshold
 - **Team management** — add/remove members, change thresholds via team proposals
-- **Badge-gated writes** — soul-bound fungible tokens control write access independent of vault signer sets
+- **Badge-gated writes** — soul-bound **non-fungible tokens (NFTs)** control write access independent of vault signer sets
 
-### Blockchain
+### Radix
 
-- **ROLA authentication** — challenge-response login via Radix Wallet (dApp Toolkit)
+- **ROLA authentication** — challenge-response login via Radix Wallet (dApp Toolkit), with on-ledger `owner_keys` verification
 - **Subintent signing** — signers approve via wallet pre-authorization; server recomposes with fee payer for submission
 - **On-chain state sync** — re-sync vault signers, balances, and access rules from Gateway
 - **Proposal invalidation** — automatic detection of signer/threshold drift and preview failures
@@ -25,7 +25,7 @@ A full-stack TypeScript application for creating and managing multi-signature ac
 
 - **Effect throughout** — server runtime, HTTP API, error handling, dependency injection, and client state all use Effect
 - **Type-safe API** — shared HTTP API contract between client and server via `@effect/platform` HttpApi
-- **CLI bootstrap** — one-time setup tool to create team accounts and mint initial badges
+- **CLI bootstrap** — one-time setup tool to create team accounts and mint initial NFT badges with member metadata
 - **E2E tests** — Playwright against Stokenet with TestContainers for isolated DB
 
 ## Key Concepts
@@ -37,8 +37,8 @@ A full-stack TypeScript application for creating and managing multi-signature ac
 | **Signature** | Cryptographic approval on a proposal's subintent, collected via wallet pre-authorization and validated against the vault's current access rule. |
 | **Subintent** | Partial transaction targeting a proposal. Signers approve via wallet pre-authorization. Once threshold is met, server recomposes with fee payer and submits. |
 | **Team** | Separate on-chain account for badge operations (mint, recall, burn). Controls write access to the app, not vault funds. |
-| **Badge** | Soul-bound fungible token. Holding any balance > 0 grants write access. Independent from vault signer sets. |
-| **ROLA** | Radix Origin Logon Authentication. Challenge-response protocol: server issues one-time challenge, wallet signs, server verifies and checks badge balance. |
+| **Badge** | Soul-bound NFT minted per team member. Each badge carries metadata (name, key type, local ID derived from public key). Grants write access independent from vault signer sets. |
+| **ROLA** | Radix Off-Ledger Authentication. Challenge-response protocol: server issues one-time challenge, wallet signs, server verifies signature and confirms signing public key matches the claimed address via on-ledger `owner_keys` metadata. |
 
 ## Tech Stack
 
@@ -47,7 +47,7 @@ A full-stack TypeScript application for creating and managing multi-signature ac
 | Frontend | React 19, TanStack Start/Router, Tailwind CSS 4, Effect Atom |
 | Backend | Effect 3, `@effect/platform` HttpApi |
 | Database | PostgreSQL 17, Drizzle ORM, `@effect/sql` |
-| DLT | Radix Gateway API, Radix Engine Toolkit, dApp Toolkit |
+| DLT | Radix Gateway API, Radix Engine Toolkit, dApp Toolkit, `sbor-ez-mode` |
 | Crypto | `@noble/curves`, `@noble/hashes` (ROLA verification) |
 | Build | pnpm 10, Turborepo, Vite 7, TypeScript 5.9 |
 | Quality | oxlint, oxfmt, Vitest, Playwright, Husky + lint-staged |
@@ -85,16 +85,6 @@ A full-stack TypeScript application for creating and managing multi-signature ac
 
 **Prerequisites:** Node.js 22+, pnpm 10+, Docker. Recommended: [direnv](https://direnv.net/) for automatic env var loading.
 
-Set up the project:
-
-```bash
-pnpm install
-pnpm dev:db                        # Start Postgres container
-pnpm db:migrate                    # Apply schema migrations
-pnpm dev                           # Start client + server
-```
-
-Client: `http://localhost:3000` | Server: `http://localhost:3001`
 
 ### Generate Fee Payer
 
@@ -115,6 +105,18 @@ One-time setup to create on-chain team infrastructure before the web app can ope
 pnpm bootstrap init            # Interactive config -> bootstrap.json
 pnpm bootstrap run             # Create team account + mint badges
 ```
+
+### Run development servers
+
+```bash
+pnpm install
+pnpm dev:db                        # Start Postgres container
+pnpm db:migrate                    # Apply schema migrations
+pnpm dev                           # Start client + server
+```
+
+Client: `http://localhost:3000` | Server: `http://localhost:3001`
+
 
 ## Project Structure
 
@@ -152,14 +154,13 @@ packages/
 ### Quality Gates
 
 ```bash
-pnpm fmt:check                 # oxfmt
-pnpm lint                      # oxlint
-pnpm test                      # Vitest (unit)
-pnpm test:e2e                  # Playwright (E2E)
-pnpm check-types               # TypeScript
+pnpm lint-staged
+pnpm check-types
+pnpm test
+pnpm build
 ```
 
-Lint, test, and typecheck run on pre-commit via Husky. E2E tests run separately.
+Lint, typecheck, test, build run on pre-commit via Husky.
 
 ### Database
 
