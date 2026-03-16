@@ -1,0 +1,55 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: dockerfiles/client.Dockerfile
+      args:
+        VITE_ENV: production
+        VITE_API_BASE_URL: "http://localhost:3001"
+        VITE_DAPP_DEFINITION_ADDRESS: ${DAPP_DEFINITION_ADDRESS}
+        VITE_NETWORK_ID: ${NETWORK_ID}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    restart: always
+
+  server:
+    build:
+      context: .
+      dockerfile: dockerfiles/server.Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@db:5432/radix_vaults"
+      NETWORK_ID: 2
+      SERVER_PORT: 3001
+      ALLOWED_ORIGINS: "http://localhost:3000"
+      EXPECTED_ORIGIN: "http://localhost:3000"
+      DAPP_DEFINITION_ADDRESS: ${DAPP_DEFINITION_ADDRESS}
+      FEE_PAYER_PRIVATE_KEY_HEX: ${FEE_PAYER_PRIVATE_KEY_HEX}
+      LOG_LEVEL: ${LOG_LEVEL:-Info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      TEAM_MEMBER_BADGE_ADDRESS: ${TEAM_MEMBER_BADGE_ADDRESS}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: radix_vaults
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d radix_vaults"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+volumes:
+  postgres-data:

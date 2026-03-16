@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "dev:inspect": "tsx --inspect-brk src/main.ts",
-    "build": "tsgo -p tsconfig.json --noEmit false --outDir dist",
+    "build": "tsdown",
     "start": "node dist/main.js",
     "lint": "oxlint .",
     "test": "vitest run --exclude '**/*.e2e.test.ts'",
@@ -41,6 +41,7 @@
     "@types/pg": "^8.15.6",
     "@typescript/native-preview": "catalog:",
     "oxlint": "catalog:",
+    "tsdown": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
