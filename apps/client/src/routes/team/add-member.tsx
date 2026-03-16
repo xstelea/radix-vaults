@@ -68,6 +68,7 @@ function AddMemberForm() {
 
   const [accountAddress, setAccountAddress] = useState('')
   const [virtualBadge, setVirtualBadge] = useState('')
+  const [memberName, setMemberName] = useState('')
   const [badgeThreshold, setBadgeThreshold] = useState('')
   const [vaultThresholds, setVaultThresholds] = useState<
     Record<string, string>
@@ -100,6 +101,7 @@ function AddMemberForm() {
       input: {
         accountAddress: accountAddress.trim(),
         virtualBadge: virtualBadge.trim(),
+        name: memberName.trim(),
         badgeThreshold: Number(badgeThreshold) || team.threshold,
         vaultThresholds: vaults.map((v) => ({
           vaultAddress: v.accountAddress,
@@ -158,6 +160,26 @@ function AddMemberForm() {
               onChange={(e) => setAccountAddress(e.target.value)}
               className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="memberName" className="text-sm font-medium">
+              Member Name
+            </label>
+            <input
+              id="memberName"
+              type="text"
+              required
+              maxLength={100}
+              placeholder="Alice"
+              value={memberName}
+              onChange={(e) => setMemberName(e.target.value)}
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">
+              A human-readable name for this team member (stored on-ledger in
+              the NFT badge).
+            </p>
           </div>
 
           <div className="space-y-2">

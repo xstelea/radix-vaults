@@ -168,18 +168,26 @@ function TeamContent() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Key Type</TableHead>
+                  <TableHead>Badge ID</TableHead>
                   <TableHead>Account Address</TableHead>
-                  <TableHead>Amount</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {overview.badgeHolders.map((holder) => (
                   <TableRow key={holder.holderAddress}>
+                    <TableCell className="font-medium">{holder.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{holder.keyType}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {holder.localId}
+                    </TableCell>
                     <TableCell className="font-mono text-xs">
                       {holder.holderAddress}
                     </TableCell>
-                    <TableCell>{holder.amount}</TableCell>
                     <TableCell>
                       <Link
                         to="/team/remove-member"

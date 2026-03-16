@@ -1,8 +1,18 @@
-import type { TeamOverview } from '@radix-vaults/shared'
+import type { BadgeHolder, TeamOverview } from '@radix-vaults/shared'
 import { AuthConfig } from '@radix-vaults/shared'
-import { GetResourceHoldersService } from '@radix-effects/gateway'
+import {
+  GetEntityDetailsVaultAggregated,
+  GetResourceHoldersService,
+  NonFungibleData
+} from '@radix-effects/gateway'
 import { Effect } from 'effect'
+import s from 'sbor-ez-mode'
 import { AccessRuleValidator } from '../gateway/accessRuleValidator'
+
+const BadgeNftSchema = s.struct({
+  name: s.string(),
+  mfa_virtual_resource: s.string()
+})
 
 const ED25519_RESOURCE_SUFFIX = 'ed25sg'
 
@@ -18,6 +28,8 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
       const authConfig = yield* AuthConfig
       const accessRuleValidator = yield* AccessRuleValidator
       const getResourceHolders = yield* GetResourceHoldersService
+      const getEntityDetails = yield* GetEntityDetailsVaultAggregated
+      const getNonFungibleData = yield* NonFungibleData
 
       const getOverview = (): Effect.Effect<TeamOverview> =>
         Effect.gen(function* () {
@@ -41,12 +53,116 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
             resourceAddress: authConfig.teamMemberBadgeAddress
           }).pipe(Effect.orDie)
 
-          const badgeHolders = holders
-            .filter((h) => h.type === 'FungibleResource')
-            .map((h) => ({
-              holderAddress: h.holder_address,
-              amount: h.amount
-            }))
+          const nftHolderAddresses = holders
+            .filter((h) => h.type === 'NonFungibleResource')
+            .map((h) => h.holder_address)
+
+          if (nftHolderAddresses.length === 0) {
+            return {
+              teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
+              threshold,
+              signers,
+              badgeHolders: []
+            } satisfies TeamOverview
+          }
+
+          // Get entity details to find NFT IDs per holder
+          const entityDetails = yield* getEntityDetails(
+            nftHolderAddresses,
+            undefined,
+            undefined
+          ).pipe(Effect.orDie)
+
+          // Extract holder → NFT local IDs mapping
+          const holderNftMap = new Map<
+            string,
+            { holderAddress: string; localIds: string[] }
+          >()
+          const allLocalIds: string[] = []
+
+          for (const entity of entityDetails) {
+            const nfResources = entity.non_fungible_resources?.items ?? []
+            const badgeResource = nfResources.find(
+              (r: { resource_address?: string }) =>
+                r.resource_address === authConfig.teamMemberBadgeAddress
+            ) as
+              | {
+                  vaults?: {
+                    items?: Array<{ items?: string[]; vault_address?: string }>
+                  }
+                }
+              | undefined
+
+            const nftIds: string[] = []
+            for (const vault of badgeResource?.vaults?.items ?? []) {
+              for (const id of vault.items ?? []) {
+                nftIds.push(id)
+                allLocalIds.push(id)
+              }
+            }
+
+            if (nftIds.length > 0) {
+              holderNftMap.set(entity.address, {
+                holderAddress: entity.address,
+                localIds: nftIds
+              })
+            }
+          }
+
+          if (allLocalIds.length === 0) {
+            return {
+              teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
+              threshold,
+              signers,
+              badgeHolders: []
+            } satisfies TeamOverview
+          }
+
+          // Fetch NFT data for all local IDs
+          const nftDataItems = yield* getNonFungibleData({
+            resource_address: authConfig.teamMemberBadgeAddress,
+            non_fungible_ids: allLocalIds
+          }).pipe(Effect.orDie)
+
+          // Build NFT data lookup: localId → parsed badge data
+          const nftDataMap = new Map<
+            string,
+            { name: string; mfaVirtualResource: string }
+          >()
+
+          for (const item of nftDataItems) {
+            const sbor = item.data?.programmatic_json
+            if (!sbor) {
+              nftDataMap.set(item.non_fungible_id, {
+                name: '',
+                mfaVirtualResource: ''
+              })
+              continue
+            }
+
+            const parsed = BadgeNftSchema.safeParse(sbor)
+            nftDataMap.set(item.non_fungible_id, {
+              name: parsed.isOk() ? parsed.value.name : '',
+              mfaVirtualResource: parsed.isOk()
+                ? parsed.value.mfa_virtual_resource
+                : ''
+            })
+          }
+
+          // Join holders with NFT data
+          const badgeHolders: BadgeHolder[] = []
+          for (const [holderAddress, holder] of holderNftMap) {
+            for (const localId of holder.localIds) {
+              const nftData = nftDataMap.get(localId)
+              badgeHolders.push({
+                holderAddress,
+                localId,
+                name: nftData?.name ?? '',
+                mfaVirtualResource: nftData?.mfaVirtualResource ?? '',
+                keyType: keyTypeFromResource(nftData?.mfaVirtualResource ?? '')
+              })
+            }
+          }
 
           return {
             teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,

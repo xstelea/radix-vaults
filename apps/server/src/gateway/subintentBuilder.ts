@@ -109,7 +109,21 @@ export const extractSignatureFromHex = (
 
       const signatures = signed.rootSubintentSignatures
       if (signatures.length === 0) {
-        throw new Error('No signatures found in signed partial transaction')
+        const nonRootSigs = signed.nonRootSubintentSignatures
+        const nonRootTotal = nonRootSigs.reduce(
+          (sum, arr) => sum + arr.length,
+          0
+        )
+        const diagParts = [
+          `rootSubintentSignatures: ${signatures.length}`,
+          `nonRootSubintentSignatures groups: ${nonRootSigs.length}`,
+          `nonRootSubintentSignatures total: ${nonRootTotal}`,
+          `hexLength: ${signedPartialHex.length}`,
+          `keys: ${JSON.stringify(Object.keys(signed))}`
+        ]
+        throw new Error(
+          `No signatures found in signed partial transaction. Diagnostics: ${diagParts.join(', ')}`
+        )
       }
 
       const sig = signatures[0]!

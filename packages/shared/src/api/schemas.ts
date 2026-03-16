@@ -107,7 +107,10 @@ export type CreateVaultResponse = typeof CreateVaultResponseSchema.Type
 
 export const BadgeHolderSchema = Schema.Struct({
   holderAddress: Schema.String,
-  amount: Schema.String
+  localId: Schema.String,
+  name: Schema.String,
+  mfaVirtualResource: Schema.String,
+  keyType: Schema.Literal('ed25519', 'secp256k1')
 })
 
 export const TeamOverviewSchema = Schema.Struct({
@@ -325,6 +328,7 @@ const VaultThresholdSchema = Schema.Struct({
 export const AddMemberRequestSchema = Schema.Struct({
   accountAddress: Schema.String.pipe(Schema.minLength(1)),
   virtualBadge: Schema.String.pipe(Schema.minLength(1)),
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
   badgeThreshold: Schema.Number.pipe(Schema.int(), Schema.greaterThan(0)),
   vaultThresholds: Schema.Array(VaultThresholdSchema)
 })

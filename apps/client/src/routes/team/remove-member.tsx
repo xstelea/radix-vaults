@@ -11,7 +11,7 @@ import {
   ClientOnly
 } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { teamOverviewAtom } from '@/atom/team'
 import {
   createRemoveMemberProposal,
@@ -75,8 +75,7 @@ function RemoveMemberForm() {
   const teamResult = useAtomValue(teamOverviewAtom)
   const vaultsResult = useAtomValue(vaultsListAtom)
 
-  const [memberAddress, setMemberAddress] = useState(address ?? '')
-  const [virtualBadge, setVirtualBadge] = useState('')
+  const [selectedVirtualBadge, setSelectedVirtualBadge] = useState('')
   const [badgeThreshold, setBadgeThreshold] = useState('')
   const [vaultThresholds, setVaultThresholds] = useState<
     Record<string, string>
@@ -96,10 +95,20 @@ function RemoveMemberForm() {
     .onSuccess((v) => v)
     .render()
 
+  useEffect(() => {
+    if (team && address) {
+      const match = team.badgeHolders.find((h) => h.holderAddress === address)
+      if (match) setSelectedVirtualBadge(match.mfaVirtualResource)
+    }
+  }, [team, address])
+
   if (!team || !vaults) {
     return <Skeleton className="h-96 w-full" />
   }
 
+  const selectedHolder = team.badgeHolders.find(
+    (h) => h.mfaVirtualResource === selectedVirtualBadge
+  )
   const newSignerCount = Math.max(team.signers.length - 1, 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,10 +116,12 @@ function RemoveMemberForm() {
     setError(null)
     setSubmitting(true)
 
+    if (!selectedHolder) return
+
     const exit = await dispatch({
       input: {
-        memberAddress: memberAddress.trim(),
-        virtualBadge: virtualBadge.trim(),
+        memberAddress: selectedHolder.holderAddress,
+        virtualBadge: selectedVirtualBadge,
         badgeThreshold:
           Number(badgeThreshold) || Math.min(team.threshold, newSignerCount),
         vaultThresholds: vaults.map((v) => ({
@@ -158,41 +169,52 @@ function RemoveMemberForm() {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="memberAddress" className="text-sm font-medium">
-              Member Account Address
+            <label htmlFor="memberName" className="text-sm font-medium">
+              Member Name
+            </label>
+            <select
+              id="memberName"
+              required
+              value={selectedVirtualBadge}
+              onChange={(e) => setSelectedVirtualBadge(e.target.value)}
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Select a member...</option>
+              {team.badgeHolders.map((holder) => (
+                <option
+                  key={holder.mfaVirtualResource}
+                  value={holder.mfaVirtualResource}
+                >
+                  {holder.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="signer" className="text-sm font-medium">
+              Signer
             </label>
             <input
-              id="memberAddress"
+              id="signer"
               type="text"
-              required
-              placeholder="account_tdx_2_1..."
-              value={memberAddress}
-              onChange={(e) => setMemberAddress(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              disabled
+              value={selectedHolder?.mfaVirtualResource ?? ''}
+              className="w-full rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="virtualBadge" className="text-sm font-medium">
-              Signer to Remove
+            <label htmlFor="accountAddress" className="text-sm font-medium">
+              Account Address
             </label>
-            <select
-              id="virtualBadge"
-              required
-              value={virtualBadge}
-              onChange={(e) => setVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Select a signer...</option>
-              {team.signers.map((signer) => (
-                <option
-                  key={signer.nonFungibleGlobalId}
-                  value={signer.nonFungibleGlobalId}
-                >
-                  {signer.signerKeyType}: {signer.signerKeyHash}
-                </option>
-              ))}
-            </select>
+            <input
+              id="accountAddress"
+              type="text"
+              disabled
+              value={selectedHolder?.holderAddress ?? ''}
+              className="w-full rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground"
+            />
           </div>
 
           <div className="space-y-2">
