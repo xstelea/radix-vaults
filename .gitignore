@@ -7,6 +7,7 @@ node_modules/
 # Build artifacts
 **/dist/
 **/.turbo/
+**/target/
 
 # Env files
 .env
@@ -24,6 +25,9 @@ node_modules/
 # Playwright
 **/test-results/
 **/playwright-report/
+
+# Bootstrap config (generated per-environment)
+apps/cli/bootstrap.json
 
 # Husky generated internals
 .husky/_/

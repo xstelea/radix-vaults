@@ -1,19 +1,16 @@
 import { proposals, vaults } from '@radix-vaults/database'
 import {
   VaultAddress,
+  VaultNotFoundError,
   type VaultAddress as VaultAddressType,
   type VaultDetail,
   type VaultListItem
 } from '@radix-vaults/shared'
-import { Data, Effect } from 'effect'
+import { Effect } from 'effect'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 const pendingStatuses = ['created', 'signing', 'ready'] as const
-
-export class VaultNotFoundError extends Data.TaggedError('VaultNotFoundError')<{
-  vaultAddress: VaultAddressType
-}> {}
 
 export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
   '@radix-vaults/server/handlers/ListVaultsRepo',

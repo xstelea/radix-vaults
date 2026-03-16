@@ -2,8 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import {
   AppApi,
   CurrentSession,
-  TeamProposalNotFoundError,
-  VaultNotFoundErrorSchema
+  TeamProposalNotFoundError
 } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { TeamProposalsHandler } from '../handlers/teamProposals'
@@ -62,12 +61,7 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
             })
           )
           return result
-        }).pipe(
-          Effect.catchTags({
-            VaultNotFoundError: (e) =>
-              new VaultNotFoundErrorSchema({ vaultAddress: e.vaultAddress })
-          })
-        )
+        })
       )
       .handle('list', () =>
         Effect.gen(function* () {

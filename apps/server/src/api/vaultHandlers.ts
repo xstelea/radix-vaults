@@ -2,9 +2,7 @@ import { HttpApiBuilder } from '@effect/platform'
 import {
   AppApi,
   CreateVaultFailedError,
-  ThresholdExceedsSignersError,
-  UnsupportedAccessRuleError,
-  VaultAlreadyExistsError
+  UnsupportedAccessRuleError
 } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { VaultsHandler } from '../handlers/vaults'
@@ -47,10 +45,6 @@ export const VaultHandlersLive = HttpApiBuilder.group(
               new UnsupportedAccessRuleError({
                 entityAddress: e.entityAddress,
                 message: 'Account not found on ledger'
-              }),
-            VaultAlreadyExistsDbError: (e) =>
-              new VaultAlreadyExistsError({
-                accountAddress: e.accountAddress
               })
           })
         )
@@ -61,10 +55,6 @@ export const VaultHandlersLive = HttpApiBuilder.group(
           return yield* vaults.createVault(name, threshold)
         }).pipe(
           Effect.catchTags({
-            ThresholdExceedsSignersHandlerError: (e) =>
-              new ThresholdExceedsSignersError({ message: e.message }),
-            CreateVaultFailedHandlerError: (e) =>
-              new CreateVaultFailedError({ message: e.message }),
             TransactionSubmitError: (e) =>
               new CreateVaultFailedError({ message: e.message })
           })

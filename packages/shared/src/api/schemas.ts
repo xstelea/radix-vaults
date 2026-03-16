@@ -30,7 +30,7 @@ export const VaultSignersSchema = Schema.Struct({
   signers: Schema.Array(SignerSchema)
 })
 
-export class VaultNotFoundErrorSchema extends Schema.TaggedError<VaultNotFoundErrorSchema>()(
+export class VaultNotFoundError extends Schema.TaggedError<VaultNotFoundError>()(
   'VaultNotFoundError',
   {
     vaultAddress: VaultAddress
