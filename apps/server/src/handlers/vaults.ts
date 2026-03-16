@@ -2,6 +2,7 @@ import {
   AuthConfig,
   CreateVaultFailedError,
   ThresholdExceedsSignersError,
+  UnsupportedAccessRuleError,
   type CreateVaultResponse,
   type ImportVaultResponse,
   type VaultAddress as VaultAddressType,
@@ -10,16 +11,9 @@ import {
   type VaultSigners
 } from '@radix-vaults/shared'
 import { Effect } from 'effect'
-import {
-  AccessRuleValidator,
-  type UnsupportedRuleError,
-  type EntityNotFoundOnLedgerError
-} from '../gateway/accessRuleValidator'
+import { AccessRuleValidator } from '../gateway/accessRuleValidator'
 import { buildCreateVaultManifest } from '../gateway/manifests'
-import {
-  TransactionSubmitter,
-  type TransactionSubmitError
-} from '../gateway/transactionSubmitter'
+import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { VaultAddress } from '@radix-vaults/shared'
 import { ImportVaultRepo } from './importVaultRepo'
 import { ListVaultsRepo } from './listVaultsRepo'
@@ -64,9 +58,7 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         name: string
       ): Effect.Effect<
         ImportVaultResponse,
-        | UnsupportedRuleError
-        | EntityNotFoundOnLedgerError
-        | VaultAlreadyExistsError
+        UnsupportedAccessRuleError | VaultAlreadyExistsError
       > =>
         Effect.gen(function* () {
           yield* accessRuleValidator.validate(accountAddress)
@@ -75,16 +67,27 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
             accountAddress: vault.accountAddress,
             name: vault.name
           } satisfies ImportVaultResponse
-        })
+        }).pipe(
+          Effect.catchTags({
+            UnsupportedRuleError: (e) =>
+              new UnsupportedAccessRuleError({
+                entityAddress: accountAddress,
+                message: e.reason
+              }),
+            EntityNotFoundOnLedgerError: (e) =>
+              new UnsupportedAccessRuleError({
+                entityAddress: e.entityAddress,
+                message: 'Account not found on ledger'
+              })
+          })
+        )
 
       const createVault = (
         name: string,
         threshold: number
       ): Effect.Effect<
         CreateVaultResponse,
-        | ThresholdExceedsSignersError
-        | CreateVaultFailedError
-        | TransactionSubmitError
+        ThresholdExceedsSignersError | CreateVaultFailedError
       > =>
         Effect.gen(function* () {
           const accessRule = yield* accessRuleValidator
@@ -131,7 +134,12 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
             accountAddress: vaultAddress,
             name
           } satisfies CreateVaultResponse
-        })
+        }).pipe(
+          Effect.catchTags({
+            TransactionSubmitError: (e) =>
+              new CreateVaultFailedError({ message: e.message })
+          })
+        )
 
       return {
         list,

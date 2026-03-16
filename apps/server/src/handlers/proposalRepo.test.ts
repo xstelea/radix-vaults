@@ -1,6 +1,10 @@
 import { PgClient } from '@effect/sql-pg'
 import { SqlClient } from '@effect/sql'
-import { ProposalId, VaultAddress } from '@radix-vaults/shared'
+import {
+  ProposalId,
+  ProposalNotFoundError,
+  VaultAddress
+} from '@radix-vaults/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { Effect, Redacted } from 'effect'
@@ -10,7 +14,7 @@ import path from 'node:path'
 import pg from 'pg'
 import { ORM } from '../db/orm'
 import { PgContainer } from '../test/PgContainer'
-import { ProposalRepo, ProposalNotFoundDbError } from './proposalRepo'
+import { ProposalRepo } from './proposalRepo'
 
 const resolveMigrationsFolder = () => {
   const candidates = [
@@ -200,7 +204,7 @@ describe('ProposalRepo', () => {
   )
 
   it.scopedLive(
-    'fails with ProposalNotFoundDbError for missing proposal',
+    'fails with ProposalNotFoundError for missing proposal',
     () =>
       Effect.gen(function* () {
         const container = yield* PgContainer
@@ -218,7 +222,7 @@ describe('ProposalRepo', () => {
 
         expect(result._tag).toBe('Left')
         if (result._tag === 'Left') {
-          expect(result.left).toBeInstanceOf(ProposalNotFoundDbError)
+          expect(result.left).toBeInstanceOf(ProposalNotFoundError)
         }
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000

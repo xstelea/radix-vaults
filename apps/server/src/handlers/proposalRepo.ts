@@ -2,6 +2,8 @@ import { proposals, proposalSignatures, vaults } from '@radix-vaults/database'
 import {
   EntityAddress,
   ProposalId,
+  ProposalNotFoundError,
+  TeamProposalNotFoundError,
   VaultAddress,
   type EntityAddress as EntityAddressType,
   type ProposalType,
@@ -12,12 +14,6 @@ import { and, desc, eq, inArray, lt } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 const PENDING_STATUSES = ['created', 'signing', 'ready']
-
-export class ProposalNotFoundDbError extends Data.TaggedError(
-  'ProposalNotFoundDbError'
-)<{
-  proposalId: ProposalId
-}> {}
 
 export class DuplicateSignatureDbError extends Data.TaggedError(
   'DuplicateSignatureDbError'
@@ -137,7 +133,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.flatMap((rows) => {
               const row = rows[0]
               if (!row) {
-                return Effect.fail(new ProposalNotFoundDbError({ proposalId }))
+                return Effect.fail(new ProposalNotFoundError({ proposalId }))
               }
               return Effect.succeed({
                 id: ProposalId.make(row.id),
@@ -201,7 +197,9 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.flatMap((rows) => {
               const row = rows[0]
               if (!row) {
-                return Effect.fail(new ProposalNotFoundDbError({ proposalId }))
+                return Effect.fail(
+                  new TeamProposalNotFoundError({ proposalId })
+                )
               }
               return Effect.succeed({
                 id: ProposalId.make(row.id),

@@ -1,9 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform'
-import {
-  AppApi,
-  CurrentSession,
-  ProposalNotFoundError
-} from '@radix-vaults/shared'
+import { AppApi, CurrentSession } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { ProposalsHandler } from '../handlers/proposals'
 
@@ -47,12 +43,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
           return yield* proposalsHandler.getDetail(vaultAddress, proposalId)
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
       .handle(
         'sign',
@@ -77,12 +68,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
               })
             )
             return result
-          }).pipe(
-            Effect.catchTags({
-              ProposalNotFoundDbError: (e) =>
-                new ProposalNotFoundError({ proposalId: e.proposalId })
-            })
-          )
+          })
       )
       .handle('submit', ({ path: { vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
@@ -95,22 +81,12 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             Effect.annotateLogs({ vaultAddress, proposalId })
           )
           return result
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
       .handle('refreshStatus', ({ path: { vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
           return yield* proposalsHandler.refreshStatus(vaultAddress, proposalId)
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new ProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
 ).pipe(Layer.provide(ProposalsHandler.Default))

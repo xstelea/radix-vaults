@@ -1,9 +1,5 @@
 import { HttpApiBuilder } from '@effect/platform'
-import {
-  AppApi,
-  CurrentSession,
-  TeamProposalNotFoundError
-} from '@radix-vaults/shared'
+import { AppApi, CurrentSession } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { TeamProposalsHandler } from '../handlers/teamProposals'
 
@@ -73,12 +69,7 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const handler = yield* TeamProposalsHandler
           return yield* handler.getDetail(proposalId)
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new TeamProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
       .handle(
         'sign',
@@ -98,12 +89,7 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
               })
             )
             return result
-          }).pipe(
-            Effect.catchTags({
-              ProposalNotFoundDbError: (e) =>
-                new TeamProposalNotFoundError({ proposalId: e.proposalId })
-            })
-          )
+          })
       )
       .handle('submit', ({ path: { proposalId } }) =>
         Effect.gen(function* () {
@@ -113,22 +99,12 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
             Effect.annotateLogs({ proposalId })
           )
           return result
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new TeamProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
       .handle('refreshStatus', ({ path: { proposalId } }) =>
         Effect.gen(function* () {
           const handler = yield* TeamProposalsHandler
           return yield* handler.refreshStatus(proposalId)
-        }).pipe(
-          Effect.catchTags({
-            ProposalNotFoundDbError: (e) =>
-              new TeamProposalNotFoundError({ proposalId: e.proposalId })
-          })
-        )
+        })
       )
 ).pipe(Layer.provide(TeamProposalsHandler.Default))
