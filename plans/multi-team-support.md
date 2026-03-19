@@ -104,13 +104,13 @@ Frontend vault pages (list, import, create, detail) and proposal pages (new, det
 
 ### Acceptance criteria
 
-- [ ] Import vault within team stores `(teamId, accountAddress)` record
-- [ ] Create vault within team links vault to team
-- [ ] Vault list shows only vaults belonging to current team
-- [ ] Create proposal uses badge address from team DB record
-- [ ] Sign, submit, refresh-status work within team context
-- [ ] Full vault proposal lifecycle works end-to-end within a team
-- [ ] Same vault address can exist in multiple teams independently
+- [x] Import vault within team stores `(teamId, accountAddress)` record
+- [x] Create vault within team links vault to team
+- [x] Vault list shows only vaults belonging to current team
+- [x] Create proposal uses badge address from team DB record
+- [x] Sign, submit, refresh-status work within team context
+- [x] Full vault proposal lifecycle works end-to-end within a team
+- [x] Same vault address can exist in multiple teams independently
 
 ---
 

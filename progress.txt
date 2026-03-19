@@ -161,3 +161,13 @@
 - Frontend: All services gain `teamId` parameter with `TeamId.make()` branding. All atoms updated: family atoms keyed by `teamId`, action atoms include `teamId` in args.
 - Frontend: Routes moved under `teams/$teamId/` layout. `$teamId.tsx` layout route renders Outlet. Sidebar shows team-scoped links when `teamId` present. Team list page links to `/teams/$teamId/vaults`.
 - Tests: listVaultsRepo.test (3), proposalRepo.test (4) updated with teamId — seed data includes team insert, all repo calls pass teamId. All 43 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 4: Team-scoped vault operations (DONE)
+- On multi-team-support branch
+- All vault and proposal flows already wired end-to-end with team context in Phase 3 (repos, handlers, API handlers, frontend services/atoms/routes all accept teamId)
+- Badge address for vault creation comes from `teamRepo.getById(teamId).badgeAddress` (not env var)
+- Composite PK `(teamId, accountAddress)` allows same vault address in multiple teams independently
+- New ImportVaultRepo tests (3): import stores (teamId, accountAddress), same vault address in different teams succeeds, duplicate in same team rejected with VaultAlreadyExistsError
+- New ListVaultsRepo test (1): vault list scoped to team — two teams with overlapping vault addresses return only their own vaults
+- New ProposalRepo test (1): proposals scoped to team — listByVault only returns proposals for the given team even when vault address shared across teams
+- Tests: importVaultRepo.test (3), listVaultsRepo.test (4), proposalRepo.test (5) = 5 new tests, 48 total. All pass, 5/5 packages typecheck clean.
