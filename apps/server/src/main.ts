@@ -15,7 +15,6 @@ import {
 import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
 import { flow } from 'effect/Function'
 import { createServer } from 'node:http'
-import { BadgeChecker } from './auth/badgeChecker'
 import { ChallengeStore } from './auth/challengeStore'
 import { RolaVerifier } from './auth/rola'
 import { SessionStore } from './auth/sessionStore'
@@ -59,8 +58,7 @@ const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
 const AuthServicesLive = Layer.mergeAll(
   ChallengeStore.Default,
   SessionStore.Default,
-  RolaVerifier.Default,
-  BadgeChecker.Default
+  RolaVerifier.Default
 ).pipe(
   Layer.provide(ORM.Default),
   Layer.provide(AuthConfig.Live),

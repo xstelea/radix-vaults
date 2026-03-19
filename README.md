@@ -183,7 +183,6 @@ pnpm db:studio                 # Open Drizzle Studio
 | `NETWORK_ID` | Radix network (1 = Mainnet, 2 = Stokenet) | `2` |
 | `DAPP_DEFINITION_ADDRESS` | dApp metadata account address | — |
 | `EXPECTED_ORIGIN` | ROLA origin validation | `http://localhost:3000` |
-| `TEAM_MEMBER_BADGE_ADDRESS` | Badge resource for write access | — |
 | `ALLOWED_ORIGINS` | CORS origins (comma-separated) | `http://localhost:3000` |
 | `LOG_LEVEL` | Logger verbosity | `Info` |
 | `LOG_FORMAT` | Logger format (`pretty` or `json`) | `pretty` |
