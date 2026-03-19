@@ -130,13 +130,13 @@ Frontend vault pages (list, import, create, detail) and proposal pages (new, det
 
 ### Acceptance criteria
 
-- [ ] Team overview shows signers, threshold, badge info from DB (not env var)
-- [ ] Add-member proposal created with threshold field
-- [ ] Unconfirmed member visible in UI with "pending" indicator
-- [ ] `refresh-status` flips `confirmed` to `true` after on-chain commit
-- [ ] Confirmed member can log in and see team in their team list
-- [ ] Team proposals list/detail/sign/submit work within team context
-- [ ] Post-team-creation redirects to add-member page
+- [x] Team overview shows signers, threshold, badge info from DB (not env var)
+- [x] Add-member proposal created with threshold field
+- [x] Unconfirmed member visible in UI with "pending" indicator
+- [x] `refresh-status` flips `confirmed` to `true` after on-chain commit
+- [x] Confirmed member can log in and see team in their team list
+- [x] Team proposals list/detail/sign/submit work within team context
+- [x] Post-team-creation redirects to add-member page
 
 ---
 

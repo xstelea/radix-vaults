@@ -171,3 +171,17 @@
 - New ListVaultsRepo test (1): vault list scoped to team — two teams with overlapping vault addresses return only their own vaults
 - New ProposalRepo test (1): proposals scoped to team — listByVault only returns proposals for the given team even when vault address shared across teams
 - Tests: importVaultRepo.test (3), listVaultsRepo.test (4), proposalRepo.test (5) = 5 new tests, 48 total. All pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 5: Team governance — add member (DONE)
+- On multi-team-support branch
+- Database: Added `target_account_address` nullable column to proposals table. Migration 0013.
+- TeamRepo: Added `confirmMember(teamId, accountAddress)` sets confirmed=true, `removeMember(teamId, accountAddress)` deletes row, `getMembers(teamId)` returns all members including unconfirmed. `listByMember` now filters by confirmed=true only.
+- ProposalRepo: `insert` and `getByIdTeam` support optional `targetAccountAddress` field for tracking add/remove member targets.
+- TeamProposalsHandler.createAddMember: Inserts unconfirmed team_member (optimistic insert), stores `targetAccountAddress` on proposal record.
+- TeamProposalsHandler.createRemoveMember: Stores `targetAccountAddress` on proposal record.
+- TeamProposalsHandler.refreshStatus: On committed add_member → `confirmMember` flips confirmed=true. On committed remove_member → `removeMember` deletes team_member. On failed add_member → removes unconfirmed member (cleanup).
+- Shared schemas: Added `PendingMemberSchema` and `pendingMembers` array to `TeamOverviewSchema`.
+- TeamHandler.getOverview: Fetches unconfirmed members from `teamRepo.getMembers()` and includes them as `pendingMembers` in response.
+- Frontend: Post-team-creation redirect changed from `/` to `/teams/$teamId/team/add-member`.
+- Frontend: Team overview page shows pending members section with amber "Pending" badge when unconfirmed members exist.
+- Tests: 3 new TeamRepo tests (confirmMember flips confirmed, removeMember deletes record, listByMember excludes unconfirmed). 52 tests pass, 5/5 packages typecheck clean.
