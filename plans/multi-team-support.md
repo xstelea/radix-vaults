@@ -189,9 +189,9 @@ Remove `BadgeChecker` service and its wiring from `AuthServicesLive`. Remove `te
 
 ### Acceptance criteria
 
-- [ ] `BadgeChecker` service deleted
-- [ ] `TEAM_MEMBER_BADGE_ADDRESS` env var removed from all config
-- [ ] `AuthConfig` no longer includes `teamMemberBadgeAddress`
-- [ ] No references to old flat routes remain
-- [ ] `pnpm test` passes
-- [ ] `pnpm typecheck` passes
+- [x] `BadgeChecker` service deleted
+- [x] `TEAM_MEMBER_BADGE_ADDRESS` env var removed from all config
+- [x] `AuthConfig` no longer includes `teamMemberBadgeAddress`
+- [x] No references to old flat routes remain
+- [x] `pnpm test` passes
+- [x] `pnpm typecheck` passes

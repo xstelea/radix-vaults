@@ -208,3 +208,14 @@
 - Team list page: Links now navigate to `/teams/$teamId` (dashboard) instead of `/teams/$teamId/vaults` — dashboard is the team landing page.
 - Route tree regenerated via `tsr generate`.
 - Tests: 2 new ProposalRepo tests — listAllPending returns only pending proposals for given team (team isolation + excludes committed), listAllPending auto-expires proposals past their deadline. 58 tests total (56 passed + 1 flaky container timeout + 1 todo), 5/5 packages typecheck clean.
+
+## Multi-team Phase 8: Cleanup (DONE)
+- On multi-team-support branch
+- Deleted `BadgeChecker` service (`apps/server/src/auth/badgeChecker.ts`) and its error types (`BadgeCheckError`, `NoBadgeError`).
+- Removed `BadgeChecker.Default` from `AuthServicesLive` in `apps/server/src/main.ts`.
+- Removed `teamMemberBadgeAddress` from `AuthConfig` type, `layer()` method, and `Live` layer in `packages/shared/src/config.ts`. Server no longer reads `TEAM_MEMBER_BADGE_ADDRESS` env var.
+- Removed `TEAM_MEMBER_BADGE_ADDRESS` from: `.env.example`, `fly.server.toml`, `docker-compose.production.yml`, `README.md` env var table, `apps/client/playwright.config.ts`.
+- Updated `apps/server/src/auth/rola.test.ts` mock config to remove `teamMemberBadgeAddress`.
+- Old flat route files (`routes/vaults/`, `routes/team/`) already removed in prior phases — confirmed no remnants.
+- `TeamOverviewSchema.teamMemberBadgeAddress` retained as API response field (populated from per-team `team.badgeAddress` in DB, not env var).
+- All 58 tests pass (57 server + 1 todo, 12 CLI), 5/5 packages typecheck clean.
