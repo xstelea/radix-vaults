@@ -148,4 +148,5 @@
 - Frontend: `TeamsService`, `teamsListAtom`, `createTeam` atom function
 - Frontend: Home page (`/`) replaced with team list page (list teams, "Create Team" button, empty state)
 - Frontend: `/teams/create` page with form (name, virtualBadge, memberName), redirects to home on success
-- All 36 tests pass, 5/5 packages typecheck clean
+- Tests: TeamRepo (4: insert+getById, TeamNotFoundError, addMember+listByMember, empty list), buildCreateTeamBadgeManifest (3: 3-field schema, 1-of-1 rule, WellKnown count) = 7 new tests, 43 total
+- All 43 tests pass, 5/5 packages typecheck clean
