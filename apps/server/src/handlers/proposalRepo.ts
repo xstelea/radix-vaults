@@ -307,7 +307,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
 
       const setTerminalStatus = (
         proposalId: ProposalId,
-        status: 'expired' | 'invalid',
+        status: 'expired' | 'invalid' | 'failed',
         statusReason: string
       ) =>
         db

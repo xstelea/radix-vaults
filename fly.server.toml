@@ -1,0 +1,31 @@
+# fly.toml app configuration file generated for radix-vaults-server on 2026-03-17T09:14:10+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'radix-vaults-server'
+primary_region = 'ams'
+
+[build]
+  dockerfile = 'dockerfiles/server.Dockerfile'
+
+[env]
+  ALLOWED_ORIGINS = 'https://radix-vaults-client.fly.dev'
+  DAPP_DEFINITION_ADDRESS = 'account_tdx_2_12yf9gd53yfep7a669fv2t3wm7nz9zeezwd04n02a433ker8vza6rhe'
+  DATABASE_SSL = 'true'
+  EXPECTED_ORIGIN = 'https://radix-vaults-client.fly.dev'
+  LOG_FORMAT = 'json'
+  NETWORK_ID = '2'
+  SERVER_PORT = '8080'
+  TEAM_MEMBER_BADGE_ADDRESS = 'resource_tdx_2_1ng76wgzcuz4kup25hnggx7x0ujc7cc2em9ct80j94zkzz5zglejup2'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
