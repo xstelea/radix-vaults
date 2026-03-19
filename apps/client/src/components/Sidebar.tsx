@@ -1,5 +1,5 @@
 import { Link, useMatches } from '@tanstack/react-router'
-import { Home, Users, FileText, X, Shield } from 'lucide-react'
+import { Home, Users, FileText, X, Shield, LayoutDashboard } from 'lucide-react'
 
 export function Sidebar({
   open,
@@ -101,9 +101,23 @@ export function Sidebar({
             Home
           </Link>
 
-          {/* Vaults & Team — only when inside a team */}
+          {/* Dashboard, Vaults & Team — only when inside a team */}
           {teamId && (
             <>
+              <Link
+                to="/teams/$teamId"
+                params={{ teamId }}
+                onClick={onClose}
+                className={`sidebar-nav-item${
+                  matches[matches.length - 1]?.fullPath === '/teams/$teamId/'
+                    ? ' active'
+                    : ''
+                }`}
+                style={{ animation: 'slide-in 300ms ease 50ms both' }}
+              >
+                <LayoutDashboard className="sidebar-nav-icon" />
+                Dashboard
+              </Link>
               <Link
                 to="/teams/$teamId/vaults"
                 params={{ teamId }}
@@ -115,7 +129,7 @@ export function Sidebar({
                     ? ' active'
                     : ''
                 }`}
-                style={{ animation: 'slide-in 300ms ease 50ms both' }}
+                style={{ animation: 'slide-in 300ms ease 100ms both' }}
               >
                 <Shield className="sidebar-nav-icon" />
                 Vaults
@@ -131,7 +145,7 @@ export function Sidebar({
                     ? ' active'
                     : ''
                 }`}
-                style={{ animation: 'slide-in 300ms ease 100ms both' }}
+                style={{ animation: 'slide-in 300ms ease 150ms both' }}
               >
                 <Users className="sidebar-nav-icon" />
                 Team

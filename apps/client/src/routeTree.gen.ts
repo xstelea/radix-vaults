@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TeamsCreateRouteImport } from './routes/teams/create'
 import { Route as TeamsTeamIdRouteImport } from './routes/teams/$teamId'
+import { Route as TeamsTeamIdIndexRouteImport } from './routes/teams/$teamId/index'
 import { Route as TeamsTeamIdTeamRouteImport } from './routes/teams/$teamId/team'
 import { Route as TeamsTeamIdVaultsIndexRouteImport } from './routes/teams/$teamId/vaults/index'
 import { Route as TeamsTeamIdTeamIndexRouteImport } from './routes/teams/$teamId/team/index'
@@ -40,6 +41,11 @@ const TeamsTeamIdRoute = TeamsTeamIdRouteImport.update({
   id: '/teams/$teamId',
   path: '/teams/$teamId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TeamsTeamIdIndexRoute = TeamsTeamIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TeamsTeamIdRoute,
 } as any)
 const TeamsTeamIdTeamRoute = TeamsTeamIdTeamRouteImport.update({
   id: '/team',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/teams/$teamId': typeof TeamsTeamIdRouteWithChildren
   '/teams/create': typeof TeamsCreateRoute
   '/teams/$teamId/team': typeof TeamsTeamIdTeamRouteWithChildren
+  '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
   '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
   '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
@@ -135,8 +142,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/teams/$teamId': typeof TeamsTeamIdRouteWithChildren
   '/teams/create': typeof TeamsCreateRoute
+  '/teams/$teamId': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
   '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
   '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
@@ -156,6 +163,7 @@ export interface FileRoutesById {
   '/teams/$teamId': typeof TeamsTeamIdRouteWithChildren
   '/teams/create': typeof TeamsCreateRoute
   '/teams/$teamId/team': typeof TeamsTeamIdTeamRouteWithChildren
+  '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
   '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
   '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
   '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
@@ -176,6 +184,7 @@ export interface FileRouteTypes {
     | '/teams/$teamId'
     | '/teams/create'
     | '/teams/$teamId/team'
+    | '/teams/$teamId/'
     | '/teams/$teamId/team/add-member'
     | '/teams/$teamId/team/change-threshold'
     | '/teams/$teamId/team/remove-member'
@@ -191,8 +200,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/teams/$teamId'
     | '/teams/create'
+    | '/teams/$teamId'
     | '/teams/$teamId/team/add-member'
     | '/teams/$teamId/team/change-threshold'
     | '/teams/$teamId/team/remove-member'
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/teams/$teamId'
     | '/teams/create'
     | '/teams/$teamId/team'
+    | '/teams/$teamId/'
     | '/teams/$teamId/team/add-member'
     | '/teams/$teamId/team/change-threshold'
     | '/teams/$teamId/team/remove-member'
@@ -253,6 +263,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/teams/$teamId'
       preLoaderRoute: typeof TeamsTeamIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/teams/$teamId/': {
+      id: '/teams/$teamId/'
+      path: '/'
+      fullPath: '/teams/$teamId/'
+      preLoaderRoute: typeof TeamsTeamIdIndexRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
     '/teams/$teamId/team': {
       id: '/teams/$teamId/team'
@@ -373,6 +390,7 @@ const TeamsTeamIdTeamRouteWithChildren = TeamsTeamIdTeamRoute._addFileChildren(
 
 interface TeamsTeamIdRouteChildren {
   TeamsTeamIdTeamRoute: typeof TeamsTeamIdTeamRouteWithChildren
+  TeamsTeamIdIndexRoute: typeof TeamsTeamIdIndexRoute
   TeamsTeamIdVaultsAddRoute: typeof TeamsTeamIdVaultsAddRoute
   TeamsTeamIdVaultsCreateRoute: typeof TeamsTeamIdVaultsCreateRoute
   TeamsTeamIdVaultsIndexRoute: typeof TeamsTeamIdVaultsIndexRoute
@@ -383,6 +401,7 @@ interface TeamsTeamIdRouteChildren {
 
 const TeamsTeamIdRouteChildren: TeamsTeamIdRouteChildren = {
   TeamsTeamIdTeamRoute: TeamsTeamIdTeamRouteWithChildren,
+  TeamsTeamIdIndexRoute: TeamsTeamIdIndexRoute,
   TeamsTeamIdVaultsAddRoute: TeamsTeamIdVaultsAddRoute,
   TeamsTeamIdVaultsCreateRoute: TeamsTeamIdVaultsCreateRoute,
   TeamsTeamIdVaultsIndexRoute: TeamsTeamIdVaultsIndexRoute,

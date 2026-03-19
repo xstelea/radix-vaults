@@ -139,7 +139,7 @@ function TeamsListSection() {
                   <TableRow key={team.teamId} className="cursor-pointer">
                     <TableCell className="font-medium">
                       <Link
-                        to="/teams/$teamId/vaults"
+                        to="/teams/$teamId"
                         params={{ teamId: team.teamId }}
                         className="flex items-center gap-2"
                       >

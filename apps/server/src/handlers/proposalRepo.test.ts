@@ -298,6 +298,139 @@ describe('ProposalRepo', () => {
   )
 
   it.scopedLive(
+    'listAllPending returns only pending proposals for the given team',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+
+        const otherTeamId = '00000000-0000-0000-0000-000000000002'
+
+        // Seed two teams with a vault each
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
+          yield* sql`TRUNCATE TABLE vaults CASCADE`
+          yield* sql`TRUNCATE TABLE teams CASCADE`
+          yield* sql`
+            INSERT INTO teams (id, name, badge_address) VALUES
+              (${testTeamId}, 'Team One', 'resource_tdx_2_1badge_one'),
+              (${otherTeamId}, 'Team Two', 'resource_tdx_2_1badge_two')
+          `
+          yield* sql`
+            INSERT INTO vaults (team_id, account_address, name) VALUES
+              (${testTeamId}, ${VAULT}, 'Alpha in T1'),
+              (${otherTeamId}, ${VAULT}, 'Alpha in T2')
+          `
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // Insert pending proposals in each team + a committed one in team one
+        yield* runWithRepo(pgClientLayer, (repo) =>
+          Effect.gen(function* () {
+            yield* repo.insert({
+              teamId: testTeamId,
+              entityAddress: VAULT,
+              type: 'vault' as const,
+              manifest: 't1_pending',
+              maxProposerTimestamp: '2099-12-31',
+              createdBy: 'creator1',
+              createdAt: new Date(),
+              subintentHash: 'subtxid_pend1',
+              intentDiscriminator: 'disc_p1',
+              partialTransactionHex: 'aa',
+              epochMin: 100,
+              epochMax: 200
+            })
+            yield* repo.insert({
+              teamId: otherTeamId,
+              entityAddress: VAULT,
+              type: 'vault' as const,
+              manifest: 't2_pending',
+              maxProposerTimestamp: '2099-12-31',
+              createdBy: 'creator2',
+              createdAt: new Date(),
+              subintentHash: 'subtxid_pend2',
+              intentDiscriminator: 'disc_p2',
+              partialTransactionHex: 'bb',
+              epochMin: 100,
+              epochMax: 200
+            })
+          })
+        )
+
+        // Mark proposal 2 as committed (should not appear in pending)
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`
+            INSERT INTO proposals (team_id, entity_address, type, status, manifest, max_proposer_timestamp, created_by, subintent_hash, intent_discriminator, partial_transaction_hex, epoch_min, epoch_max)
+            VALUES (${testTeamId}, ${VAULT}, 'add_member', 'committed', 'committed_manifest', '2099-12-31', 'creator1', 'subtxid_comm', 'disc_c1', 'cc', 100, 200)
+          `
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // listAllPending for team one — only the pending vault proposal
+        const team1Pending = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.listAllPending(testTeamId)
+        )
+        expect(team1Pending).toHaveLength(1)
+        expect(team1Pending[0]?.createdBy).toBe('creator1')
+        expect(team1Pending[0]?.type).toBe('vault')
+
+        // listAllPending for team two — only team two's pending proposal
+        const team2Pending = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.listAllPending(otherTeamId)
+        )
+        expect(team2Pending).toHaveLength(1)
+        expect(team2Pending[0]?.createdBy).toBe('creator2')
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'listAllPending auto-expires proposals past their deadline',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+        yield* seedVault.pipe(Effect.provide(pgClientLayer))
+
+        // Insert a proposal with an already-passed deadline
+        yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.insert({
+            teamId: testTeamId,
+            entityAddress: VAULT,
+            type: 'vault' as const,
+            manifest: 'expired_manifest',
+            maxProposerTimestamp: '2020-01-01T00:00:00',
+            createdBy: 'creator_expired',
+            createdAt: new Date(),
+            subintentHash: 'subtxid_exp',
+            intentDiscriminator: 'disc_exp',
+            partialTransactionHex: 'dd',
+            epochMin: 100,
+            epochMax: 200
+          })
+        )
+
+        // listAllPending should return empty — the expired proposal gets auto-marked
+        const pending = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.listAllPending(testTeamId)
+        )
+        expect(pending).toHaveLength(0)
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
     'fails with ProposalNotFoundError for missing proposal',
     () =>
       Effect.gen(function* () {
