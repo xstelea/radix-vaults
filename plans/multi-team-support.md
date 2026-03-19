@@ -52,13 +52,13 @@ On the frontend, remove any UI that shows the "missing badge" error state during
 
 ### Acceptance criteria
 
-- [ ] `teams` and `team_members` tables exist with correct schema
-- [ ] `POST /teams/create` mints badge on-chain and inserts team + member in DB
-- [ ] `GET /teams` returns teams where current user is a member
-- [ ] Team list page renders teams and "Create Team" button
-- [ ] Create team form submits successfully and redirects
+- [x] `teams` and `team_members` tables exist with correct schema
+- [x] `POST /teams/create` mints badge on-chain and inserts team + member in DB
+- [x] `GET /teams` returns teams where current user is a member
+- [x] Team list page renders teams and "Create Team" button
+- [x] Create team form submits successfully and redirects
 - [ ] Badge resource visible on-chain (stokenet) after creation
-- [ ] `TeamRepo` service wired into server
+- [x] `TeamRepo` service wired into server
 
 ---
 

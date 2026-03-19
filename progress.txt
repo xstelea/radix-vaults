@@ -135,3 +135,17 @@
 - BadgeChecker service kept wired in main.ts (cleanup deferred to Phase 8)
 - No test changes needed — no tests asserted on badge checking
 - All 36 tests pass, 5/5 packages typecheck clean
+
+## Multi-team Phase 2: Team creation (DONE)
+- On multi-team-support branch
+- Database: `teams` table (id, name, badgeAddress, createdAt) + `team_members` table (teamId + accountAddress composite PK, confirmed boolean). Migration 0011.
+- Shared: `TeamId` branded type. New schemas: `CreateTeamRequestSchema`, `CreateTeamResponseSchema`, `TeamListItemSchema`, `TeamNotFoundError`, `CreateTeamFailedError`.
+- API: `TeamsGroup` with `POST /teams/create` (session required) and `GET /teams` (session required)
+- Server: `buildCreateTeamBadgeManifest()` in manifests.ts — 3-field NFT schema (name, teamId, mfa_virtual_resource), 1-of-1 access rule, fee payer only submission, extracts `resource_` address from affected_global_entities
+- Server: `TeamRepo` Effect.Service (insert, addMember, getById, listByMember with teams/team_members join)
+- Server: `TeamsHandler` Effect.Service (createTeam orchestrates: UUID gen → manifest build → submitFeePayerOnly → extract badge address → insert team + member)
+- Server: `TeamsHandlersLive` API handlers wired into main.ts
+- Frontend: `TeamsService`, `teamsListAtom`, `createTeam` atom function
+- Frontend: Home page (`/`) replaced with team list page (list teams, "Create Team" button, empty state)
+- Frontend: `/teams/create` page with form (name, virtualBadge, memberName), redirects to home on success
+- All 36 tests pass, 5/5 packages typecheck clean
