@@ -14,6 +14,7 @@ export type TransactionStatusResult = {
     | 'Pending'
     | 'Rejected'
     | 'Unknown'
+  errorMessage?: string
 }
 
 export class TransactionStatusChecker extends Effect.Service<TransactionStatusChecker>()(
@@ -56,7 +57,10 @@ export const TransactionStatusCheckerLive = Layer.unwrapEffect(
           Effect.map((response) => ({
             intentStatus: (VALID_STATUSES.has(response.status)
               ? response.status
-              : 'Unknown') as TransactionStatusResult['intentStatus']
+              : 'Unknown') as TransactionStatusResult['intentStatus'],
+            ...(response.error_message
+              ? { errorMessage: response.error_message }
+              : {})
           })),
           Effect.catchAll((e) =>
             Effect.fail(

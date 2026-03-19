@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { RadixEngineToolkit } from '@radixdlt/radix-engine-toolkit'
 import type { ParsedSigner } from './accessRuleValidator'
 
@@ -145,8 +146,7 @@ export async function buildAddMemberManifest(input: {
     addrs
   )
 
-  const colonIdx = input.virtualBadge.indexOf(':')
-  const localId = input.virtualBadge.slice(colonIdx + 1)
+  const localId = `[${randomBytes(32).toString('hex')}]`
 
   return `MINT_NON_FUNGIBLE
     Address("${input.badgeResource}")

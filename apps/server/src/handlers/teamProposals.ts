@@ -98,6 +98,45 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
       const badgeAddress = authConfig.teamMemberBadgeAddress
 
+      const getThresholdFromRule = (
+        rule: import('@radix-vaults/shared').ParsedAccessRule
+      ) => (rule.type === 'CountOf' ? rule.count : rule.signers.length)
+
+      /**
+       * For add_member / remove_member proposals, the manifest touches the badge
+       * resource AND every vault account. The signing threshold is the MAX across
+       * all entities, because the ledger checks each independently.
+       * For change_threshold, only the single vault entity matters.
+       */
+      const getRequiredThreshold = (proposal: {
+        type: string
+        entityAddress: string
+      }) =>
+        Effect.gen(function* () {
+          if (proposal.type === 'change_threshold') {
+            const rule = yield* accessRuleValidator
+              .validate(proposal.entityAddress)
+              .pipe(Effect.orDie)
+            return getThresholdFromRule(rule)
+          }
+
+          // add_member / remove_member: check badge + all vaults
+          const vaults = yield* listVaultsRepo.list()
+          const addresses = [
+            badgeAddress,
+            ...vaults.map((v) => v.accountAddress)
+          ]
+
+          const rules = yield* Effect.all(
+            addresses.map((addr) =>
+              accessRuleValidator.validate(addr).pipe(Effect.orDie)
+            ),
+            { concurrency: 'unbounded' }
+          )
+
+          return Math.max(...rules.map(getThresholdFromRule))
+        })
+
       const buildSubintentAndStore = (
         manifest: string,
         entityAddress: string,
@@ -353,21 +392,22 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
           const vaultItems = (
             nfResource as {
-              vaults?: { items?: Array<{ vault_address?: string }> }
+              vaults?: {
+                items?: Array<{
+                  vault_address?: string
+                  items?: string[]
+                }>
+              }
             }
           )?.vaults?.items
           const internalVaultAddress = vaultItems?.[0]?.vault_address
+          const nftLocalId = vaultItems?.[0]?.items?.[0]
 
-          if (!internalVaultAddress) {
+          if (!internalVaultAddress || !nftLocalId) {
             return yield* new BadgeVaultNotFoundError({
               message: `No badge vault found for ${input.memberAddress}`
             })
           }
-
-          // Extract NFT local ID from virtualBadge
-          const nftLocalId = input.virtualBadge.slice(
-            input.virtualBadge.indexOf(':') + 1
-          )
 
           // 7. Build manifest
           const maxProposerTimestamp = new Date(
@@ -456,20 +496,13 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
       const list = () => proposalRepo.listByTeam()
 
       const getSignatureProgress = (
-        entityAddress: string,
+        proposal: { type: string; entityAddress: string },
         proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
           const signatures = yield* proposalRepo.getSignatures(proposalId)
 
-          const accessRule = yield* accessRuleValidator
-            .validate(entityAddress)
-            .pipe(Effect.orDie)
-
-          const threshold =
-            accessRule.type === 'CountOf'
-              ? accessRule.count
-              : accessRule.signers.length
+          const threshold = yield* getRequiredThreshold(proposal)
 
           return {
             collected: signatures.length,
@@ -487,7 +520,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         Effect.gen(function* () {
           const proposal = yield* proposalRepo.getByIdTeam(proposalId)
           const signatureProgress = yield* getSignatureProgress(
-            proposal.entityAddress,
+            proposal,
             proposalId
           )
 
@@ -596,10 +629,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             )
 
           const signatures = yield* proposalRepo.getSignatures(proposalId)
-          const threshold =
-            accessRule.type === 'CountOf'
-              ? accessRule.count
-              : accessRule.signers.length
+          const threshold = yield* getRequiredThreshold(proposal)
 
           if (signatures.length >= threshold) {
             yield* proposalRepo.updateStatus(proposalId, 'ready')
@@ -637,14 +667,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           }
 
           const signatures = yield* proposalRepo.getSignatures(proposalId)
-          const accessRule = yield* accessRuleValidator
-            .validate(proposal.entityAddress)
-            .pipe(Effect.orDie)
-
-          const threshold =
-            accessRule.type === 'CountOf'
-              ? accessRule.count
-              : accessRule.signers.length
+          const threshold = yield* getRequiredThreshold(proposal)
 
           if (signatures.length < threshold) {
             const reason = `Signer/threshold drift: ${signatures.length} signatures collected but ${threshold} now required`
@@ -701,17 +724,18 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             })
           }
 
-          const { intentStatus } = yield* transactionStatusChecker({
-            intentHash: proposal.transactionIntentHash
-          }).pipe(
-            Effect.catchTag('TransactionStatusCheckError', (e) =>
-              Effect.fail(
-                new ProposalStatusCheckFailedError({
-                  message: e.message
-                })
+          const { intentStatus, errorMessage } =
+            yield* transactionStatusChecker({
+              intentHash: proposal.transactionIntentHash
+            }).pipe(
+              Effect.catchTag('TransactionStatusCheckError', (e) =>
+                Effect.fail(
+                  new ProposalStatusCheckFailedError({
+                    message: e.message
+                  })
+                )
               )
             )
-          )
 
           if (intentStatus === 'CommittedSuccess') {
             yield* proposalRepo.updateStatus(proposalId, 'committed')
@@ -726,11 +750,15 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             intentStatus === 'CommittedFailure' ||
             intentStatus === 'Rejected'
           ) {
-            yield* proposalRepo.updateStatus(proposalId, 'failed')
+            const reason =
+              errorMessage ??
+              `Transaction ${intentStatus === 'Rejected' ? 'rejected' : 'committed with failure'}`
+            yield* proposalRepo.setTerminalStatus(proposalId, 'failed', reason)
             return {
               status: 'failed' as const,
               transactionIntentHash: proposal.transactionIntentHash,
-              submittedAt: proposal.submittedAt
+              submittedAt: proposal.submittedAt,
+              statusReason: reason
             }
           }
 

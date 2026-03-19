@@ -74,7 +74,8 @@ export const AuthHandlersLive = HttpApiBuilder.group(
 
           yield* HttpApiBuilder.securitySetCookie(sessionCookie, session.id, {
             httpOnly: true,
-            sameSite: 'strict',
+            sameSite: 'none',
+            secure: true,
             path: '/',
             maxAge: Duration.decode('24 hours')
           })
@@ -103,7 +104,8 @@ export const AuthHandlersLive = HttpApiBuilder.group(
 
           yield* HttpApiBuilder.securitySetCookie(sessionCookie, '', {
             httpOnly: true,
-            sameSite: 'strict',
+            sameSite: 'none',
+            secure: true,
             path: '/',
             maxAge: Duration.millis(0)
           })

@@ -26,7 +26,7 @@ WORKDIR /app
 COPY --from=deps /app/ .
 COPY --from=pruner /app/out/full/ .
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
-RUN pnpm --filter @radix-vaults/client build
+RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm --filter @radix-vaults/client build
 
 FROM base AS runner
 WORKDIR /app
