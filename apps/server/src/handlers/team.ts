@@ -35,6 +35,15 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
         Effect.gen(function* () {
           const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
 
+          // Fetch pending (unconfirmed) members from DB
+          const allMembers = yield* teamRepo.getMembers(teamId)
+          const pendingMembers = allMembers
+            .filter((m) => !m.confirmed)
+            .map((m) => ({
+              accountAddress: m.accountAddress,
+              createdAt: m.createdAt.toISOString()
+            }))
+
           const accessRule = yield* accessRuleValidator
             .validate(team.badgeAddress)
             .pipe(Effect.orDie)
@@ -64,7 +73,8 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
               teamMemberBadgeAddress: team.badgeAddress,
               threshold,
               signers,
-              badgeHolders: []
+              badgeHolders: [],
+              pendingMembers
             } satisfies TeamOverview
           }
 
@@ -116,7 +126,8 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
               teamMemberBadgeAddress: team.badgeAddress,
               threshold,
               signers,
-              badgeHolders: []
+              badgeHolders: [],
+              pendingMembers
             } satisfies TeamOverview
           }
 
@@ -170,7 +181,8 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
             teamMemberBadgeAddress: team.badgeAddress,
             threshold,
             signers,
-            badgeHolders
+            badgeHolders,
+            pendingMembers
           } satisfies TeamOverview
         })
 

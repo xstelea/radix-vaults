@@ -92,6 +92,13 @@
       "when": 1773800000000,
       "tag": "0012_team_scoped_vaults_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1773932415126,
+      "tag": "0013_slim_sugar_man",
+      "breakpoints": true
     }
   ]
 }

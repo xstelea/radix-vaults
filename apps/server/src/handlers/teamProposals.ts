@@ -145,7 +145,8 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         entityAddress: string,
         type: 'add_member' | 'remove_member' | 'change_threshold',
         createdBy: string,
-        maxProposerTimestamp: string
+        maxProposerTimestamp: string,
+        targetAccountAddress?: string
       ) =>
         Effect.gen(function* () {
           // Preview the manifest
@@ -213,7 +214,8 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             intentDiscriminator: subintent.intentDiscriminator,
             partialTransactionHex: subintent.partialTransactionHex,
             epochMin: subintent.epochMin,
-            epochMax: subintent.epochMax
+            epochMax: subintent.epochMax,
+            targetAccountAddress
           })
         })
 
@@ -299,14 +301,20 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             })
           )
 
-          // 8. Preview, build subintent, store
+          // 8. Insert unconfirmed member (optimistic)
+          yield* teamRepo
+            .addMember(teamId, input.accountAddress, false)
+            .pipe(Effect.catchAll(() => Effect.void))
+
+          // 9. Preview, build subintent, store
           return yield* buildSubintentAndStore(
             teamId,
             manifest,
             badgeAddress,
             'add_member',
             createdBy,
-            maxProposerTimestamp
+            maxProposerTimestamp,
+            input.accountAddress
           )
         })
 
@@ -458,7 +466,8 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             badgeAddress,
             'remove_member',
             createdBy,
-            maxProposerTimestamp
+            maxProposerTimestamp,
+            input.memberAddress
           )
         })
 
@@ -761,6 +770,26 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
           if (intentStatus === 'CommittedSuccess') {
             yield* proposalRepo.updateStatus(proposalId, 'committed')
+
+            // Update team_members based on proposal type
+            if (
+              proposal.type === 'add_member' &&
+              proposal.targetAccountAddress
+            ) {
+              yield* teamRepo.confirmMember(
+                teamId,
+                proposal.targetAccountAddress
+              )
+            } else if (
+              proposal.type === 'remove_member' &&
+              proposal.targetAccountAddress
+            ) {
+              yield* teamRepo.removeMember(
+                teamId,
+                proposal.targetAccountAddress
+              )
+            }
+
             return {
               status: 'committed' as const,
               transactionIntentHash: proposal.transactionIntentHash,
@@ -776,6 +805,18 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
               errorMessage ??
               `Transaction ${intentStatus === 'Rejected' ? 'rejected' : 'committed with failure'}`
             yield* proposalRepo.setTerminalStatus(proposalId, 'failed', reason)
+
+            // Clean up unconfirmed member if add_member failed
+            if (
+              proposal.type === 'add_member' &&
+              proposal.targetAccountAddress
+            ) {
+              yield* teamRepo.removeMember(
+                teamId,
+                proposal.targetAccountAddress
+              )
+            }
+
             return {
               status: 'failed' as const,
               transactionIntentHash: proposal.transactionIntentHash,

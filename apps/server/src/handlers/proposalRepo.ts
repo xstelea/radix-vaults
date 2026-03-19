@@ -47,6 +47,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         partialTransactionHex: string
         epochMin: number
         epochMax: number
+        targetAccountAddress?: string | undefined
       }) =>
         db
           .insert(proposals)
@@ -63,7 +64,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             intentDiscriminator: input.intentDiscriminator,
             partialTransactionHex: input.partialTransactionHex,
             epochMin: input.epochMin,
-            epochMax: input.epochMax
+            epochMax: input.epochMax,
+            targetAccountAddress: input.targetAccountAddress ?? null
           })
           .returning()
           .pipe(
@@ -228,6 +230,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 transactionIntentHash: row.transactionIntentHash,
                 submittedAt: row.submittedAt?.toISOString() ?? null,
                 statusReason: row.statusReason ?? null,
+                targetAccountAddress: row.targetAccountAddress ?? null,
                 createdAt: row.createdAt.toISOString()
               })
             }),

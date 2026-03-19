@@ -209,6 +209,44 @@ function TeamContent({ teamId }: { teamId: string }) {
             </Table>
           </CardContent>
         </Card>
+
+        {overview.pendingMembers.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader>
+              <CardTitle>Pending Members</CardTitle>
+              <CardDescription>
+                Members awaiting on-chain confirmation of their add-member
+                proposal.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Account Address</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Added</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overview.pendingMembers.map((member) => (
+                    <TableRow key={member.accountAddress}>
+                      <TableCell className="font-mono text-xs">
+                        {member.accountAddress}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">Pending</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(member.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </>
     ))
     .render()

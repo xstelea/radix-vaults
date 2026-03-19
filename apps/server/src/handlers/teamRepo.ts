@@ -51,7 +51,12 @@ export class TeamRepo extends Effect.Service<TeamRepo>()(
           })
           .from(teams)
           .innerJoin(teamMembers, eq(teams.id, teamMembers.teamId))
-          .where(eq(teamMembers.accountAddress, accountAddress))
+          .where(
+            and(
+              eq(teamMembers.accountAddress, accountAddress),
+              eq(teamMembers.confirmed, true)
+            )
+          )
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
       const getConfirmedMembers = (teamId: string) =>
@@ -65,12 +70,49 @@ export class TeamRepo extends Effect.Service<TeamRepo>()(
           )
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
+      const getMembers = (teamId: string) =>
+        db
+          .select({
+            accountAddress: teamMembers.accountAddress,
+            confirmed: teamMembers.confirmed,
+            createdAt: teamMembers.createdAt
+          })
+          .from(teamMembers)
+          .where(eq(teamMembers.teamId, teamId))
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
+      const confirmMember = (teamId: string, accountAddress: string) =>
+        db
+          .update(teamMembers)
+          .set({ confirmed: true })
+          .where(
+            and(
+              eq(teamMembers.teamId, teamId),
+              eq(teamMembers.accountAddress, accountAddress)
+            )
+          )
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
+      const removeMember = (teamId: string, accountAddress: string) =>
+        db
+          .delete(teamMembers)
+          .where(
+            and(
+              eq(teamMembers.teamId, teamId),
+              eq(teamMembers.accountAddress, accountAddress)
+            )
+          )
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
       return {
         insert,
         addMember,
         getById,
         listByMember,
-        getConfirmedMembers
+        getConfirmedMembers,
+        getMembers,
+        confirmMember,
+        removeMember
       } as const
     })
   }

@@ -114,13 +114,20 @@ export const BadgeHolderSchema = Schema.Struct({
   keyType: Schema.Literal('ed25519', 'secp256k1')
 })
 
+export const PendingMemberSchema = Schema.Struct({
+  accountAddress: Schema.String,
+  createdAt: Schema.String
+})
+
 export const TeamOverviewSchema = Schema.Struct({
   teamMemberBadgeAddress: Schema.String,
   threshold: Schema.Number,
   signers: Schema.Array(SignerSchema),
-  badgeHolders: Schema.Array(BadgeHolderSchema)
+  badgeHolders: Schema.Array(BadgeHolderSchema),
+  pendingMembers: Schema.Array(PendingMemberSchema)
 })
 
+export type PendingMember = typeof PendingMemberSchema.Type
 export type BadgeHolder = typeof BadgeHolderSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
 

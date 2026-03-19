@@ -1,0 +1,1 @@
+ALTER TABLE "proposals" ADD COLUMN "target_account_address" varchar(255);

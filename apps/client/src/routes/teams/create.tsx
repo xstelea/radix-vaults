@@ -49,9 +49,12 @@ function CreateTeamPage() {
           setError(`Create team failed: ${msg}`)
         }
       },
-      onSuccess: () => {
+      onSuccess: (result) => {
         refreshTeams()
-        navigate({ to: '/' })
+        navigate({
+          to: '/teams/$teamId/team/add-member',
+          params: { teamId: result.teamId }
+        })
       }
     })
   }
