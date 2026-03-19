@@ -433,6 +433,46 @@ export type TeamProposalDetail = typeof TeamProposalDetailSchema.Type
 export type TeamProposalCreateResponse =
   typeof TeamProposalCreateResponseSchema.Type
 
+// --- Teams schemas ---
+
+export const CreateTeamRequestSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
+  virtualBadge: Schema.String.pipe(Schema.minLength(1)),
+  memberName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))
+})
+
+export const CreateTeamResponseSchema = Schema.Struct({
+  teamId: Schema.String,
+  name: Schema.String,
+  badgeAddress: Schema.String
+})
+
+export const TeamListItemSchema = Schema.Struct({
+  teamId: Schema.String,
+  name: Schema.String,
+  badgeAddress: Schema.String
+})
+
+export class TeamNotFoundError extends Schema.TaggedError<TeamNotFoundError>()(
+  'TeamNotFoundError',
+  {
+    teamId: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 404 })
+) {}
+
+export class CreateTeamFailedError extends Schema.TaggedError<CreateTeamFailedError>()(
+  'CreateTeamFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export type CreateTeamRequest = typeof CreateTeamRequestSchema.Type
+export type CreateTeamResponse = typeof CreateTeamResponseSchema.Type
+export type TeamListItem = typeof TeamListItemSchema.Type
+
 // --- Dashboard schemas ---
 
 export const PendingProposalListItemSchema = Schema.Struct({

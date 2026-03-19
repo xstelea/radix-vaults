@@ -2,12 +2,37 @@ import {
   boolean,
   integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uuid,
   varchar
 } from 'drizzle-orm/pg-core'
+
+export const teams = pgTable('teams', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  badgeAddress: varchar('badge_address', { length: 255 }).notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+})
+
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id),
+    accountAddress: varchar('account_address', { length: 255 }).notNull(),
+    confirmed: boolean('confirmed').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.accountAddress] })]
+)
 
 export const vaults = pgTable('vaults', {
   accountAddress: varchar('account_address', { length: 255 }).primaryKey(),

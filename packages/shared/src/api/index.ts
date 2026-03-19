@@ -23,6 +23,9 @@ import {
   ChangeThresholdRequestSchema,
   CreateProposalRequestSchema,
   CreateProposalResponseSchema,
+  CreateTeamFailedError,
+  CreateTeamRequestSchema,
+  CreateTeamResponseSchema,
   CreateVaultFailedError,
   CreateVaultRequestSchema,
   CreateVaultResponseSchema,
@@ -48,6 +51,8 @@ import {
   SignProposalRequestSchema,
   SignProposalResponseSchema,
   SubmitProposalResponseSchema,
+  TeamListItemSchema,
+  TeamNotFoundError,
   TeamOverviewSchema,
   TeamProposalCreateResponseSchema,
   TeamProposalDetailSchema,
@@ -343,6 +348,21 @@ export class TeamProposalsGroup extends HttpApiGroup.make('teamProposals')
       .middleware(SessionMiddleware)
   ) {}
 
+// --- Teams endpoints (top-level, not team-scoped) ---
+export class TeamsGroup extends HttpApiGroup.make('teams')
+  .add(
+    HttpApiEndpoint.post('createTeam', '/teams/create')
+      .setPayload(CreateTeamRequestSchema)
+      .addSuccess(CreateTeamResponseSchema)
+      .addError(CreateTeamFailedError)
+      .middleware(SessionMiddleware)
+  )
+  .add(
+    HttpApiEndpoint.get('list', '/teams')
+      .addSuccess(Schema.Array(TeamListItemSchema))
+      .middleware(SessionMiddleware)
+  ) {}
+
 // --- Dashboard endpoints ---
 export class DashboardGroup extends HttpApiGroup.make('dashboard').add(
   HttpApiEndpoint.get(
@@ -363,6 +383,7 @@ export class AppApi extends HttpApi.make('radix-vaults')
   .add(AuthGroup)
   .add(VaultsGroup)
   .add(TeamGroup)
+  .add(TeamsGroup)
   .add(ProposalsGroup)
   .add(TeamProposalsGroup)
   .add(DashboardGroup)
