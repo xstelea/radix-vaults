@@ -154,12 +154,12 @@ Frontend pages for both flows within team-scoped routes. Reuses team proposals i
 
 ### Acceptance criteria
 
-- [ ] Remove-member proposal created with threshold field
-- [ ] `refresh-status` removes member record after on-chain commit
-- [ ] Cannot remove last member of a team
-- [ ] Change-threshold proposal updates badge + vault access rules
-- [ ] Both proposal types visible in team proposals list
-- [ ] Full sign/submit/refresh lifecycle for both proposal types
+- [x] Remove-member proposal created with threshold field
+- [x] `refresh-status` removes member record after on-chain commit
+- [x] Cannot remove last member of a team
+- [x] Change-threshold proposal updates badge + vault access rules
+- [x] Both proposal types visible in team proposals list
+- [x] Full sign/submit/refresh lifecycle for both proposal types
 
 ---
 

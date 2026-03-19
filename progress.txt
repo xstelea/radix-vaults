@@ -185,3 +185,17 @@
 - Frontend: Post-team-creation redirect changed from `/` to `/teams/$teamId/team/add-member`.
 - Frontend: Team overview page shows pending members section with amber "Pending" badge when unconfirmed members exist.
 - Tests: 3 new TeamRepo tests (confirmMember flips confirmed, removeMember deletes record, listByMember excludes unconfirmed). 52 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 6: Team governance — remove member + change threshold (DONE)
+- On multi-team-support branch
+- All code implemented during Phase 5 as part of team proposals infrastructure:
+  - `TeamProposalsHandler.createRemoveMember`: Validates signer exists, filters from set, enforces min 1 signer, looks up member's internal badge vault via gateway, builds remove manifest, stores proposal with `targetAccountAddress`.
+  - `TeamProposalsHandler.createChangeThreshold`: Validates vault exists, fetches signers, validates threshold ≤ signer count, builds change-threshold manifest.
+  - `buildRemoveMemberManifest`: RECALL_NON_FUNGIBLES_FROM_VAULT → TAKE_ALL_FROM_WORKTOP → BURN_RESOURCE → SET_OWNER_ROLE on badge + all vaults.
+  - `buildChangeThresholdManifest`: Single SET_OWNER_ROLE on the target vault only.
+  - `refreshStatus`: On committed remove_member → `teamRepo.removeMember()` deletes team_member row. On failed add_member → cleans up unconfirmed member.
+  - Frontend: `remove-member.tsx` (member dropdown, per-vault thresholds), `change-threshold.tsx` (vault dropdown, threshold input). Both use existing team proposals atoms.
+  - Shared schemas: `RemoveMemberRequestSchema` (memberAddress, virtualBadge, badgeThreshold, vaultThresholds), `ChangeThresholdRequestSchema` (vaultAddress, threshold).
+  - API: POST `/teams/:teamId/team/proposals/remove-member`, POST `/teams/:teamId/team/proposals/change-threshold`.
+  - Error types: MemberNotFoundError, BadgeVaultNotFoundError, ThresholdExceedsSignersError for validation failures.
+- Tests: 4 new manifest tests — buildRemoveMemberManifest (2: recall+burn+SET_OWNER_ROLE, AllOf rule), buildChangeThresholdManifest (2: single SET_OWNER_ROLE, no badge mutation). 56 tests pass, 5/5 packages typecheck clean.
