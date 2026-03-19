@@ -52,8 +52,6 @@ export const rolaVerificationAtom = runtime
                 handleVerificationFailure(error.message),
               RolaVerificationFailedError: (error) =>
                 handleVerificationFailure(error.message),
-              MissingTeamBadgeError: (error) =>
-                handleVerificationFailure(error.message),
               ParseError: (error) =>
                 handleVerificationFailure(TreeFormatter.formatErrorSync(error))
             }),

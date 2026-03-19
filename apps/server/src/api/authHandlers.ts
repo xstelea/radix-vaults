@@ -3,12 +3,10 @@ import {
   AppApi,
   CurrentSession,
   InvalidOrExpiredChallengeError,
-  MissingTeamBadgeError,
   RolaVerificationFailedError,
   sessionCookie
 } from '@radix-vaults/shared'
 import { Duration, Effect } from 'effect'
-import { BadgeChecker } from '../auth/badgeChecker'
 import { ChallengeStore } from '../auth/challengeStore'
 import { RolaVerifier } from '../auth/rola'
 import { SessionStore } from '../auth/sessionStore'
@@ -29,7 +27,6 @@ export const AuthHandlersLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const challengeStore = yield* ChallengeStore
           const rolaVerifier = yield* RolaVerifier
-          const badgeChecker = yield* BadgeChecker
           const sessionStore = yield* SessionStore
 
           yield* challengeStore.consume(signedChallenge.challenge).pipe(
@@ -46,19 +43,6 @@ export const AuthHandlersLive = HttpApiBuilder.group(
               (e) =>
                 new RolaVerificationFailedError({
                   message: `ROLA verification failed: ${e.reason}`
-                })
-            )
-          )
-
-          yield* badgeChecker.hasBadge(signedChallenge.address).pipe(
-            Effect.mapError(
-              (e) =>
-                new MissingTeamBadgeError({
-                  accountAddress: signedChallenge.address,
-                  message:
-                    e._tag === 'NoBadgeError'
-                      ? 'Account does not hold team member badge'
-                      : e.reason
                 })
             )
           )

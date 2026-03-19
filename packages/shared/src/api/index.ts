@@ -10,7 +10,6 @@ import { AccountAddress } from '@radix-effects/shared'
 import { Context, Schema } from 'effect'
 import {
   InvalidOrExpiredChallengeError,
-  MissingTeamBadgeError,
   RolaVerificationFailedError,
   SessionInfoSchema,
   VerifyRequestSchema
@@ -107,7 +106,6 @@ export class AuthGroup extends HttpApiGroup.make('auth')
       .addSuccess(SessionInfoSchema)
       .addError(InvalidOrExpiredChallengeError)
       .addError(RolaVerificationFailedError)
-      .addError(MissingTeamBadgeError)
   )
   .add(
     HttpApiEndpoint.get('getSession', '/auth/session')
