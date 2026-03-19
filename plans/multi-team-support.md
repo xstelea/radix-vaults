@@ -173,9 +173,9 @@ Dashboard endpoint and page scoped to `teamId`. Shows pending vault proposals an
 
 ### Acceptance criteria
 
-- [ ] `GET /teams/:teamId/dashboard/pending-proposals` returns team-scoped results
-- [ ] Dashboard page shows pending vault + team proposals for current team
-- [ ] Dashboard accessible from team-scoped sidebar
+- [x] `GET /teams/:teamId/dashboard/pending-proposals` returns team-scoped results
+- [x] Dashboard page shows pending vault + team proposals for current team
+- [x] Dashboard accessible from team-scoped sidebar
 
 ---
 

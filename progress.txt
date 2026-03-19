@@ -199,3 +199,12 @@
   - API: POST `/teams/:teamId/team/proposals/remove-member`, POST `/teams/:teamId/team/proposals/change-threshold`.
   - Error types: MemberNotFoundError, BadgeVaultNotFoundError, ThresholdExceedsSignersError for validation failures.
 - Tests: 4 new manifest tests — buildRemoveMemberManifest (2: recall+burn+SET_OWNER_ROLE, AllOf rule), buildChangeThresholdManifest (2: single SET_OWNER_ROLE, no badge mutation). 56 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 7: Team-scoped dashboard (DONE)
+- On multi-team-support branch
+- Backend already fully implemented in prior phases: `DashboardGroup` API endpoint (`GET /teams/:teamId/dashboard/pending-proposals`), `DashboardHandlersLive` handler (fetches from `ProposalRepo.listAllPending` + enriches with badge holder names), `DashboardService` frontend client, `pendingProposalsAtom`.
+- Frontend: New dashboard route page at `teams/$teamId/index.tsx` — shows pending proposals table with type badges, entity names, status, creator names, and creation dates. Vault proposals link to `/teams/$teamId/vaults/$vaultId/proposals/$proposalId`, team proposals link to `/teams/$teamId/team/proposals/$proposalId`. Empty state: "No pending proposals for this team."
+- Sidebar: Added "Dashboard" link with `LayoutDashboard` icon when inside a team. Appears above Vaults and Team links. Active state detection based on route match.
+- Team list page: Links now navigate to `/teams/$teamId` (dashboard) instead of `/teams/$teamId/vaults` — dashboard is the team landing page.
+- Route tree regenerated via `tsr generate`.
+- Tests: 2 new ProposalRepo tests — listAllPending returns only pending proposals for given team (team isolation + excludes committed), listAllPending auto-expires proposals past their deadline. 58 tests total (56 passed + 1 flaky container timeout + 1 todo), 5/5 packages typecheck clean.
