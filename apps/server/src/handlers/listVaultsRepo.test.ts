@@ -147,6 +147,63 @@ describe('ListVaultsRepo', () => {
   )
 
   it.scopedLive(
+    'lists only vaults belonging to the given team',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+
+        const otherTeamId = '00000000-0000-0000-0000-000000000002'
+
+        // Seed two teams with different vaults
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
+          yield* sql`TRUNCATE TABLE vaults CASCADE`
+          yield* sql`TRUNCATE TABLE teams CASCADE`
+          yield* sql`
+            INSERT INTO teams (id, name, badge_address) VALUES
+              (${testTeamId}, 'Team One', 'resource_tdx_2_1badge_one'),
+              (${otherTeamId}, 'Team Two', 'resource_tdx_2_1badge_two')
+          `
+          yield* sql`
+            INSERT INTO vaults (team_id, account_address, name) VALUES
+              (${testTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault'),
+              (${testTeamId}, 'account_tdx_2_1qbeta', 'Beta Vault'),
+              (${otherTeamId}, 'account_tdx_2_1qgamma', 'Gamma Vault'),
+              (${otherTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault Copy')
+          `
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // List for team one — should only see Alpha and Beta
+        const teamOneList = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.list(testTeamId)
+        )
+        expect(teamOneList).toHaveLength(2)
+        expect(teamOneList.map((v) => v.name)).toEqual([
+          'Alpha Vault',
+          'Beta Vault'
+        ])
+
+        // List for team two — should only see Gamma and Alpha Copy
+        const teamTwoList = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.list(otherTeamId)
+        )
+        expect(teamTwoList).toHaveLength(2)
+        expect(teamTwoList.map((v) => v.name).sort()).toEqual([
+          'Alpha Vault Copy',
+          'Gamma Vault'
+        ])
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
     'fails ensureExists when vault is missing',
     () =>
       Effect.gen(function* () {

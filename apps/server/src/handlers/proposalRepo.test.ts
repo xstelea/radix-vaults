@@ -215,6 +215,89 @@ describe('ProposalRepo', () => {
   )
 
   it.scopedLive(
+    'scopes proposals to team — listByVault only returns proposals for the given team',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+
+        const otherTeamId = '00000000-0000-0000-0000-000000000002'
+
+        // Seed two teams with the same vault address
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
+          yield* sql`TRUNCATE TABLE vaults CASCADE`
+          yield* sql`TRUNCATE TABLE teams CASCADE`
+          yield* sql`
+            INSERT INTO teams (id, name, badge_address) VALUES
+              (${testTeamId}, 'Team One', 'resource_tdx_2_1badge_one'),
+              (${otherTeamId}, 'Team Two', 'resource_tdx_2_1badge_two')
+          `
+          yield* sql`
+            INSERT INTO vaults (team_id, account_address, name) VALUES
+              (${testTeamId}, ${VAULT}, 'Alpha in T1'),
+              (${otherTeamId}, ${VAULT}, 'Alpha in T2')
+          `
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // Insert proposals in each team
+        yield* runWithRepo(pgClientLayer, (repo) =>
+          Effect.gen(function* () {
+            yield* repo.insert({
+              teamId: testTeamId,
+              entityAddress: VAULT,
+              type: 'vault' as const,
+              manifest: 'team1_manifest',
+              maxProposerTimestamp: '2026-12-31',
+              createdBy: 'creator1',
+              createdAt: new Date(),
+              subintentHash: 'subtxid_team1',
+              intentDiscriminator: 'disc1',
+              partialTransactionHex: 'aa',
+              epochMin: 100,
+              epochMax: 200
+            })
+            yield* repo.insert({
+              teamId: otherTeamId,
+              entityAddress: VAULT,
+              type: 'vault' as const,
+              manifest: 'team2_manifest',
+              maxProposerTimestamp: '2026-12-31',
+              createdBy: 'creator2',
+              createdAt: new Date(),
+              subintentHash: 'subtxid_team2',
+              intentDiscriminator: 'disc2',
+              partialTransactionHex: 'bb',
+              epochMin: 100,
+              epochMax: 200
+            })
+          })
+        )
+
+        // List for team one — only team one's proposal
+        const team1Proposals = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.listByVault(testTeamId, VAULT)
+        )
+        expect(team1Proposals).toHaveLength(1)
+        expect(team1Proposals[0]?.createdBy).toBe('creator1')
+
+        // List for team two — only team two's proposal
+        const team2Proposals = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.listByVault(otherTeamId, VAULT)
+        )
+        expect(team2Proposals).toHaveLength(1)
+        expect(team2Proposals[0]?.createdBy).toBe('creator2')
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
     'fails with ProposalNotFoundError for missing proposal',
     () =>
       Effect.gen(function* () {
