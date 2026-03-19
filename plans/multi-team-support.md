@@ -80,13 +80,13 @@ On the frontend, remove any UI that shows the "missing badge" error state during
 
 ### Acceptance criteria
 
-- [ ] All API endpoints under `/teams/:teamId/...` accept and validate `teamId` path param
-- [ ] `TeamMembershipChecker` blocks write operations for non-members
-- [ ] Read operations accessible to any authenticated user
-- [ ] Vault and proposal DB operations scoped to `teamId`
-- [ ] Frontend navigates from team list into team-scoped layout
-- [ ] Sidebar links are team-scoped
-- [ ] All existing tests updated for team-scoped routes
+- [x] All API endpoints under `/teams/:teamId/...` accept and validate `teamId` path param
+- [x] `TeamMembershipChecker` blocks write operations for non-members
+- [x] Read operations accessible to any authenticated user
+- [x] Vault and proposal DB operations scoped to `teamId`
+- [x] Frontend navigates from team list into team-scoped layout
+- [x] Sidebar links are team-scoped
+- [x] All existing tests updated for team-scoped routes
 
 ---
 

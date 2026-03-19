@@ -150,3 +150,14 @@
 - Frontend: `/teams/create` page with form (name, virtualBadge, memberName), redirects to home on success
 - Tests: TeamRepo (4: insert+getById, TeamNotFoundError, addMember+listByMember, empty list), buildCreateTeamBadgeManifest (3: 3-field schema, 1-of-1 rule, WellKnown count) = 7 new tests, 43 total
 - All 43 tests pass, 5/5 packages typecheck clean
+
+## Multi-team Phase 3: Team-scoped routing (DONE)
+- On multi-team-support branch
+- Database: Added `teamId` FK (NOT NULL) to `vaults` table, changed vault PK to composite `(teamId, accountAddress)`. Added `teamId` FK (NOT NULL) to `proposals` table. Migration 0012.
+- Shared: `NotATeamMemberError` (403). All API groups restructured: VaultsGroup → `/teams/:teamId/vaults/...`, ProposalsGroup → `/teams/:teamId/vaults/:vaultAddress/proposals/...`, TeamGroup → `/teams/:teamId/team`, TeamProposalsGroup → `/teams/:teamId/team/proposals/...`, DashboardGroup → `/teams/:teamId/dashboard/...`. Reusable path schemas (`TeamPath`, `TeamVaultPath`, `TeamVaultProposalPath`, `TeamProposalPath`).
+- Server: `TeamMembershipChecker` Effect.Service — DB confirmed-member check + on-chain badge ownership via gateway. Called in write-op API handlers (not middleware).
+- Server: All repos gain `teamId` parameter — ListVaultsRepo (list, getDetailBase, ensureExists), ImportVaultRepo (insert), ProposalRepo (insert, listByVault, getById, listByTeam, getByIdTeam, listAllPending). TeamRepo gains `getConfirmedMembers`.
+- Server: All handlers accept `teamId` — VaultsHandler, ProposalsHandler, TeamHandler, TeamProposalsHandler. Badge address from `teamRepo.getById(teamId).badgeAddress` (not AuthConfig env var). API handlers extract `teamId` from path, write-ops call TeamMembershipChecker.check().
+- Frontend: All services gain `teamId` parameter with `TeamId.make()` branding. All atoms updated: family atoms keyed by `teamId`, action atoms include `teamId` in args.
+- Frontend: Routes moved under `teams/$teamId/` layout. `$teamId.tsx` layout route renders Outlet. Sidebar shows team-scoped links when `teamId` present. Team list page links to `/teams/$teamId/vaults`.
+- Tests: listVaultsRepo.test (3), proposalRepo.test (4) updated with teamId — seed data includes team insert, all repo calls pass teamId. All 43 tests pass, 5/5 packages typecheck clean.
