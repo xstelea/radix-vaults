@@ -22,15 +22,19 @@ const runtime = makeAtomRuntime(
   )
 )
 
-export const proposalListAtom = Atom.family((vaultAddress: VaultAddress) =>
-  runtime
-    .atom(
-      Effect.gen(function* () {
-        const svc = yield* ProposalService
-        return yield* svc.list(vaultAddress)
-      })
-    )
-    .pipe(Atom.withLabel(`proposalListAtom(${vaultAddress})`), Atom.keepAlive)
+export const proposalListAtom = Atom.family(
+  ({ teamId, vaultAddress }: { teamId: string; vaultAddress: VaultAddress }) =>
+    runtime
+      .atom(
+        Effect.gen(function* () {
+          const svc = yield* ProposalService
+          return yield* svc.list(teamId, vaultAddress)
+        })
+      )
+      .pipe(
+        Atom.withLabel(`proposalListAtom(${teamId}:${vaultAddress})`),
+        Atom.keepAlive
+      )
 )
 
 export class CreateProposalError extends Data.TaggedError(
@@ -41,6 +45,7 @@ export class CreateProposalError extends Data.TaggedError(
 
 export const createProposal = runtime.fn(
   (args: {
+    teamId: string
     vaultAddress: VaultAddress
     manifest: string
     maxProposerTimestamp: string
@@ -48,6 +53,7 @@ export const createProposal = runtime.fn(
     Effect.gen(function* () {
       const svc = yield* ProposalService
       return yield* svc.create(
+        args.teamId,
         args.vaultAddress,
         args.manifest,
         args.maxProposerTimestamp
@@ -70,6 +76,7 @@ export const createProposal = runtime.fn(
 
 export const signProposal = runtime.fn(
   (args: {
+    teamId: string
     vaultAddress: VaultAddress
     proposalId: ProposalId
     proposal: ProposalDetail
@@ -83,6 +90,7 @@ export const signProposal = runtime.fn(
       // 2. Send the wallet's signed response to the server
       const svc = yield* ProposalService
       return yield* svc.sign(
+        args.teamId,
         args.vaultAddress,
         args.proposalId,
         signedPartialTransactionHex
@@ -99,10 +107,14 @@ export const signProposal = runtime.fn(
 )
 
 export const submitProposal = runtime.fn(
-  (args: { vaultAddress: VaultAddress; proposalId: ProposalId }) =>
+  (args: {
+    teamId: string
+    vaultAddress: VaultAddress
+    proposalId: ProposalId
+  }) =>
     Effect.gen(function* () {
       const svc = yield* ProposalService
-      return yield* svc.submit(args.vaultAddress, args.proposalId)
+      return yield* svc.submit(args.teamId, args.vaultAddress, args.proposalId)
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -116,10 +128,18 @@ export const submitProposal = runtime.fn(
 )
 
 export const refreshProposalStatus = runtime.fn(
-  (args: { vaultAddress: VaultAddress; proposalId: ProposalId }) =>
+  (args: {
+    teamId: string
+    vaultAddress: VaultAddress
+    proposalId: ProposalId
+  }) =>
     Effect.gen(function* () {
       const svc = yield* ProposalService
-      return yield* svc.refreshStatus(args.vaultAddress, args.proposalId)
+      return yield* svc.refreshStatus(
+        args.teamId,
+        args.vaultAddress,
+        args.proposalId
+      )
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -151,22 +171,25 @@ export const previewProposal = runtime.fn((args: { manifest: string }) =>
 )
 
 interface ProposalDetailKey {
+  readonly teamId: string
   readonly vaultAddress: VaultAddress
   readonly proposalId: ProposalId
 }
 export const ProposalDetailKey = Data.case<ProposalDetailKey>()
 
 export const proposalDetailAtom = Atom.family(
-  ({ vaultAddress, proposalId }: ProposalDetailKey) =>
+  ({ teamId, vaultAddress, proposalId }: ProposalDetailKey) =>
     runtime
       .atom(
         Effect.gen(function* () {
           const svc = yield* ProposalService
-          return yield* svc.getDetail(vaultAddress, proposalId)
+          return yield* svc.getDetail(teamId, vaultAddress, proposalId)
         })
       )
       .pipe(
-        Atom.withLabel(`proposalDetailAtom(${vaultAddress}:${proposalId})`),
+        Atom.withLabel(
+          `proposalDetailAtom(${teamId}:${vaultAddress}:${proposalId})`
+        ),
         Atom.keepAlive
       )
 )

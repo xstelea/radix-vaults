@@ -34,13 +34,20 @@ export const teamMembers = pgTable(
   (t) => [primaryKey({ columns: [t.teamId, t.accountAddress] })]
 )
 
-export const vaults = pgTable('vaults', {
-  accountAddress: varchar('account_address', { length: 255 }).primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .notNull()
-    .defaultNow()
-})
+export const vaults = pgTable(
+  'vaults',
+  {
+    teamId: uuid('team_id')
+      .notNull()
+      .references(() => teams.id),
+    accountAddress: varchar('account_address', { length: 255 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => [primaryKey({ columns: [t.teamId, t.accountAddress] })]
+)
 
 export const challenges = pgTable('challenges', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -63,6 +70,9 @@ export const sessions = pgTable('sessions', {
 
 export const proposals = pgTable('proposals', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+  teamId: uuid('team_id')
+    .notNull()
+    .references(() => teams.id),
   entityAddress: varchar('entity_address', { length: 255 }).notNull(),
   type: varchar('type', { length: 32 }).notNull().default('vault'),
   status: varchar('status', { length: 32 }).notNull(),

@@ -2,6 +2,7 @@ import { HttpApiSchema } from '@effect/platform'
 import * as Schema from 'effect/Schema'
 import { EntityAddress } from '../entityAddress'
 import { ProposalId } from '../proposalId'
+import { TeamId } from '../teamId'
 import { VaultAddress } from '../vaultAddress'
 
 export const SignerSchema = Schema.Struct({
@@ -459,6 +460,14 @@ export class TeamNotFoundError extends Schema.TaggedError<TeamNotFoundError>()(
     teamId: Schema.String
   },
   HttpApiSchema.annotations({ status: 404 })
+) {}
+
+export class NotATeamMemberError extends Schema.TaggedError<NotATeamMemberError>()(
+  'NotATeamMemberError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 403 })
 ) {}
 
 export class CreateTeamFailedError extends Schema.TaggedError<CreateTeamFailedError>()(

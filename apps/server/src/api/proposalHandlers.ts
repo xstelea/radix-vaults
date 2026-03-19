@@ -3,11 +3,12 @@ import { AppApi, CurrentSession } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
 import { TeamHandler } from '../handlers/team'
 import { ProposalsHandler } from '../handlers/proposals'
+import { TeamMembershipChecker } from '../auth/teamMembershipChecker'
 
-const getNameByAddress = () =>
+const getNameByAddress = (teamId: string) =>
   Effect.gen(function* () {
     const teamHandler = yield* TeamHandler
-    const overview = yield* teamHandler.getOverview()
+    const overview = yield* teamHandler.getOverview(teamId)
     return new Map(overview.badgeHolders.map((h) => [h.holderAddress, h.name]))
   })
 
@@ -39,13 +40,16 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
       .handle(
         'create',
         ({
-          path: { vaultAddress },
+          path: { teamId, vaultAddress },
           payload: { manifest, maxProposerTimestamp }
         }) =>
           Effect.gen(function* () {
             const session = yield* CurrentSession
+            const membershipChecker = yield* TeamMembershipChecker
+            yield* membershipChecker.check(teamId, session.accountAddress)
             const proposalsHandler = yield* ProposalsHandler
             const result = yield* proposalsHandler.create(
+              teamId,
               vaultAddress,
               manifest,
               maxProposerTimestamp,
@@ -53,6 +57,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             )
             yield* Effect.logInfo('Proposal created').pipe(
               Effect.annotateLogs({
+                teamId,
                 vaultAddress,
                 proposalId: result.id,
                 createdBy: session.accountAddress
@@ -61,12 +66,12 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             return result
           })
       )
-      .handle('list', ({ path: { vaultAddress } }) =>
+      .handle('list', ({ path: { teamId, vaultAddress } }) =>
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
           const [proposals, nameByAddress] = yield* Effect.all([
-            proposalsHandler.list(vaultAddress),
-            getNameByAddress()
+            proposalsHandler.list(teamId, vaultAddress),
+            getNameByAddress(teamId)
           ])
           return proposals.map((p) => ({
             ...p,
@@ -74,12 +79,12 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
           }))
         })
       )
-      .handle('detail', ({ path: { vaultAddress, proposalId } }) =>
+      .handle('detail', ({ path: { teamId, vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
           const proposalsHandler = yield* ProposalsHandler
           const [proposal, nameByAddress] = yield* Effect.all([
-            proposalsHandler.getDetail(vaultAddress, proposalId),
-            getNameByAddress()
+            proposalsHandler.getDetail(teamId, vaultAddress, proposalId),
+            getNameByAddress(teamId)
           ])
           return {
             ...proposal,
@@ -94,13 +99,16 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
       .handle(
         'sign',
         ({
-          path: { vaultAddress, proposalId },
+          path: { teamId, vaultAddress, proposalId },
           payload: { signedPartialTransactionHex }
         }) =>
           Effect.gen(function* () {
             const session = yield* CurrentSession
+            const membershipChecker = yield* TeamMembershipChecker
+            yield* membershipChecker.check(teamId, session.accountAddress)
             const proposalsHandler = yield* ProposalsHandler
             const result = yield* proposalsHandler.sign(
+              teamId,
               vaultAddress,
               proposalId,
               session.accountAddress,
@@ -108,6 +116,7 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             )
             yield* Effect.logInfo('Proposal signed').pipe(
               Effect.annotateLogs({
+                teamId,
                 vaultAddress,
                 proposalId,
                 signer: session.accountAddress
@@ -116,26 +125,40 @@ export const ProposalHandlersLive = HttpApiBuilder.group(
             return result
           })
       )
-      .handle('submit', ({ path: { vaultAddress, proposalId } }) =>
+      .handle('submit', ({ path: { teamId, vaultAddress, proposalId } }) =>
         Effect.gen(function* () {
+          const session = yield* CurrentSession
+          const membershipChecker = yield* TeamMembershipChecker
+          yield* membershipChecker.check(teamId, session.accountAddress)
           const proposalsHandler = yield* ProposalsHandler
           const result = yield* proposalsHandler.submit(
+            teamId,
             vaultAddress,
             proposalId
           )
           yield* Effect.logInfo('Proposal submitted').pipe(
-            Effect.annotateLogs({ vaultAddress, proposalId })
+            Effect.annotateLogs({ teamId, vaultAddress, proposalId })
           )
           return result
         })
       )
-      .handle('refreshStatus', ({ path: { vaultAddress, proposalId } }) =>
-        Effect.gen(function* () {
-          const proposalsHandler = yield* ProposalsHandler
-          return yield* proposalsHandler.refreshStatus(vaultAddress, proposalId)
-        })
+      .handle(
+        'refreshStatus',
+        ({ path: { teamId, vaultAddress, proposalId } }) =>
+          Effect.gen(function* () {
+            const session = yield* CurrentSession
+            const membershipChecker = yield* TeamMembershipChecker
+            yield* membershipChecker.check(teamId, session.accountAddress)
+            const proposalsHandler = yield* ProposalsHandler
+            return yield* proposalsHandler.refreshStatus(
+              teamId,
+              vaultAddress,
+              proposalId
+            )
+          })
       )
 ).pipe(
   Layer.provide(ProposalsHandler.Default),
-  Layer.provide(TeamHandler.Default)
+  Layer.provide(TeamHandler.Default),
+  Layer.provide(TeamMembershipChecker.Default)
 )

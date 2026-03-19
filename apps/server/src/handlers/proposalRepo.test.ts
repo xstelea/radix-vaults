@@ -16,6 +16,8 @@ import { ORM } from '../db/orm'
 import { PgContainer } from '../test/PgContainer'
 import { ProposalRepo } from './proposalRepo'
 
+const testTeamId = '00000000-0000-0000-0000-000000000001'
+
 const resolveMigrationsFolder = () => {
   const candidates = [
     'packages/database/drizzle',
@@ -48,9 +50,14 @@ const seedVault = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
   yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
   yield* sql`TRUNCATE TABLE vaults CASCADE`
+  yield* sql`TRUNCATE TABLE teams CASCADE`
   yield* sql`
-    INSERT INTO vaults (account_address, name)
-    VALUES ('account_tdx_2_1qalpha', 'Alpha Vault')
+    INSERT INTO teams (id, name, badge_address)
+    VALUES (${testTeamId}, 'Test Team', 'resource_tdx_2_1test_badge')
+  `
+  yield* sql`
+    INSERT INTO vaults (team_id, account_address, name)
+    VALUES (${testTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault')
   `
 })
 
@@ -85,6 +92,7 @@ describe('ProposalRepo', () => {
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
           repo.insert({
+            teamId: testTeamId,
             entityAddress: VAULT,
             type: 'vault' as const,
             manifest: 'CALL_METHOD Address("test") "deposit" ;',
@@ -125,6 +133,7 @@ describe('ProposalRepo', () => {
         yield* runWithRepo(pgClientLayer, (repo) =>
           Effect.gen(function* () {
             yield* repo.insert({
+              teamId: testTeamId,
               entityAddress: VAULT,
               type: 'vault' as const,
               manifest: 'manifest1',
@@ -138,6 +147,7 @@ describe('ProposalRepo', () => {
               epochMax: 200
             })
             yield* repo.insert({
+              teamId: testTeamId,
               entityAddress: VAULT,
               type: 'vault' as const,
               manifest: 'manifest2',
@@ -154,7 +164,7 @@ describe('ProposalRepo', () => {
         )
 
         const list = yield* runWithRepo(pgClientLayer, (repo) =>
-          repo.listByVault(VAULT)
+          repo.listByVault(testTeamId, VAULT)
         )
 
         expect(list).toHaveLength(2)
@@ -179,6 +189,7 @@ describe('ProposalRepo', () => {
 
         const inserted = yield* runWithRepo(pgClientLayer, (repo) =>
           repo.insert({
+            teamId: testTeamId,
             entityAddress: VAULT,
             type: 'vault' as const,
             manifest: 'CALL_METHOD ...',
@@ -194,7 +205,7 @@ describe('ProposalRepo', () => {
         )
 
         const detail = yield* runWithRepo(pgClientLayer, (repo) =>
-          repo.getById(VAULT, inserted.id)
+          repo.getById(testTeamId, VAULT, inserted.id)
         )
 
         expect(detail.id).toBe(inserted.id)
@@ -217,7 +228,7 @@ describe('ProposalRepo', () => {
         yield* seedVault.pipe(Effect.provide(pgClientLayer))
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
-          Effect.either(repo.getById(VAULT, ProposalId.make(9999)))
+          Effect.either(repo.getById(testTeamId, VAULT, ProposalId.make(9999)))
         )
 
         expect(result._tag).toBe('Left')

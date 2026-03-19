@@ -1,6 +1,7 @@
 import { HttpApiBuilder } from '@effect/platform'
-import { AppApi } from '@radix-vaults/shared'
+import { AppApi, CurrentSession } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
+import { TeamMembershipChecker } from '../auth/teamMembershipChecker'
 import { VaultsHandler } from '../handlers/vaults'
 
 export const VaultHandlersLive = HttpApiBuilder.group(
@@ -8,34 +9,47 @@ export const VaultHandlersLive = HttpApiBuilder.group(
   'vaults',
   (handlers) =>
     handlers
-      .handle('list', () =>
+      .handle('list', ({ path: { teamId } }) =>
         Effect.gen(function* () {
           const vaults = yield* VaultsHandler
-          return yield* vaults.list()
+          return yield* vaults.list(teamId)
         })
       )
-      .handle('detail', ({ path: { vaultAddress } }) =>
+      .handle('detail', ({ path: { teamId, vaultAddress } }) =>
         Effect.gen(function* () {
           const vaults = yield* VaultsHandler
-          return yield* vaults.getDetail(vaultAddress)
+          return yield* vaults.getDetail(teamId, vaultAddress)
         })
       )
-      .handle('signers', ({ path: { vaultAddress } }) =>
+      .handle('signers', ({ path: { teamId, vaultAddress } }) =>
         Effect.gen(function* () {
           const vaults = yield* VaultsHandler
-          return yield* vaults.getSigners(vaultAddress)
+          return yield* vaults.getSigners(teamId, vaultAddress)
         })
       )
-      .handle('importVault', ({ payload: { accountAddress, name } }) =>
-        Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.importVault(accountAddress, name)
-        })
+      .handle(
+        'importVault',
+        ({ path: { teamId }, payload: { accountAddress, name } }) =>
+          Effect.gen(function* () {
+            const session = yield* CurrentSession
+            const checker = yield* TeamMembershipChecker
+            yield* checker.check(teamId, session.accountAddress)
+            const vaults = yield* VaultsHandler
+            return yield* vaults.importVault(teamId, accountAddress, name)
+          })
       )
-      .handle('createVault', ({ payload: { name, threshold } }) =>
-        Effect.gen(function* () {
-          const vaults = yield* VaultsHandler
-          return yield* vaults.createVault(name, threshold)
-        })
+      .handle(
+        'createVault',
+        ({ path: { teamId }, payload: { name, threshold } }) =>
+          Effect.gen(function* () {
+            const session = yield* CurrentSession
+            const checker = yield* TeamMembershipChecker
+            yield* checker.check(teamId, session.accountAddress)
+            const vaults = yield* VaultsHandler
+            return yield* vaults.createVault(teamId, name, threshold)
+          })
       )
-).pipe(Layer.provide(VaultsHandler.Default))
+).pipe(
+  Layer.provide(VaultsHandler.Default),
+  Layer.provide(TeamMembershipChecker.Default)
+)

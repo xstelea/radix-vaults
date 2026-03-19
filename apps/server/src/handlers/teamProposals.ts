@@ -7,7 +7,6 @@ import type {
 } from '@radix-vaults/shared'
 import {
   AlreadySignedError,
-  AuthConfig,
   BadgeVaultNotFoundError,
   MemberAlreadyExistsError,
   MemberNotFoundError,
@@ -45,6 +44,7 @@ import { TransactionStatusChecker } from '../gateway/transactionStatusChecker'
 import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { ListVaultsRepo } from './listVaultsRepo'
 import { ProposalRepo } from './proposalRepo'
+import { TeamRepo } from './teamRepo'
 
 const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 
@@ -85,7 +85,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
   '@radix-vaults/server/handlers/TeamProposalsHandler',
   {
     effect: Effect.gen(function* () {
-      const authConfig = yield* AuthConfig
+      const teamRepo = yield* TeamRepo
       const listVaultsRepo = yield* ListVaultsRepo
       const proposalRepo = yield* ProposalRepo
       const previewFn = yield* PreviewTransaction
@@ -95,8 +95,6 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
       const getLedgerState = yield* GetLedgerStateService
       const getEntityDetails = yield* GetEntityDetailsVaultAggregated
       const networkId = yield* Config.number('NETWORK_ID')
-
-      const badgeAddress = authConfig.teamMemberBadgeAddress
 
       const getThresholdFromRule = (
         rule: import('@radix-vaults/shared').ParsedAccessRule
@@ -108,10 +106,13 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
        * all entities, because the ledger checks each independently.
        * For change_threshold, only the single vault entity matters.
        */
-      const getRequiredThreshold = (proposal: {
-        type: string
-        entityAddress: string
-      }) =>
+      const getRequiredThreshold = (
+        teamId: string,
+        proposal: {
+          type: string
+          entityAddress: string
+        }
+      ) =>
         Effect.gen(function* () {
           if (proposal.type === 'change_threshold') {
             const rule = yield* accessRuleValidator
@@ -121,9 +122,10 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           }
 
           // add_member / remove_member: check badge + all vaults
-          const vaults = yield* listVaultsRepo.list()
+          const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
+          const vaults = yield* listVaultsRepo.list(teamId)
           const addresses = [
-            badgeAddress,
+            team.badgeAddress,
             ...vaults.map((v) => v.accountAddress)
           ]
 
@@ -138,6 +140,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         })
 
       const buildSubintentAndStore = (
+        teamId: string,
         manifest: string,
         entityAddress: string,
         type: 'add_member' | 'remove_member' | 'change_threshold',
@@ -199,6 +202,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           ).pipe(Effect.orDie)
 
           return yield* proposalRepo.insert({
+            teamId,
             entityAddress,
             type,
             manifest,
@@ -213,8 +217,15 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           })
         })
 
-      const createAddMember = (input: AddMemberRequest, createdBy: string) =>
+      const createAddMember = (
+        teamId: string,
+        input: AddMemberRequest,
+        createdBy: string
+      ) =>
         Effect.gen(function* () {
+          const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
+          const badgeAddress = team.badgeAddress
+
           // 1. Fetch current signers from badge resource
           const accessRule = yield* accessRuleValidator
             .validate(badgeAddress)
@@ -246,7 +257,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           }
 
           // 6. Fetch all vaults from DB and validate vault thresholds
-          const vaults = yield* listVaultsRepo.list()
+          const vaults = yield* listVaultsRepo.list(teamId)
           const vaultMap = new Map(vaults.map((v) => [v.accountAddress, v]))
           for (const vt of input.vaultThresholds) {
             if (!vaultMap.has(vt.vaultAddress)) {
@@ -290,6 +301,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
           // 8. Preview, build subintent, store
           return yield* buildSubintentAndStore(
+            teamId,
             manifest,
             badgeAddress,
             'add_member',
@@ -299,10 +311,14 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         })
 
       const createRemoveMember = (
+        teamId: string,
         input: RemoveMemberRequest,
         createdBy: string
       ) =>
         Effect.gen(function* () {
+          const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
+          const badgeAddress = team.badgeAddress
+
           // 1. Fetch current signers
           const accessRule = yield* accessRuleValidator
             .validate(badgeAddress)
@@ -345,7 +361,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             })
           }
 
-          const vaults = yield* listVaultsRepo.list()
+          const vaults = yield* listVaultsRepo.list(teamId)
           const vaultMap = new Map(vaults.map((v) => [v.accountAddress, v]))
           for (const vt of input.vaultThresholds) {
             if (!vaultMap.has(vt.vaultAddress)) {
@@ -437,6 +453,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
           // 8. Preview, build subintent, store
           return yield* buildSubintentAndStore(
+            teamId,
             manifest,
             badgeAddress,
             'remove_member',
@@ -446,12 +463,13 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         })
 
       const createChangeThreshold = (
+        teamId: string,
         input: ChangeThresholdRequest,
         createdBy: string
       ) =>
         Effect.gen(function* () {
           // 1. Validate vault exists
-          yield* listVaultsRepo.ensureExists(input.vaultAddress)
+          yield* listVaultsRepo.ensureExists(teamId, input.vaultAddress)
 
           // 2. Fetch current signers from vault
           const accessRule = yield* accessRuleValidator
@@ -485,6 +503,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
 
           // 5. Preview, build subintent, store
           return yield* buildSubintentAndStore(
+            teamId,
             manifest,
             input.vaultAddress,
             'change_threshold',
@@ -493,16 +512,17 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           )
         })
 
-      const list = () => proposalRepo.listByTeam()
+      const list = (teamId: string) => proposalRepo.listByTeam(teamId)
 
       const getSignatureProgress = (
+        teamId: string,
         proposal: { type: string; entityAddress: string },
         proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
           const signatures = yield* proposalRepo.getSignatures(proposalId)
 
-          const threshold = yield* getRequiredThreshold(proposal)
+          const threshold = yield* getRequiredThreshold(teamId, proposal)
 
           return {
             collected: signatures.length,
@@ -516,10 +536,11 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           }
         })
 
-      const getDetail = (proposalId: ProposalId) =>
+      const getDetail = (teamId: string, proposalId: ProposalId) =>
         Effect.gen(function* () {
-          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(teamId, proposalId)
           const signatureProgress = yield* getSignatureProgress(
+            teamId,
             proposal,
             proposalId
           )
@@ -532,12 +553,13 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
         })
 
       const sign = (
+        teamId: string,
         proposalId: ProposalId,
         signerAccountAddress: AccountAddress,
         signedPartialTransactionHex: string
       ) =>
         Effect.gen(function* () {
-          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(teamId, proposalId)
 
           if (!SIGNABLE_STATUSES.has(proposal.status)) {
             return yield* new ProposalNotSignableError({
@@ -629,7 +651,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
             )
 
           const signatures = yield* proposalRepo.getSignatures(proposalId)
-          const threshold = yield* getRequiredThreshold(proposal)
+          const threshold = yield* getRequiredThreshold(teamId, proposal)
 
           if (signatures.length >= threshold) {
             yield* proposalRepo.updateStatus(proposalId, 'ready')
@@ -640,9 +662,9 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           return { ok: true as const }
         })
 
-      const submit = (proposalId: ProposalId) =>
+      const submit = (teamId: string, proposalId: ProposalId) =>
         Effect.gen(function* () {
-          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(teamId, proposalId)
 
           if (
             proposal.transactionIntentHash &&
@@ -667,7 +689,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           }
 
           const signatures = yield* proposalRepo.getSignatures(proposalId)
-          const threshold = yield* getRequiredThreshold(proposal)
+          const threshold = yield* getRequiredThreshold(teamId, proposal)
 
           if (signatures.length < threshold) {
             const reason = `Signer/threshold drift: ${signatures.length} signatures collected but ${threshold} now required`
@@ -703,9 +725,9 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           return { intentHash, status: 'submitted' as const }
         })
 
-      const refreshStatus = (proposalId: ProposalId) =>
+      const refreshStatus = (teamId: string, proposalId: ProposalId) =>
         Effect.gen(function* () {
-          const proposal = yield* proposalRepo.getByIdTeam(proposalId)
+          const proposal = yield* proposalRepo.getByIdTeam(teamId, proposalId)
 
           if (proposal.status === 'committed' || proposal.status === 'failed') {
             return {

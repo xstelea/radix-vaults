@@ -17,6 +17,7 @@ import { TransactionSubmitter } from '../gateway/transactionSubmitter'
 import { VaultAddress } from '@radix-vaults/shared'
 import { ImportVaultRepo } from './importVaultRepo'
 import { ListVaultsRepo } from './listVaultsRepo'
+import { TeamRepo } from './teamRepo'
 
 export class VaultsHandler extends Effect.Service<VaultsHandler>()(
   '@radix-vaults/server/handlers/VaultsHandler',
@@ -27,12 +28,17 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
       const accessRuleValidator = yield* AccessRuleValidator
       const transactionSubmitter = yield* TransactionSubmitter
       const authConfig = yield* AuthConfig
+      const teamRepo = yield* TeamRepo
 
-      const list = () => listVaultsRepo.list().pipe(Effect.orDie)
+      const list = (teamId: string) =>
+        listVaultsRepo.list(teamId).pipe(Effect.orDie)
 
-      const getDetail = (vaultAddress: VaultAddressType) =>
+      const getDetail = (teamId: string, vaultAddress: VaultAddressType) =>
         Effect.gen(function* () {
-          const vault = yield* listVaultsRepo.getDetailBase(vaultAddress)
+          const vault = yield* listVaultsRepo.getDetailBase(
+            teamId,
+            vaultAddress
+          )
 
           return {
             accountAddress: vault.accountAddress,
@@ -42,9 +48,9 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
           } satisfies VaultDetail
         })
 
-      const getSigners = (vaultAddress: VaultAddressType) =>
+      const getSigners = (teamId: string, vaultAddress: VaultAddressType) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
 
           return {
             vaultAddress,
@@ -54,6 +60,7 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         })
 
       const importVault = (
+        teamId: string,
         accountAddress: VaultAddressType,
         name: string
       ): Effect.Effect<
@@ -62,7 +69,11 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
       > =>
         Effect.gen(function* () {
           yield* accessRuleValidator.validate(accountAddress)
-          const vault = yield* importVaultRepo.insert(accountAddress, name)
+          const vault = yield* importVaultRepo.insert(
+            teamId,
+            accountAddress,
+            name
+          )
           return {
             accountAddress: vault.accountAddress,
             name: vault.name
@@ -83,6 +94,7 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         )
 
       const createVault = (
+        teamId: string,
         name: string,
         threshold: number
       ): Effect.Effect<
@@ -90,8 +102,10 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
         ThresholdExceedsSignersError | CreateVaultFailedError
       > =>
         Effect.gen(function* () {
+          const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
+
           const accessRule = yield* accessRuleValidator
-            .validate(authConfig.teamMemberBadgeAddress)
+            .validate(team.badgeAddress)
             .pipe(Effect.orDie)
 
           const signers = accessRule.signers
@@ -128,7 +142,9 @@ export class VaultsHandler extends Effect.Service<VaultsHandler>()(
           }
 
           const vaultAddress = VaultAddress.make(accountAddress)
-          yield* importVaultRepo.insert(vaultAddress, name).pipe(Effect.orDie)
+          yield* importVaultRepo
+            .insert(teamId, vaultAddress, name)
+            .pipe(Effect.orDie)
 
           return {
             accountAddress: vaultAddress,

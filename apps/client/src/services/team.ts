@@ -4,6 +4,7 @@ import type {
   ProposalId,
   RemoveMemberRequest
 } from '@radix-vaults/shared'
+import { TeamId } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import { AppApiClient } from '@/lib/apiClient'
 
@@ -14,30 +15,48 @@ export class TeamService extends Effect.Service<TeamService>()(
     effect: Effect.gen(function* () {
       const client = yield* AppApiClient
       return {
-        getOverview: () => client.team.overview(),
+        getOverview: (teamId: string) =>
+          client.team.overview({ path: { teamId: TeamId.make(teamId) } }),
 
         // --- Team proposals ---
-        addMember: (payload: AddMemberRequest) =>
-          client.teamProposals.addMember({ payload }),
-        removeMember: (payload: RemoveMemberRequest) =>
-          client.teamProposals.removeMember({ payload }),
-        changeThreshold: (payload: ChangeThresholdRequest) =>
-          client.teamProposals.changeThreshold({ payload }),
-        listProposals: () => client.teamProposals.list(),
-        getProposalDetail: (proposalId: ProposalId) =>
-          client.teamProposals.detail({ path: { proposalId } }),
+        addMember: (teamId: string, payload: AddMemberRequest) =>
+          client.teamProposals.addMember({
+            path: { teamId: TeamId.make(teamId) },
+            payload
+          }),
+        removeMember: (teamId: string, payload: RemoveMemberRequest) =>
+          client.teamProposals.removeMember({
+            path: { teamId: TeamId.make(teamId) },
+            payload
+          }),
+        changeThreshold: (teamId: string, payload: ChangeThresholdRequest) =>
+          client.teamProposals.changeThreshold({
+            path: { teamId: TeamId.make(teamId) },
+            payload
+          }),
+        listProposals: (teamId: string) =>
+          client.teamProposals.list({ path: { teamId: TeamId.make(teamId) } }),
+        getProposalDetail: (teamId: string, proposalId: ProposalId) =>
+          client.teamProposals.detail({
+            path: { teamId: TeamId.make(teamId), proposalId }
+          }),
         signProposal: (
+          teamId: string,
           proposalId: ProposalId,
           signedPartialTransactionHex: string
         ) =>
           client.teamProposals.sign({
-            path: { proposalId },
+            path: { teamId: TeamId.make(teamId), proposalId },
             payload: { signedPartialTransactionHex }
           }),
-        submitProposal: (proposalId: ProposalId) =>
-          client.teamProposals.submit({ path: { proposalId } }),
-        refreshProposalStatus: (proposalId: ProposalId) =>
-          client.teamProposals.refreshStatus({ path: { proposalId } })
+        submitProposal: (teamId: string, proposalId: ProposalId) =>
+          client.teamProposals.submit({
+            path: { teamId: TeamId.make(teamId), proposalId }
+          }),
+        refreshProposalStatus: (teamId: string, proposalId: ProposalId) =>
+          client.teamProposals.refreshStatus({
+            path: { teamId: TeamId.make(teamId), proposalId }
+          })
       }
     })
   }

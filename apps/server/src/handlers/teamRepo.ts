@@ -1,7 +1,7 @@
 import { teams, teamMembers } from '@radix-vaults/database'
 import { TeamNotFoundError } from '@radix-vaults/shared'
 import { Effect } from 'effect'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 export class TeamRepo extends Effect.Service<TeamRepo>()(
@@ -54,7 +54,24 @@ export class TeamRepo extends Effect.Service<TeamRepo>()(
           .where(eq(teamMembers.accountAddress, accountAddress))
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
-      return { insert, addMember, getById, listByMember } as const
+      const getConfirmedMembers = (teamId: string) =>
+        db
+          .select({
+            accountAddress: teamMembers.accountAddress
+          })
+          .from(teamMembers)
+          .where(
+            and(eq(teamMembers.teamId, teamId), eq(teamMembers.confirmed, true))
+          )
+          .pipe(Effect.catchTags({ SqlError: Effect.die }))
+
+      return {
+        insert,
+        addMember,
+        getById,
+        listByMember,
+        getConfirmedMembers
+      } as const
     })
   }
 ) {}

@@ -85,6 +85,13 @@
       "when": 1773700000000,
       "tag": "0011_teams",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1773800000000,
+      "tag": "0012_team_scoped_vaults_proposals",
+      "breakpoints": true
     }
   ]
 }

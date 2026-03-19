@@ -138,10 +138,14 @@ function TeamsListSection() {
                 {teams.map((team) => (
                   <TableRow key={team.teamId} className="cursor-pointer">
                     <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
+                      <Link
+                        to="/teams/$teamId/vaults"
+                        params={{ teamId: team.teamId }}
+                        className="flex items-center gap-2"
+                      >
                         <Users className="h-4 w-4 text-muted-foreground" />
                         {team.name}
-                      </div>
+                      </Link>
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       {team.badgeAddress.slice(0, 20)}...

@@ -4,7 +4,7 @@ import {
   type VaultAddress
 } from '@radix-vaults/shared'
 import { Effect } from 'effect'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { ORM } from '../db/orm'
 
 export class ImportVaultRepo extends Effect.Service<ImportVaultRepo>()(
@@ -13,12 +13,21 @@ export class ImportVaultRepo extends Effect.Service<ImportVaultRepo>()(
     effect: Effect.gen(function* () {
       const db = yield* ORM
 
-      const insert = (accountAddress: VaultAddress, name: string) =>
+      const insert = (
+        teamId: string,
+        accountAddress: VaultAddress,
+        name: string
+      ) =>
         Effect.gen(function* () {
           const existing = yield* db
             .select({ accountAddress: vaults.accountAddress })
             .from(vaults)
-            .where(eq(vaults.accountAddress, accountAddress))
+            .where(
+              and(
+                eq(vaults.teamId, teamId),
+                eq(vaults.accountAddress, accountAddress)
+              )
+            )
             .limit(1)
             .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
@@ -28,7 +37,7 @@ export class ImportVaultRepo extends Effect.Service<ImportVaultRepo>()(
 
           yield* db
             .insert(vaults)
-            .values({ accountAddress, name })
+            .values({ teamId, accountAddress, name })
             .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
           return { accountAddress, name }

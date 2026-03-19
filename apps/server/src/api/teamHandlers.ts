@@ -7,10 +7,10 @@ export const TeamHandlersLive = HttpApiBuilder.group(
   AppApi,
   'team',
   (handlers) =>
-    handlers.handle('overview', () =>
+    handlers.handle('overview', ({ path }) =>
       Effect.gen(function* () {
         const team = yield* TeamHandler
-        return yield* team.getOverview()
+        return yield* team.getOverview(path.teamId)
       })
     )
 ).pipe(Layer.provide(TeamHandler.Default))

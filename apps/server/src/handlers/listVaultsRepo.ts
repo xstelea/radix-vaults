@@ -18,7 +18,7 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
     effect: Effect.gen(function* () {
       const db = yield* ORM
 
-      const selectVaultBase = () =>
+      const selectVaultBase = (teamId: string) =>
         db
           .select({
             accountAddress: vaults.accountAddress,
@@ -30,13 +30,15 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
             proposals,
             and(
               eq(proposals.entityAddress, vaults.accountAddress),
+              eq(proposals.teamId, teamId),
               eq(proposals.type, 'vault'),
               inArray(proposals.status, pendingStatuses)
             )
           )
 
-      const list = () =>
-        selectVaultBase()
+      const list = (teamId: string) =>
+        selectVaultBase(teamId)
+          .where(eq(vaults.teamId, teamId))
           .groupBy(vaults.accountAddress, vaults.name, vaults.createdAt)
           .orderBy(vaults.createdAt)
           .pipe(
@@ -52,9 +54,14 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
             })
           )
 
-      const getDetailBase = (vaultAddress: VaultAddressType) =>
-        selectVaultBase()
-          .where(eq(vaults.accountAddress, vaultAddress))
+      const getDetailBase = (teamId: string, vaultAddress: VaultAddressType) =>
+        selectVaultBase(teamId)
+          .where(
+            and(
+              eq(vaults.teamId, teamId),
+              eq(vaults.accountAddress, vaultAddress)
+            )
+          )
           .groupBy(vaults.accountAddress, vaults.name)
           .limit(1)
           .pipe(
@@ -76,11 +83,16 @@ export class ListVaultsRepo extends Effect.Service<ListVaultsRepo>()(
             })
           )
 
-      const ensureExists = (vaultAddress: VaultAddressType) =>
+      const ensureExists = (teamId: string, vaultAddress: VaultAddressType) =>
         db
           .select({ accountAddress: vaults.accountAddress })
           .from(vaults)
-          .where(eq(vaults.accountAddress, vaultAddress))
+          .where(
+            and(
+              eq(vaults.teamId, teamId),
+              eq(vaults.accountAddress, vaultAddress)
+            )
+          )
           .limit(1)
           .pipe(
             Effect.flatMap((rows) =>

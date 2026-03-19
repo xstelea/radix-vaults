@@ -1,13 +1,14 @@
 import { HttpApiBuilder } from '@effect/platform'
 import { AppApi, CurrentSession } from '@radix-vaults/shared'
 import { Effect, Layer } from 'effect'
+import { TeamMembershipChecker } from '../auth/teamMembershipChecker'
 import { TeamHandler } from '../handlers/team'
 import { TeamProposalsHandler } from '../handlers/teamProposals'
 
-const getNameByAddress = () =>
+const getNameByAddress = (teamId: string) =>
   Effect.gen(function* () {
     const teamHandler = yield* TeamHandler
-    const overview = yield* teamHandler.getOverview()
+    const overview = yield* teamHandler.getOverview(teamId)
     return new Map(overview.badgeHolders.map((h) => [h.holderAddress, h.name]))
   })
 
@@ -16,11 +17,14 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
   'teamProposals',
   (handlers) =>
     handlers
-      .handle('addMember', ({ payload }) =>
+      .handle('addMember', ({ path: { teamId }, payload }) =>
         Effect.gen(function* () {
           const session = yield* CurrentSession
+          const checker = yield* TeamMembershipChecker
+          yield* checker.check(teamId, session.accountAddress)
           const handler = yield* TeamProposalsHandler
           const result = yield* handler.createAddMember(
+            teamId,
             payload,
             session.accountAddress
           )
@@ -33,11 +37,14 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
           return result
         })
       )
-      .handle('removeMember', ({ payload }) =>
+      .handle('removeMember', ({ path: { teamId }, payload }) =>
         Effect.gen(function* () {
           const session = yield* CurrentSession
+          const checker = yield* TeamMembershipChecker
+          yield* checker.check(teamId, session.accountAddress)
           const handler = yield* TeamProposalsHandler
           const result = yield* handler.createRemoveMember(
+            teamId,
             payload,
             session.accountAddress
           )
@@ -50,11 +57,14 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
           return result
         })
       )
-      .handle('changeThreshold', ({ payload }) =>
+      .handle('changeThreshold', ({ path: { teamId }, payload }) =>
         Effect.gen(function* () {
           const session = yield* CurrentSession
+          const checker = yield* TeamMembershipChecker
+          yield* checker.check(teamId, session.accountAddress)
           const handler = yield* TeamProposalsHandler
           const result = yield* handler.createChangeThreshold(
+            teamId,
             payload,
             session.accountAddress
           )
@@ -67,12 +77,12 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
           return result
         })
       )
-      .handle('list', () =>
+      .handle('list', ({ path: { teamId } }) =>
         Effect.gen(function* () {
           const handler = yield* TeamProposalsHandler
           const [proposals, nameByAddress] = yield* Effect.all([
-            handler.list(),
-            getNameByAddress()
+            handler.list(teamId),
+            getNameByAddress(teamId)
           ])
           return proposals.map((p) => ({
             ...p,
@@ -80,12 +90,12 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
           }))
         })
       )
-      .handle('detail', ({ path: { proposalId } }) =>
+      .handle('detail', ({ path: { teamId, proposalId } }) =>
         Effect.gen(function* () {
           const handler = yield* TeamProposalsHandler
           const [proposal, nameByAddress] = yield* Effect.all([
-            handler.getDetail(proposalId),
-            getNameByAddress()
+            handler.getDetail(teamId, proposalId),
+            getNameByAddress(teamId)
           ])
           return {
             ...proposal,
@@ -102,11 +112,17 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
       )
       .handle(
         'sign',
-        ({ path: { proposalId }, payload: { signedPartialTransactionHex } }) =>
+        ({
+          path: { teamId, proposalId },
+          payload: { signedPartialTransactionHex }
+        }) =>
           Effect.gen(function* () {
             const session = yield* CurrentSession
+            const checker = yield* TeamMembershipChecker
+            yield* checker.check(teamId, session.accountAddress)
             const handler = yield* TeamProposalsHandler
             const result = yield* handler.sign(
+              teamId,
               proposalId,
               session.accountAddress,
               signedPartialTransactionHex
@@ -120,23 +136,30 @@ export const TeamProposalHandlersLive = HttpApiBuilder.group(
             return result
           })
       )
-      .handle('submit', ({ path: { proposalId } }) =>
+      .handle('submit', ({ path: { teamId, proposalId } }) =>
         Effect.gen(function* () {
+          const session = yield* CurrentSession
+          const checker = yield* TeamMembershipChecker
+          yield* checker.check(teamId, session.accountAddress)
           const handler = yield* TeamProposalsHandler
-          const result = yield* handler.submit(proposalId)
+          const result = yield* handler.submit(teamId, proposalId)
           yield* Effect.logInfo('Team proposal submitted').pipe(
             Effect.annotateLogs({ proposalId })
           )
           return result
         })
       )
-      .handle('refreshStatus', ({ path: { proposalId } }) =>
+      .handle('refreshStatus', ({ path: { teamId, proposalId } }) =>
         Effect.gen(function* () {
+          const session = yield* CurrentSession
+          const checker = yield* TeamMembershipChecker
+          yield* checker.check(teamId, session.accountAddress)
           const handler = yield* TeamProposalsHandler
-          return yield* handler.refreshStatus(proposalId)
+          return yield* handler.refreshStatus(teamId, proposalId)
         })
       )
 ).pipe(
   Layer.provide(TeamProposalsHandler.Default),
-  Layer.provide(TeamHandler.Default)
+  Layer.provide(TeamHandler.Default),
+  Layer.provide(TeamMembershipChecker.Default)
 )

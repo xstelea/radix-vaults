@@ -20,7 +20,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/team/proposals/')({
+export const Route = createFileRoute('/teams/$teamId/team/proposals/')({
   component: TeamProposalsPage
 })
 
@@ -45,6 +45,7 @@ const typeLabel: Record<string, string> = {
 }
 
 function TeamProposalsPage() {
+  const { teamId } = Route.useParams()
   return (
     <main className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -53,7 +54,11 @@ function TeamProposalsPage() {
             Home
           </Link>
           <span className="mx-2">/</span>
-          <Link to="/team" className="hover:text-foreground">
+          <Link
+            to="/teams/$teamId/team"
+            params={{ teamId }}
+            className="hover:text-foreground"
+          >
             Team
           </Link>
           <span className="mx-2">/</span>
@@ -84,14 +89,15 @@ function TeamProposalsPage() {
           </Card>
         }
       >
-        <TeamProposalsList />
+        <TeamProposalsList teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
 function RefreshButton() {
-  const refresh = useAtomRefresh(teamProposalListAtom)
+  const { teamId } = Route.useParams()
+  const refresh = useAtomRefresh(teamProposalListAtom(teamId))
   return (
     <Button variant="outline" onClick={refresh}>
       Refresh
@@ -99,9 +105,9 @@ function RefreshButton() {
   )
 }
 
-function TeamProposalsList() {
-  const result = useAtomValue(teamProposalListAtom)
-  const refresh = useAtomRefresh(teamProposalListAtom)
+function TeamProposalsList({ teamId }: { teamId: string }) {
+  const result = useAtomValue(teamProposalListAtom(teamId))
+  const refresh = useAtomRefresh(teamProposalListAtom(teamId))
 
   return Result.builder(result)
     .onInitialOrWaiting(() => (
@@ -160,8 +166,8 @@ function TeamProposalsList() {
                   <TableRow key={p.id}>
                     <TableCell>
                       <Link
-                        to="/team/proposals/$proposalId"
-                        params={{ proposalId: String(p.id) }}
+                        to="/teams/$teamId/team/proposals/$proposalId"
+                        params={{ teamId, proposalId: String(p.id) }}
                         className="font-medium underline decoration-muted-foreground/40 hover:decoration-foreground"
                       >
                         #{p.id}

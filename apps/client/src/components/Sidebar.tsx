@@ -1,12 +1,6 @@
 import { Link, useMatches } from '@tanstack/react-router'
 import { Home, Users, FileText, X, Shield } from 'lucide-react'
 
-const navItems = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/vaults', label: 'Vaults', icon: Shield },
-  { to: '/team', label: 'Team', icon: Users }
-] as const
-
 export function Sidebar({
   open,
   onClose
@@ -16,8 +10,13 @@ export function Sidebar({
 }) {
   const matches = useMatches()
 
-  const vaultMatch = matches.find((m) =>
-    m.routeId.startsWith('/vaults/$vaultId')
+  const teamMatch = matches.find(
+    (m) => (m.params as { teamId?: string }).teamId
+  )
+  const teamId = (teamMatch?.params as { teamId?: string })?.teamId
+
+  const vaultMatch = matches.find(
+    (m) => (m.params as { vaultId?: string }).vaultId
   )
   const vaultId = (vaultMatch?.params as { vaultId?: string })?.vaultId
 
@@ -89,29 +88,60 @@ export function Sidebar({
 
         {/* ── Navigation ── */}
         <nav className="flex-1 px-3 py-1 space-y-0.5">
-          {navItems.map((item, i) => {
-            const isActive =
-              item.to === '/'
-                ? matches[matches.length - 1]?.routeId === '/'
-                : matches.some((m) => m.fullPath.startsWith(item.to))
+          {/* Home — always visible */}
+          <Link
+            to="/"
+            onClick={onClose}
+            className={`sidebar-nav-item${
+              matches[matches.length - 1]?.routeId === '/' ? ' active' : ''
+            }`}
+            style={{ animation: 'slide-in 300ms ease 0ms both' }}
+          >
+            <Home className="sidebar-nav-icon" />
+            Home
+          </Link>
 
-            return (
+          {/* Vaults & Team — only when inside a team */}
+          {teamId && (
+            <>
               <Link
-                key={item.to}
-                to={item.to}
+                to="/teams/$teamId/vaults"
+                params={{ teamId }}
                 onClick={onClose}
-                className={`sidebar-nav-item${isActive ? ' active' : ''}`}
-                style={{ animation: `slide-in 300ms ease ${i * 50}ms both` }}
+                className={`sidebar-nav-item${
+                  matches.some((m) =>
+                    m.fullPath.startsWith('/teams/$teamId/vaults')
+                  )
+                    ? ' active'
+                    : ''
+                }`}
+                style={{ animation: 'slide-in 300ms ease 50ms both' }}
               >
-                <item.icon className="sidebar-nav-icon" />
-                {item.label}
+                <Shield className="sidebar-nav-icon" />
+                Vaults
               </Link>
-            )
-          })}
+              <Link
+                to="/teams/$teamId/team"
+                params={{ teamId }}
+                onClick={onClose}
+                className={`sidebar-nav-item${
+                  matches.some((m) =>
+                    m.fullPath.startsWith('/teams/$teamId/team')
+                  )
+                    ? ' active'
+                    : ''
+                }`}
+                style={{ animation: 'slide-in 300ms ease 100ms both' }}
+              >
+                <Users className="sidebar-nav-icon" />
+                Team
+              </Link>
+            </>
+          )}
         </nav>
 
         {/* ── Current vault ── */}
-        {vaultId && (
+        {teamId && vaultId && (
           <div className="px-3 pb-4">
             <div className="vault-card space-y-3">
               <div>
@@ -135,8 +165,8 @@ export function Sidebar({
                 </p>
               </div>
               <Link
-                to="/vaults/$vaultId/proposals/new"
-                params={{ vaultId }}
+                to="/teams/$teamId/vaults/$vaultId/proposals/new"
+                params={{ teamId: teamId!, vaultId }}
                 onClick={onClose}
                 className="vault-card-btn"
               >

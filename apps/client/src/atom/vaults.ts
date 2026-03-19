@@ -1,6 +1,6 @@
 import { Atom } from '@effect-atom/atom-react'
 import type { VaultAddress } from '@radix-vaults/shared'
-import { Effect, Layer, Option } from 'effect'
+import { Data, Effect, Layer, Option } from 'effect'
 import { makeAtomRuntime } from '@/atom/makeRuntimeAtom'
 import { AppApiClient } from '@/lib/apiClient'
 import { disconnectOnUnauthorized } from '@/lib/disconnectOnUnauthorized'
@@ -15,20 +15,22 @@ const runtime = makeAtomRuntime(
   )
 )
 
-export const vaultsListAtom = runtime
-  .atom(
-    Effect.gen(function* () {
-      const svc = yield* VaultService
-      return yield* svc.list()
-    })
-  )
-  .pipe(Atom.withLabel('vaultsListAtom'), Atom.keepAlive)
+export const vaultsListAtom = Atom.family((teamId: string) =>
+  runtime
+    .atom(
+      Effect.gen(function* () {
+        const svc = yield* VaultService
+        return yield* svc.list(teamId)
+      })
+    )
+    .pipe(Atom.withLabel(`vaultsListAtom(${teamId})`), Atom.keepAlive)
+)
 
 export const createVault = runtime.fn(
-  (args: { name: string; threshold: number }) =>
+  (args: { teamId: string; name: string; threshold: number }) =>
     Effect.gen(function* () {
       const svc = yield* VaultService
-      return yield* svc.createVault(args.name, args.threshold)
+      return yield* svc.createVault(args.teamId, args.name, args.threshold)
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -40,10 +42,10 @@ export const createVault = runtime.fn(
 )
 
 export const importVault = runtime.fn(
-  (args: { accountAddress: VaultAddress; name: string }) =>
+  (args: { teamId: string; accountAddress: VaultAddress; name: string }) =>
     Effect.gen(function* () {
       const svc = yield* VaultService
-      return yield* svc.importVault(args.accountAddress, args.name)
+      return yield* svc.importVault(args.teamId, args.accountAddress, args.name)
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -54,17 +56,28 @@ export const importVault = runtime.fn(
     )
 )
 
-export const vaultReadAtom = Atom.family((vaultAddress: VaultAddress) =>
-  runtime
-    .atom(
-      Effect.gen(function* () {
-        const svc = yield* VaultService
-        return yield* Effect.all({
-          detail: svc.getDetail(vaultAddress),
-          signers: svc.getSigners(vaultAddress),
-          balanceXrd: svc.getVaultBalanceXrd(vaultAddress)
+interface VaultReadKey {
+  readonly teamId: string
+  readonly vaultAddress: VaultAddress
+}
+const VaultReadKey = Data.case<VaultReadKey>()
+
+export const vaultReadAtom = Atom.family(
+  ({ teamId, vaultAddress }: VaultReadKey) =>
+    runtime
+      .atom(
+        Effect.gen(function* () {
+          const svc = yield* VaultService
+          return yield* Effect.all({
+            detail: svc.getDetail(teamId, vaultAddress),
+            signers: svc.getSigners(teamId, vaultAddress),
+            balanceXrd: svc.getVaultBalanceXrd(teamId, vaultAddress)
+          })
         })
-      })
-    )
-    .pipe(Atom.withLabel(`vaultReadAtom(${vaultAddress})`), Atom.keepAlive)
+      )
+      .pipe(
+        Atom.withLabel(`vaultReadAtom(${teamId}:${vaultAddress})`),
+        Atom.keepAlive
+      )
 )
+export { VaultReadKey }

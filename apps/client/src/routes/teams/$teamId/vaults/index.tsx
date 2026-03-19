@@ -13,11 +13,13 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { PlusCircle, Download } from 'lucide-react'
 
-export const Route = createFileRoute('/vaults/')({
+export const Route = createFileRoute('/teams/$teamId/vaults/')({
   component: VaultsPage
 })
 
 function VaultsPage() {
+  const { teamId } = Route.useParams()
+
   return (
     <main className="max-w-5xl space-y-6">
       <nav className="text-sm text-muted-foreground">
@@ -35,13 +37,13 @@ function VaultsPage() {
             <CardDescription>Manage your multisig vaults.</CardDescription>
           </div>
           <div className="flex gap-2">
-            <Link to="/vaults/create">
+            <Link to="/teams/$teamId/vaults/create" params={{ teamId }}>
               <Button size="sm">
                 <PlusCircle className="mr-1.5 h-4 w-4" />
                 Create Vault
               </Button>
             </Link>
-            <Link to="/vaults/add">
+            <Link to="/teams/$teamId/vaults/add" params={{ teamId }}>
               <Button variant="outline" size="sm">
                 <Download className="mr-1.5 h-4 w-4" />
                 Import Vault
@@ -52,15 +54,15 @@ function VaultsPage() {
       </Card>
 
       <ClientOnly fallback={<DashboardSkeleton />}>
-        <VaultsList />
+        <VaultsList teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
-function VaultsList() {
-  const vaultsResult = useAtomValue(vaultsListAtom)
-  const refreshVaults = useAtomRefresh(vaultsListAtom)
+function VaultsList({ teamId }: { teamId: string }) {
+  const vaultsResult = useAtomValue(vaultsListAtom(teamId))
+  const refreshVaults = useAtomRefresh(vaultsListAtom(teamId))
 
   return Result.builder(vaultsResult)
     .onInitialOrWaiting(() => <DashboardSkeleton />)
@@ -98,8 +100,8 @@ function VaultsList() {
           {vaults.map((vault) => (
             <Link
               key={vault.accountAddress}
-              to="/vaults/$vaultId"
-              params={{ vaultId: vault.accountAddress }}
+              to="/teams/$teamId/vaults/$vaultId"
+              params={{ teamId, vaultId: vault.accountAddress }}
             >
               <Card className="transition hover:-translate-y-0.5 hover:shadow-md hover:border-border">
                 <CardContent className="flex items-center justify-between gap-3 py-5">

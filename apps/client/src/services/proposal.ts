@@ -1,4 +1,5 @@
 import type { ProposalId, VaultAddress } from '@radix-vaults/shared'
+import { TeamId } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import { AppApiClient } from '@/lib/apiClient'
 
@@ -10,36 +11,52 @@ export class ProposalService extends Effect.Service<ProposalService>()(
       const client = yield* AppApiClient
       return {
         create: (
+          teamId: string,
           vaultAddress: VaultAddress,
           manifest: string,
           maxProposerTimestamp: string
         ) =>
           client.proposals.create({
-            path: { vaultAddress },
+            path: { teamId: TeamId.make(teamId), vaultAddress },
             payload: { manifest, maxProposerTimestamp }
           }),
-        list: (vaultAddress: VaultAddress) =>
-          client.proposals.list({ path: { vaultAddress } }),
-        getDetail: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
+        list: (teamId: string, vaultAddress: VaultAddress) =>
+          client.proposals.list({
+            path: { teamId: TeamId.make(teamId), vaultAddress }
+          }),
+        getDetail: (
+          teamId: string,
+          vaultAddress: VaultAddress,
+          proposalId: ProposalId
+        ) =>
           client.proposals.detail({
-            path: { vaultAddress, proposalId }
+            path: { teamId: TeamId.make(teamId), vaultAddress, proposalId }
           }),
         sign: (
+          teamId: string,
           vaultAddress: VaultAddress,
           proposalId: ProposalId,
           signedPartialTransactionHex: string
         ) =>
           client.proposals.sign({
-            path: { vaultAddress, proposalId },
+            path: { teamId: TeamId.make(teamId), vaultAddress, proposalId },
             payload: { signedPartialTransactionHex }
           }),
-        submit: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
+        submit: (
+          teamId: string,
+          vaultAddress: VaultAddress,
+          proposalId: ProposalId
+        ) =>
           client.proposals.submit({
-            path: { vaultAddress, proposalId }
+            path: { teamId: TeamId.make(teamId), vaultAddress, proposalId }
           }),
-        refreshStatus: (vaultAddress: VaultAddress, proposalId: ProposalId) =>
+        refreshStatus: (
+          teamId: string,
+          vaultAddress: VaultAddress,
+          proposalId: ProposalId
+        ) =>
           client.proposals.refreshStatus({
-            path: { vaultAddress, proposalId }
+            path: { teamId: TeamId.make(teamId), vaultAddress, proposalId }
           })
       }
     })
