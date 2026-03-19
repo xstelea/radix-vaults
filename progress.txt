@@ -124,3 +124,14 @@
 - `main.ts`: CLI entry point reading config JSON, outputting TEAM_ACCOUNT_ADDRESS and TEAM_MEMBER_BADGE_ADDRESS
 - Network-aware addresses: stokenet (networkId=2) and mainnet (networkId=1) resource/package addresses
 - Tests: config validation (6), manifest builders (8), bootstrap flow with mocked TransactionService (3) = 17 new tests, 84 total
+
+## Multi-team Phase 1: Auth simplification (DONE)
+- Commit be5bd51 on multi-team-support branch
+- Removed BadgeChecker.hasBadge() call from POST /auth/verify handler
+- ROLA-only login — any Radix account can create a session without badge ownership
+- Deleted MissingTeamBadgeError class from shared auth schema
+- Removed MissingTeamBadgeError from verify endpoint error schema (AuthGroup)
+- Removed MissingTeamBadgeError catch branch from frontend wallet atom
+- BadgeChecker service kept wired in main.ts (cleanup deferred to Phase 8)
+- No test changes needed — no tests asserted on badge checking
+- All 36 tests pass, 5/5 packages typecheck clean

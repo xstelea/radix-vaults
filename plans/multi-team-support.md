@@ -26,11 +26,11 @@ On the frontend, remove any UI that shows the "missing badge" error state during
 
 ### Acceptance criteria
 
-- [ ] `POST /auth/verify` succeeds with valid ROLA signature regardless of badge ownership
-- [ ] `MissingTeamBadgeError` no longer in verify endpoint schema
-- [ ] Frontend login flow works for accounts without any badges
-- [ ] Existing session/logout behavior unchanged
-- [ ] Tests updated — remove badge-check assertions from auth tests
+- [x] `POST /auth/verify` succeeds with valid ROLA signature regardless of badge ownership
+- [x] `MissingTeamBadgeError` no longer in verify endpoint schema
+- [x] Frontend login flow works for accounts without any badges
+- [x] Existing session/logout behavior unchanged
+- [x] Tests updated — no tests asserted on badge checking; all 36 pass
 
 ---
 
