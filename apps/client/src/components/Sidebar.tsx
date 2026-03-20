@@ -1,6 +1,7 @@
 import { Link, useMatches } from '@tanstack/react-router'
 import { Result, useAtomValue } from '@effect-atom/atom-react'
 import { Users, FileText, X, Shield, ChevronRight, Plus } from 'lucide-react'
+import { sessionAtom } from '@/atom/auth'
 import { teamsListAtom } from '@/atom/teams'
 import { vaultsListAtom } from '@/atom/vaults'
 
@@ -26,6 +27,13 @@ export function Sidebar({
     (m) => (m.params as { vaultId?: string }).vaultId
   )
   const vaultId = (vaultMatch?.params as { vaultId?: string })?.vaultId
+
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
 
   const teams =
     Result.builder(teamsResult)
@@ -181,18 +189,20 @@ export function Sidebar({
                   </div>
                 )
               })}
-              <Link
-                to="/teams/create"
-                onClick={onClose}
-                className={`sidebar-nav-item${
-                  matches.some((m) => m.fullPath === '/teams/create')
-                    ? ' active'
-                    : ''
-                }`}
-              >
-                <Plus className="sidebar-nav-icon" />
-                Create team
-              </Link>
+              {session && (
+                <Link
+                  to="/teams/create"
+                  onClick={onClose}
+                  className={`sidebar-nav-item${
+                    matches.some((m) => m.fullPath === '/teams/create')
+                      ? ' active'
+                      : ''
+                  }`}
+                >
+                  <Plus className="sidebar-nav-icon" />
+                  Create team
+                </Link>
+              )}
             </>
           )}
         </nav>
@@ -221,15 +231,17 @@ export function Sidebar({
                   {vaultId.slice(0, 12)}...{vaultId.slice(-8)}
                 </p>
               </div>
-              <Link
-                to="/teams/$teamId/vaults/$vaultId/proposals/new"
-                params={{ teamId: teamId!, vaultId }}
-                onClick={onClose}
-                className="vault-card-btn"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                New Proposal
-              </Link>
+              {session && (
+                <Link
+                  to="/teams/$teamId/vaults/$vaultId/proposals/new"
+                  params={{ teamId: teamId!, vaultId }}
+                  onClick={onClose}
+                  className="vault-card-btn"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  New Proposal
+                </Link>
+              )}
             </div>
           </div>
         )}

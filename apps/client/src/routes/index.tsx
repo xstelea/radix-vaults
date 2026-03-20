@@ -1,5 +1,6 @@
 import { Link, ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import { sessionAtom } from '@/atom/auth'
 import { teamsListAtom } from '@/atom/teams'
 import { Button } from '@/components/ui/button'
 import {
@@ -45,12 +46,9 @@ function HomePage() {
             >
               <RefreshButton />
             </ClientOnly>
-            <Link to="/teams/create">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Team
-              </Button>
-            </Link>
+            <ClientOnly fallback={null}>
+              <CreateTeamButton />
+            </ClientOnly>
           </div>
         </CardHeader>
       </Card>
@@ -83,9 +81,35 @@ function RefreshButton() {
   )
 }
 
+function CreateTeamButton() {
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  if (!session) return null
+
+  return (
+    <Link to="/teams/create">
+      <Button>
+        <Plus className="mr-2 h-4 w-4" />
+        Create Team
+      </Button>
+    </Link>
+  )
+}
+
 function TeamsListSection() {
   const result = useAtomValue(teamsListAtom)
   const refresh = useAtomRefresh(teamsListAtom)
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
 
   return Result.builder(result)
     .onInitialOrWaiting(() => (
@@ -163,12 +187,14 @@ function TeamsListSection() {
               <p className="text-muted-foreground">
                 Create your first team to start managing vaults.
               </p>
-              <Link to="/teams/create">
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Team
-                </Button>
-              </Link>
+              {session && (
+                <Link to="/teams/create">
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Team
+                  </Button>
+                </Link>
+              )}
             </div>
           </CardContent>
         )}

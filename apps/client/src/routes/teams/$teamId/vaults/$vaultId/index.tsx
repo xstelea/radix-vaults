@@ -6,6 +6,7 @@ import {
   ClientOnly,
   useNavigate
 } from '@tanstack/react-router'
+import { sessionAtom } from '@/atom/auth'
 import { ProposalListKey, proposalListAtom } from '@/atom/proposals'
 import { VaultReadKey, vaultReadAtom } from '@/atom/vaults'
 import { Badge } from '@/components/ui/badge'
@@ -223,6 +224,12 @@ function ProposalListSection() {
   const vaultAddress = VaultAddress.make(vaultId)
   const listAtom = proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
   const listResult = useAtomValue(listAtom)
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
 
   return Result.builder(listResult)
     .onInitialOrWaiting(() => (
@@ -249,13 +256,15 @@ function ProposalListSection() {
                 : `${proposals.length} proposal${proposals.length !== 1 ? 's' : ''}`}
             </CardDescription>
           </div>
-          <Link
-            to="/teams/$teamId/vaults/$vaultId/proposals/new"
-            params={{ teamId, vaultId }}
-            className={buttonVariants({ size: 'sm' })}
-          >
-            New Proposal
-          </Link>
+          {session && (
+            <Link
+              to="/teams/$teamId/vaults/$vaultId/proposals/new"
+              params={{ teamId, vaultId }}
+              className={buttonVariants({ size: 'sm' })}
+            >
+              New Proposal
+            </Link>
+          )}
         </CardHeader>
         {proposals.length > 0 && (
           <CardContent>

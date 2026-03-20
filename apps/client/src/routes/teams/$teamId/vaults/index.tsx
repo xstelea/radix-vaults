@@ -1,5 +1,6 @@
 import { Link, ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import { sessionAtom } from '@/atom/auth'
 import { vaultsListAtom } from '@/atom/vaults'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,32 +32,63 @@ function VaultsPage() {
       </nav>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
-          <div>
-            <CardTitle className="text-2xl">Vaults</CardTitle>
-            <CardDescription>Manage your multisig vaults.</CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/teams/$teamId/vaults/create" params={{ teamId }}>
-              <Button size="sm">
-                <PlusCircle className="mr-1.5 h-4 w-4" />
-                Create Vault
-              </Button>
-            </Link>
-            <Link to="/teams/$teamId/vaults/add" params={{ teamId }}>
-              <Button variant="outline" size="sm">
-                <Download className="mr-1.5 h-4 w-4" />
-                Import Vault
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
+        <ClientOnly
+          fallback={
+            <CardHeader>
+              <CardTitle className="text-2xl">Vaults</CardTitle>
+              <CardDescription>Manage your multisig vaults.</CardDescription>
+            </CardHeader>
+          }
+        >
+          <VaultHeader teamId={teamId} />
+        </ClientOnly>
       </Card>
 
       <ClientOnly fallback={<DashboardSkeleton />}>
         <VaultsList teamId={teamId} />
       </ClientOnly>
     </main>
+  )
+}
+
+function VaultHeader({ teamId }: { teamId: string }) {
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  if (!session) {
+    return (
+      <CardHeader>
+        <CardTitle className="text-2xl">Vaults</CardTitle>
+        <CardDescription>Manage your multisig vaults.</CardDescription>
+      </CardHeader>
+    )
+  }
+
+  return (
+    <CardHeader className="flex flex-row items-start justify-between gap-4">
+      <div>
+        <CardTitle className="text-2xl">Vaults</CardTitle>
+        <CardDescription>Manage your multisig vaults.</CardDescription>
+      </div>
+      <div className="flex gap-2">
+        <Link to="/teams/$teamId/vaults/create" params={{ teamId }}>
+          <Button size="sm">
+            <PlusCircle className="mr-1.5 h-4 w-4" />
+            Create Vault
+          </Button>
+        </Link>
+        <Link to="/teams/$teamId/vaults/add" params={{ teamId }}>
+          <Button variant="outline" size="sm">
+            <Download className="mr-1.5 h-4 w-4" />
+            Import Vault
+          </Button>
+        </Link>
+      </div>
+    </CardHeader>
   )
 }
 

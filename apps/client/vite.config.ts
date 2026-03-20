@@ -11,7 +11,14 @@ export default defineConfig({
     exclude: ['e2e/**', 'node_modules/**']
   },
   plugins: [
-    nitro(),
+    nitro({
+      handlers: [
+        {
+          route: '/.well-known/radix.json',
+          handler: './server/api/well-known-radix-json.ts'
+        }
+      ]
+    }),
     viteTsConfigPaths({
       projects: ['./tsconfig.json']
     }),
