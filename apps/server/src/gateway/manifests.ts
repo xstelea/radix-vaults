@@ -267,7 +267,9 @@ export async function buildCreateTeamBadgeManifest(input: {
   const accessRule = `Enum<2u8>(
             Enum<0u8>(
                 Enum<0u8>(
-                    NonFungibleGlobalId("${nfgid}")
+                    Enum<0u8>(
+                        NonFungibleGlobalId("${nfgid}")
+                    )
                 )
             )
         )`

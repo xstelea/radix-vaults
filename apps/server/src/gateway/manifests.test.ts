@@ -56,10 +56,12 @@ describe('buildCreateTeamBadgeManifest', () => {
       networkId: 2
     })
 
-    // 1-of-1 = Require (Enum<0u8>) wrapping a single NonFungibleGlobalId
+    // 1-of-1 = Require (Enum<0u8>) wrapping ResourceOrNonFungible::NonFungible (Enum<0u8>)
     // NOT CountOf or AllOf with an array
     expect(manifest).toContain(
-      'Enum<0u8>(\n' + '                    NonFungibleGlobalId('
+      'Enum<0u8>(\n' +
+        '                    Enum<0u8>(\n' +
+        '                        NonFungibleGlobalId('
     )
   })
 

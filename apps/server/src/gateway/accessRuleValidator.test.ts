@@ -80,6 +80,41 @@ describe('parseOwnerAccessRule', () => {
     })
   })
 
+  it('parses Require with a single NonFungible signer', () => {
+    const signer = makeNonFungible(ED25519_SIG_RESOURCE, '{hash1}')
+    const owner = makeOwnerRole({
+      type: 'Protected',
+      access_rule: {
+        type: 'ProofRule',
+        proof_rule: {
+          type: 'Require',
+          requirement: signer
+        }
+      }
+    })
+
+    const result = parseOwnerAccessRule(owner)
+
+    expect(result).toEqual({
+      type: 'AllOf',
+      signers: [{ resourceAddress: ED25519_SIG_RESOURCE, localId: '{hash1}' }]
+    })
+  })
+
+  it('rejects Require with non-NonFungible requirement', () => {
+    const owner = makeOwnerRole({
+      type: 'Protected',
+      access_rule: {
+        type: 'ProofRule',
+        proof_rule: {
+          type: 'Require',
+          requirement: { type: 'Resource', resource: 'resource_rdx1...' }
+        }
+      }
+    })
+    expect(parseOwnerAccessRule(owner)).toBeNull()
+  })
+
   it('rejects AllowAll rule', () => {
     const owner = makeOwnerRole({ type: 'AllowAll' })
     expect(parseOwnerAccessRule(owner)).toBeNull()

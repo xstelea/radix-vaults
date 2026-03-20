@@ -104,5 +104,12 @@ export const parseOwnerAccessRule = (
     return { type: 'AllOf', signers }
   }
 
+  if (proofRule.type === 'Require') {
+    const requirement = (proofRule as { requirement?: unknown }).requirement
+    const signer = parseNonFungible(requirement)
+    if (!signer) return null
+    return { type: 'AllOf', signers: [signer] }
+  }
+
   return null
 }
