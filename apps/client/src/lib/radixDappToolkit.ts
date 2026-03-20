@@ -19,6 +19,12 @@ export class RadixDappToolkit extends Context.Tag('RadixDappToolkit')<
   static Live = Layer.scoped(
     this,
     Effect.gen(function* () {
+      if (typeof window === 'undefined') {
+        return RadixDappToolkit.of(
+          yield* Ref.make(null as unknown as RadixDappToolkitFactory)
+        )
+      }
+
       const rdt = RadixDappToolkitFactory({
         networkId: NETWORK_ID,
         dAppDefinitionAddress: DAPP_DEFINITION_ADDRESS,

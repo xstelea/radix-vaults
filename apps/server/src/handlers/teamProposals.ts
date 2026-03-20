@@ -286,6 +286,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
               badgeResource: badgeAddress,
               recipientAccount: input.accountAddress,
               name: input.name,
+              teamId,
               virtualBadge: input.virtualBadge,
               badgeRoleEntry: {
                 entityAddress: badgeAddress,
@@ -304,7 +305,7 @@ export class TeamProposalsHandler extends Effect.Service<TeamProposalsHandler>()
           // 8. Insert unconfirmed member (optimistic)
           yield* teamRepo
             .addMember(teamId, input.accountAddress, false)
-            .pipe(Effect.catchAll(() => Effect.void))
+            .pipe(Effect.catchAllCause(() => Effect.void))
 
           // 9. Preview, build subintent, store
           return yield* buildSubintentAndStore(

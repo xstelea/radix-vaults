@@ -22,8 +22,14 @@ const runtime = makeAtomRuntime(
   )
 )
 
+interface ProposalListKey {
+  readonly teamId: string
+  readonly vaultAddress: VaultAddress
+}
+export const ProposalListKey = Data.case<ProposalListKey>()
+
 export const proposalListAtom = Atom.family(
-  ({ teamId, vaultAddress }: { teamId: string; vaultAddress: VaultAddress }) =>
+  ({ teamId, vaultAddress }: ProposalListKey) =>
     runtime
       .atom(
         Effect.gen(function* () {
@@ -31,10 +37,7 @@ export const proposalListAtom = Atom.family(
           return yield* svc.list(teamId, vaultAddress)
         })
       )
-      .pipe(
-        Atom.withLabel(`proposalListAtom(${teamId}:${vaultAddress})`),
-        Atom.keepAlive
-      )
+      .pipe(Atom.withLabel(`proposalListAtom(${teamId}:${vaultAddress})`))
 )
 
 export class CreateProposalError extends Data.TaggedError(
@@ -189,7 +192,6 @@ export const proposalDetailAtom = Atom.family(
       .pipe(
         Atom.withLabel(
           `proposalDetailAtom(${teamId}:${vaultAddress}:${proposalId})`
-        ),
-        Atom.keepAlive
+        )
       )
 )

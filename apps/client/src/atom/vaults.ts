@@ -23,7 +23,7 @@ export const vaultsListAtom = Atom.family((teamId: string) =>
         return yield* svc.list(teamId)
       })
     )
-    .pipe(Atom.withLabel(`vaultsListAtom(${teamId})`), Atom.keepAlive)
+    .pipe(Atom.withLabel(`vaultsListAtom(${teamId})`))
 )
 
 export const createVault = runtime.fn(
@@ -75,9 +75,6 @@ export const vaultReadAtom = Atom.family(
           })
         })
       )
-      .pipe(
-        Atom.withLabel(`vaultReadAtom(${teamId}:${vaultAddress})`),
-        Atom.keepAlive
-      )
+      .pipe(Atom.withLabel(`vaultReadAtom(${teamId}:${vaultAddress})`))
 )
 export { VaultReadKey }

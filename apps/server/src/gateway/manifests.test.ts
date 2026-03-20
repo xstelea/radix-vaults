@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAddMemberManifest,
   buildChangeThresholdManifest,
   buildCreateTeamBadgeManifest,
   buildRemoveMemberManifest
@@ -79,6 +80,38 @@ describe('buildCreateTeamBadgeManifest', () => {
     // Count occurrences of WellKnown(12) = Enum<0u8>(12u8) in the type_kinds array
     const wellKnownMatches = manifest.match(/Enum<0u8>\(12u8\)/g)
     expect(wellKnownMatches).toHaveLength(3)
+  })
+})
+
+describe('buildAddMemberManifest', () => {
+  it('mints NFT with 3-field tuple matching on-ledger schema', async () => {
+    const manifest = await buildAddMemberManifest({
+      badgeResource: 'resource_tdx_2_badge_res',
+      recipientAccount: 'account_tdx_2_recipient',
+      name: 'NewMember',
+      teamId: 'team-uuid-123',
+      virtualBadge:
+        'resource_tdx_2_1nfxxxxxxxxxxed25sgxxxxxxxxx002236757237xxxxxxxxx3e2cpa:[abcdef]',
+      badgeRoleEntry: {
+        entityAddress: 'resource_tdx_2_badge_res',
+        signers: [
+          {
+            resourceAddress:
+              'resource_tdx_2_1nfxxxxxxxxxxed25519_xxxxxxxxxxxxxxxxxxxx',
+            localId: '[aaa111]'
+          }
+        ],
+        threshold: 1
+      },
+      vaultRoleEntries: [],
+      networkId: 2
+    })
+
+    expect(manifest).toContain('MINT_NON_FUNGIBLE')
+    expect(manifest).toContain('"NewMember"')
+    expect(manifest).toContain('"team-uuid-123"')
+    // All 3 fields in order: name, teamId, virtualBadge
+    expect(manifest).toMatch(/"NewMember", "team-uuid-123", "resource_tdx_2/)
   })
 })
 

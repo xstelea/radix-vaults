@@ -3,7 +3,11 @@ import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
-import { createProposal, proposalListAtom } from '@/atom/proposals'
+import {
+  createProposal,
+  ProposalListKey,
+  proposalListAtom
+} from '@/atom/proposals'
 import { VaultReadKey, vaultReadAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,7 +29,7 @@ function NewProposalPage() {
   const navigate = useNavigate()
   const vaultAddress = VaultAddress.make(vaultId)
   const refreshProposals = useAtomRefresh(
-    proposalListAtom({ teamId, vaultAddress })
+    proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
   )
   const refreshVault = useAtomRefresh(
     vaultReadAtom(VaultReadKey({ teamId, vaultAddress }))

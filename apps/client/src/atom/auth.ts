@@ -12,4 +12,4 @@ export const sessionAtom = runtime
       return yield* auth.getSession()
     })
   )
-  .pipe(Atom.withLabel('sessionAtom'), Atom.keepAlive)
+  .pipe(Atom.withLabel('sessionAtom'))

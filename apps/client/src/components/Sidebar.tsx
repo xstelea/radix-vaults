@@ -1,5 +1,8 @@
 import { Link, useMatches } from '@tanstack/react-router'
-import { Home, Users, FileText, X, Shield, LayoutDashboard } from 'lucide-react'
+import { Result, useAtomValue } from '@effect-atom/atom-react'
+import { Users, FileText, X, Shield, ChevronRight, Plus } from 'lucide-react'
+import { teamsListAtom } from '@/atom/teams'
+import { vaultsListAtom } from '@/atom/vaults'
 
 export function Sidebar({
   open,
@@ -15,10 +18,19 @@ export function Sidebar({
   )
   const teamId = (teamMatch?.params as { teamId?: string })?.teamId
 
+  const teamsResult = useAtomValue(teamsListAtom)
+
+  const activeExpandedTeamId = teamId
+
   const vaultMatch = matches.find(
     (m) => (m.params as { vaultId?: string }).vaultId
   )
   const vaultId = (vaultMatch?.params as { vaultId?: string })?.vaultId
+
+  const teams =
+    Result.builder(teamsResult)
+      .onSuccess((t) => t)
+      .render() ?? []
 
   return (
     <>
@@ -87,68 +99,99 @@ export function Sidebar({
         </div>
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 px-3 py-1 space-y-0.5">
-          {/* Home — always visible */}
-          <Link
-            to="/"
-            onClick={onClose}
-            className={`sidebar-nav-item${
-              matches[matches.length - 1]?.routeId === '/' ? ' active' : ''
-            }`}
-            style={{ animation: 'slide-in 300ms ease 0ms both' }}
-          >
-            <Home className="sidebar-nav-icon" />
-            Home
-          </Link>
-
-          {/* Dashboard, Vaults & Team — only when inside a team */}
-          {teamId && (
+        <nav className="flex-1 px-3 py-1 space-y-0.5 overflow-y-auto">
+          {/* ── My Teams ── */}
+          {teams.length > 0 && (
             <>
+              <div className="sidebar-section-label">My teams</div>
+              <div
+                className="mx-2 mb-1 h-px"
+                style={{
+                  background:
+                    'linear-gradient(90deg, oklch(0.25 0.01 155), transparent)'
+                }}
+              />
+              {teams.map((team) => {
+                const isExpanded = activeExpandedTeamId === team.teamId
+                const isActiveTeam = teamId === team.teamId
+                return (
+                  <div
+                    key={team.teamId}
+                    className={
+                      isExpanded
+                        ? 'sidebar-team-group expanded'
+                        : 'sidebar-team-group'
+                    }
+                  >
+                    <Link
+                      to="/teams/$teamId"
+                      params={{ teamId: team.teamId }}
+                      onClick={onClose}
+                      className={`sidebar-nav-item sidebar-team-toggle${
+                        isActiveTeam ? ' active' : ''
+                      }`}
+                    >
+                      <ChevronRight
+                        className={`sidebar-nav-icon sidebar-chevron${
+                          isExpanded ? ' expanded' : ''
+                        }`}
+                      />
+                      <Users className="sidebar-nav-icon" />
+                      <span className="truncate">{team.name}</span>
+                    </Link>
+                    {isExpanded && (
+                      <>
+                        <Link
+                          to="/teams/$teamId/vaults"
+                          params={{ teamId: team.teamId }}
+                          onClick={onClose}
+                          className={`sidebar-nav-item sidebar-nav-nested${
+                            isActiveTeam &&
+                            matches.some((m) =>
+                              m.fullPath.startsWith('/teams/$teamId/vaults')
+                            )
+                              ? ' active'
+                              : ''
+                          }`}
+                        >
+                          Vaults
+                        </Link>
+                        <TeamVaults
+                          teamId={team.teamId}
+                          activeVaultId={isActiveTeam ? vaultId : undefined}
+                          onClose={onClose}
+                        />
+                        <Link
+                          to="/teams/$teamId/team"
+                          params={{ teamId: team.teamId }}
+                          onClick={onClose}
+                          className={`sidebar-nav-item sidebar-nav-nested${
+                            isActiveTeam &&
+                            matches.some((m) =>
+                              m.fullPath.startsWith('/teams/$teamId/team')
+                            )
+                              ? ' active'
+                              : ''
+                          }`}
+                        >
+                          Members
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
               <Link
-                to="/teams/$teamId"
-                params={{ teamId }}
+                to="/teams/create"
                 onClick={onClose}
                 className={`sidebar-nav-item${
-                  matches[matches.length - 1]?.fullPath === '/teams/$teamId/'
+                  matches.some((m) => m.fullPath === '/teams/create')
                     ? ' active'
                     : ''
                 }`}
-                style={{ animation: 'slide-in 300ms ease 50ms both' }}
               >
-                <LayoutDashboard className="sidebar-nav-icon" />
-                Dashboard
-              </Link>
-              <Link
-                to="/teams/$teamId/vaults"
-                params={{ teamId }}
-                onClick={onClose}
-                className={`sidebar-nav-item${
-                  matches.some((m) =>
-                    m.fullPath.startsWith('/teams/$teamId/vaults')
-                  )
-                    ? ' active'
-                    : ''
-                }`}
-                style={{ animation: 'slide-in 300ms ease 100ms both' }}
-              >
-                <Shield className="sidebar-nav-icon" />
-                Vaults
-              </Link>
-              <Link
-                to="/teams/$teamId/team"
-                params={{ teamId }}
-                onClick={onClose}
-                className={`sidebar-nav-item${
-                  matches.some((m) =>
-                    m.fullPath.startsWith('/teams/$teamId/team')
-                  )
-                    ? ' active'
-                    : ''
-                }`}
-                style={{ animation: 'slide-in 300ms ease 150ms both' }}
-              >
-                <Users className="sidebar-nav-icon" />
-                Team
+                <Plus className="sidebar-nav-icon" />
+                Create team
               </Link>
             </>
           )}
@@ -191,6 +234,42 @@ export function Sidebar({
           </div>
         )}
       </aside>
+    </>
+  )
+}
+
+function TeamVaults({
+  teamId,
+  activeVaultId,
+  onClose
+}: {
+  teamId: string
+  activeVaultId: string | undefined
+  onClose: () => void
+}) {
+  const vaultsResult = useAtomValue(vaultsListAtom(teamId))
+  const vaults =
+    Result.builder(vaultsResult)
+      .onSuccess((v) => v)
+      .render() ?? []
+
+  if (vaults.length === 0) return null
+
+  return (
+    <>
+      {vaults.map((vault) => (
+        <Link
+          key={vault.accountAddress}
+          to="/teams/$teamId/vaults/$vaultId"
+          params={{ teamId, vaultId: vault.accountAddress }}
+          onClick={onClose}
+          className={`sidebar-nav-item sidebar-nav-vault${
+            activeVaultId === vault.accountAddress ? ' active' : ''
+          }`}
+        >
+          <span className="truncate">{vault.name}</span>
+        </Link>
+      ))}
     </>
   )
 }

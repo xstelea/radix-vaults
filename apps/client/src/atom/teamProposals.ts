@@ -30,7 +30,7 @@ export const teamProposalListAtom = Atom.family((teamId: string) =>
         return yield* svc.listProposals(teamId)
       })
     )
-    .pipe(Atom.withLabel(`teamProposalListAtom(${teamId})`), Atom.keepAlive)
+    .pipe(Atom.withLabel(`teamProposalListAtom(${teamId})`))
 )
 
 export class CreateTeamProposalError extends Data.TaggedError(
@@ -210,8 +210,5 @@ export const teamProposalDetailAtom = Atom.family(
           return yield* svc.getProposalDetail(teamId, proposalId)
         })
       )
-      .pipe(
-        Atom.withLabel(`teamProposalDetailAtom(${teamId}:${proposalId})`),
-        Atom.keepAlive
-      )
+      .pipe(Atom.withLabel(`teamProposalDetailAtom(${teamId}:${proposalId})`))
 )

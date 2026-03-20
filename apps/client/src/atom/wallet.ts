@@ -6,6 +6,7 @@ import { AppApiClient } from '@/lib/apiClient'
 import { RadixDappToolkit } from '@/lib/radixDappToolkit'
 import { AuthService } from '@/services/auth'
 import { sessionAtom } from '@/atom/auth'
+import { teamsListAtom } from '@/atom/teams'
 
 const runtime = Atom.runtime(
   Layer.merge(
@@ -62,13 +63,14 @@ export const rolaVerificationAtom = runtime
             )
           )
           get.refresh(sessionAtom)
+          get.refresh(teamsListAtom)
         }).pipe(Effect.catchAll(() => Effect.void))
       )
 
       return undefined as void
     })
   )
-  .pipe(Atom.withLabel('rolaVerificationAtom'), Atom.keepAlive)
+  .pipe(Atom.withLabel('rolaVerificationAtom'))
 
 export const disconnectSyncAtom = runtime
   .atom(
@@ -96,6 +98,7 @@ export const disconnectSyncAtom = runtime
             const auth = yield* AuthService
             yield* auth.logout()
             get.refresh(sessionAtom)
+            get.refresh(teamsListAtom)
           }
         }).pipe(Effect.catchAll(() => Effect.void))
       )
@@ -103,4 +106,4 @@ export const disconnectSyncAtom = runtime
       return undefined as void
     })
   )
-  .pipe(Atom.withLabel('disconnectSyncAtom'), Atom.keepAlive)
+  .pipe(Atom.withLabel('disconnectSyncAtom'))

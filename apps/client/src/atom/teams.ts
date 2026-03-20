@@ -19,9 +19,9 @@ export const teamsListAtom = runtime
     Effect.gen(function* () {
       const svc = yield* TeamsService
       return yield* svc.list()
-    })
+    }).pipe(Effect.catchTag('Unauthorized', () => Effect.succeed([])))
   )
-  .pipe(Atom.withLabel('teamsListAtom'), Atom.keepAlive)
+  .pipe(Atom.withLabel('teamsListAtom'))
 
 export const createTeam = runtime.fn(
   (args: { name: string; virtualBadge: string; memberName: string }) =>

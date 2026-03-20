@@ -6,7 +6,7 @@ import {
   ClientOnly,
   useNavigate
 } from '@tanstack/react-router'
-import { proposalListAtom } from '@/atom/proposals'
+import { ProposalListKey, proposalListAtom } from '@/atom/proposals'
 import { VaultReadKey, vaultReadAtom } from '@/atom/vaults'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -221,7 +221,7 @@ function ProposalListSection() {
   const { teamId, vaultId } = Route.useParams()
   const navigate = useNavigate()
   const vaultAddress = VaultAddress.make(vaultId)
-  const listAtom = proposalListAtom({ teamId, vaultAddress })
+  const listAtom = proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
   const listResult = useAtomValue(listAtom)
 
   return Result.builder(listResult)

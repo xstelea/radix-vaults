@@ -13,5 +13,5 @@ export const pendingProposalsAtom = Atom.family((teamId: string) =>
         return yield* svc.listPending(teamId)
       })
     )
-    .pipe(Atom.withLabel(`pendingProposalsAtom(${teamId})`), Atom.keepAlive)
+    .pipe(Atom.withLabel(`pendingProposalsAtom(${teamId})`))
 )

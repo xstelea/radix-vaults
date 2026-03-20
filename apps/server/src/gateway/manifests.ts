@@ -137,6 +137,7 @@ export async function buildAddMemberManifest(input: {
   badgeResource: string
   recipientAccount: string
   name: string
+  teamId: string
   virtualBadge: string
   badgeRoleEntry: SetOwnerRoleEntry
   vaultRoleEntries: ReadonlyArray<SetOwnerRoleEntry>
@@ -154,7 +155,7 @@ export async function buildAddMemberManifest(input: {
   return `MINT_NON_FUNGIBLE
     Address("${input.badgeResource}")
     Map<NonFungibleLocalId, Tuple>(
-        NonFungibleLocalId("${localId}") => Tuple(Tuple("${input.name}", "${input.virtualBadge}"))
+        NonFungibleLocalId("${localId}") => Tuple(Tuple("${input.name}", "${input.teamId}", "${input.virtualBadge}"))
     )
 ;
 TAKE_ALL_FROM_WORKTOP
