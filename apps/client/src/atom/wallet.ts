@@ -13,7 +13,7 @@ const runtime = Atom.runtime(
     RadixDappToolkit.Live.pipe(Layer.provide(AppApiClient.Default)),
     AuthService.Default
   )
-)
+).pipe(Atom.keepAlive)
 
 export const rolaVerificationAtom = runtime
   .atom(
