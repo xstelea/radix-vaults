@@ -1,4 +1,4 @@
-import type { VaultAddress } from '@radix-vaults/shared'
+import { TeamId, type VaultAddress } from '@radix-vaults/shared'
 import { Effect } from 'effect'
 import { AppApiClient } from '@/lib/apiClient'
 import { GatewayService } from '@/services/gateway'
@@ -11,19 +11,28 @@ export class VaultService extends Effect.Service<VaultService>()(
       const client = yield* AppApiClient
       const gateway = yield* GatewayService
       return {
-        list: () => client.vaults.list(),
-        getDetail: (vaultAddress: VaultAddress) =>
-          client.vaults.detail({ path: { vaultAddress } }),
-        getSigners: (vaultAddress: VaultAddress) =>
+        list: (teamId: string) =>
+          client.vaults.list({ path: { teamId: TeamId.make(teamId) } }),
+        getDetail: (teamId: string, vaultAddress: VaultAddress) =>
+          client.vaults.detail({
+            path: { teamId: TeamId.make(teamId), vaultAddress }
+          }),
+        getSigners: (_teamId: string, vaultAddress: VaultAddress) =>
           gateway.getVaultSigners(vaultAddress),
-        importVault: (accountAddress: VaultAddress, name: string) =>
+        importVault: (
+          teamId: string,
+          accountAddress: VaultAddress,
+          name: string
+        ) =>
           client.vaults.importVault({
+            path: { teamId: TeamId.make(teamId) },
             payload: { accountAddress, name }
           }),
-        getVaultBalanceXrd: (vaultAddress: VaultAddress) =>
+        getVaultBalanceXrd: (_teamId: string, vaultAddress: VaultAddress) =>
           gateway.getVaultBalanceXrd(vaultAddress),
-        createVault: (name: string, threshold: number) =>
+        createVault: (teamId: string, name: string, threshold: number) =>
           client.vaults.createVault({
+            path: { teamId: TeamId.make(teamId) },
             payload: { name, threshold }
           })
       }

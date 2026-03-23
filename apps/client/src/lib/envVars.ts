@@ -10,6 +10,12 @@ class EnvVars extends Schema.Class<EnvVars>('EnvVars')({
   }),
   API_BASE_URL: Schema.String.annotations({
     decodingFallback: () => Either.right('http://localhost:3001')
+  }),
+  DAPP_DEFINITION_ADDRESS: Schema.String.annotations({
+    decodingFallback: () =>
+      Either.right(
+        'account_tdx_2_12yf9gd53yfep7a669fv2t3wm7nz9zeezwd04n02a433ker8vza6rhe'
+      )
   })
 }) {}
 
@@ -17,7 +23,8 @@ const isVitest = typeof import.meta.env.VITEST !== 'undefined'
 
 const vitestMockEnvVars: typeof EnvVars.Encoded = {
   ENV: 'dev',
-  API_BASE_URL: ''
+  API_BASE_URL: '',
+  DAPP_DEFINITION_ADDRESS: ''
 }
 
 export const envVars = pipe(
@@ -25,7 +32,9 @@ export const envVars = pipe(
     onTrue: constant(vitestMockEnvVars),
     onFalse: constant({
       ENV: import.meta.env.VITE_ENV as unknown,
-      API_BASE_URL: import.meta.env.VITE_API_BASE_URL as unknown
+      API_BASE_URL: import.meta.env.VITE_API_BASE_URL as unknown,
+      DAPP_DEFINITION_ADDRESS: import.meta.env
+        .VITE_DAPP_DEFINITION_ADDRESS as unknown
     } satisfies Record<keyof typeof EnvVars.Encoded, unknown>)
   }),
   Schema.decodeUnknownEither(EnvVars),

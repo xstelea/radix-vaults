@@ -37,7 +37,9 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/team/proposals/$proposalId')({
+export const Route = createFileRoute(
+  '/teams/$teamId/team/proposals/$proposalId'
+)({
   component: TeamProposalDetailPage
 })
 
@@ -65,7 +67,7 @@ const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 const TERMINAL_STATUSES = new Set(['committed', 'failed', 'expired', 'invalid'])
 
 function TeamProposalDetailPage() {
-  const { proposalId } = Route.useParams()
+  const { teamId, proposalId } = Route.useParams()
 
   return (
     <main className="max-w-5xl space-y-6">
@@ -74,11 +76,19 @@ function TeamProposalDetailPage() {
           Home
         </Link>
         <span className="mx-2">/</span>
-        <Link to="/team" className="hover:text-foreground">
+        <Link
+          to="/teams/$teamId/team"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
           Team
         </Link>
         <span className="mx-2">/</span>
-        <Link to="/team/proposals" className="hover:text-foreground">
+        <Link
+          to="/teams/$teamId/team/proposals"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
           Proposals
         </Link>
         <span className="mx-2">/</span>
@@ -100,16 +110,17 @@ function TeamProposalDetailPage() {
           </Card>
         }
       >
-        <TeamProposalDetailContent />
+        <TeamProposalDetailContent teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
-function TeamProposalDetailContent() {
+function TeamProposalDetailContent({ teamId }: { teamId: string }) {
   const { proposalId } = Route.useParams()
   const detailAtom = teamProposalDetailAtom(
     TeamProposalDetailKey({
+      teamId,
       proposalId: ProposalId.make(Number(proposalId))
     })
   )
@@ -213,11 +224,16 @@ function TeamProposalDetailContent() {
           </Card>
         )}
 
-        <SignatureProgressCard proposal={proposal} onSigned={refresh} />
-        <SubmitCard proposal={proposal} onSubmitted={refresh} />
+        <SignatureProgressCard
+          teamId={teamId}
+          proposal={proposal}
+          onSigned={refresh}
+        />
+        <SubmitCard teamId={teamId} proposal={proposal} onSubmitted={refresh} />
 
         {proposal.transactionIntentHash && (
           <TransactionInfoCard
+            teamId={teamId}
             proposal={proposal}
             onStatusRefreshed={refresh}
           />
@@ -246,9 +262,11 @@ function TeamProposalDetailContent() {
 }
 
 function SignatureProgressCard({
+  teamId,
   proposal,
   onSigned
 }: {
+  teamId: string
   proposal: TeamProposalDetail
   onSigned: () => void
 }) {
@@ -269,6 +287,7 @@ function SignatureProgressCard({
     setSigning(true)
     try {
       const exit = await dispatch({
+        teamId,
         proposalId: proposal.id,
         proposal
       })
@@ -331,9 +350,11 @@ function SignatureProgressCard({
 }
 
 function SubmitCard({
+  teamId,
   proposal,
   onSubmitted
 }: {
+  teamId: string
   proposal: TeamProposalDetail
   onSubmitted: () => void
 }) {
@@ -352,7 +373,7 @@ function SubmitCard({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const exit = await dispatch({ proposalId: proposal.id })
+      const exit = await dispatch({ teamId, proposalId: proposal.id })
       Exit.match(exit, {
         onSuccess: () => onSubmitted(),
         onFailure: () => {}
@@ -381,9 +402,11 @@ function SubmitCard({
 }
 
 function TransactionInfoCard({
+  teamId,
   proposal,
   onStatusRefreshed
 }: {
+  teamId: string
   proposal: TeamProposalDetail
   onStatusRefreshed: () => void
 }) {
@@ -404,7 +427,7 @@ function TransactionInfoCard({
   const handleCheckStatus = useCallback(async () => {
     setChecking(true)
     try {
-      const exit = await dispatch({ proposalId: proposal.id })
+      const exit = await dispatch({ teamId, proposalId: proposal.id })
       Exit.match(exit, {
         onSuccess: () => onStatusRefreshed(),
         onFailure: () => {}

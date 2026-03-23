@@ -20,11 +20,12 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/team/')({
+export const Route = createFileRoute('/teams/$teamId/team/')({
   component: TeamPage
 })
 
 function TeamPage() {
+  const { teamId } = Route.useParams()
   return (
     <main className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -36,10 +37,10 @@ function TeamPage() {
           <span className="text-foreground font-medium">Team</span>
         </nav>
         <div className="flex gap-2">
-          <Link to="/team/proposals">
+          <Link to="/teams/$teamId/team/proposals" params={{ teamId }}>
             <Button variant="outline">Team Proposals</Button>
           </Link>
-          <Link to="/team/add-member">
+          <Link to="/teams/$teamId/team/add-member" params={{ teamId }}>
             <Button>Add Member</Button>
           </Link>
           <ClientOnly
@@ -55,14 +56,15 @@ function TeamPage() {
       </div>
 
       <ClientOnly fallback={<TeamSkeleton />}>
-        <TeamContent />
+        <TeamContent teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
 function RefreshTeamButton() {
-  const refresh = useAtomRefresh(teamOverviewAtom)
+  const { teamId } = Route.useParams()
+  const refresh = useAtomRefresh(teamOverviewAtom(teamId))
   return (
     <Button variant="outline" onClick={refresh}>
       Refresh
@@ -70,9 +72,9 @@ function RefreshTeamButton() {
   )
 }
 
-function TeamContent() {
-  const result = useAtomValue(teamOverviewAtom)
-  const refresh = useAtomRefresh(teamOverviewAtom)
+function TeamContent({ teamId }: { teamId: string }) {
+  const result = useAtomValue(teamOverviewAtom(teamId))
+  const refresh = useAtomRefresh(teamOverviewAtom(teamId))
 
   return Result.builder(result)
     .onInitialOrWaiting(() => <TeamSkeleton />)
@@ -190,7 +192,8 @@ function TeamContent() {
                     </TableCell>
                     <TableCell>
                       <Link
-                        to="/team/remove-member"
+                        to="/teams/$teamId/team/remove-member"
+                        params={{ teamId }}
                         search={{
                           address: holder.holderAddress
                         }}
@@ -206,6 +209,44 @@ function TeamContent() {
             </Table>
           </CardContent>
         </Card>
+
+        {overview.pendingMembers.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader>
+              <CardTitle>Pending Members</CardTitle>
+              <CardDescription>
+                Members awaiting on-chain confirmation of their add-member
+                proposal.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Account Address</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Added</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {overview.pendingMembers.map((member) => (
+                    <TableRow key={member.accountAddress}>
+                      <TableCell className="font-mono text-xs">
+                        {member.accountAddress}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">Pending</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(member.createdAt).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </>
     ))
     .render()

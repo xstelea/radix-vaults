@@ -13,6 +13,8 @@ import { PgContainer } from '../test/PgContainer'
 import { VaultNotFoundError } from '@radix-vaults/shared'
 import { ListVaultsRepo } from './listVaultsRepo'
 
+const testTeamId = '00000000-0000-0000-0000-000000000001'
+
 const resolveMigrationsFolder = () => {
   const candidates = [
     'packages/database/drizzle',
@@ -46,24 +48,30 @@ const seedVaultRows = Effect.gen(function* () {
 
   yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
   yield* sql`TRUNCATE TABLE vaults CASCADE`
+  yield* sql`TRUNCATE TABLE teams CASCADE`
 
   yield* sql`
-    INSERT INTO vaults (account_address, name, created_at)
-    VALUES
-      ('account_tdx_2_1qalpha', 'Alpha Vault', '2026-01-01T00:00:00Z'::timestamptz),
-      ('account_tdx_2_1qbeta', 'Beta Vault', '2026-01-02T00:00:00Z'::timestamptz),
-      ('account_tdx_2_1qgamma', 'Gamma Vault', '2026-01-03T00:00:00Z'::timestamptz)
+    INSERT INTO teams (id, name, badge_address)
+    VALUES (${testTeamId}, 'Test Team', 'resource_tdx_2_1test_badge')
   `
 
   yield* sql`
-    INSERT INTO proposals (entity_address, type, status, manifest, max_proposer_timestamp, created_by, intent_discriminator, epoch_min, epoch_max)
+    INSERT INTO vaults (team_id, account_address, name, created_at)
     VALUES
-      ('account_tdx_2_1qalpha', 'vault', 'created', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '1', 100, 200),
-      ('account_tdx_2_1qalpha', 'vault', 'ready', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '2', 100, 200),
-      ('account_tdx_2_1qalpha', 'vault', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '3', 100, 200),
-      ('account_tdx_2_1qbeta', 'vault', 'signing', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '4', 100, 200),
-      ('account_tdx_2_1qbeta', 'vault', 'failed', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '5', 100, 200),
-      ('account_tdx_2_1qgamma', 'vault', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '6', 100, 200)
+      (${testTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault', '2026-01-01T00:00:00Z'::timestamptz),
+      (${testTeamId}, 'account_tdx_2_1qbeta', 'Beta Vault', '2026-01-02T00:00:00Z'::timestamptz),
+      (${testTeamId}, 'account_tdx_2_1qgamma', 'Gamma Vault', '2026-01-03T00:00:00Z'::timestamptz)
+  `
+
+  yield* sql`
+    INSERT INTO proposals (team_id, entity_address, type, status, manifest, max_proposer_timestamp, created_by, intent_discriminator, epoch_min, epoch_max)
+    VALUES
+      (${testTeamId}, 'account_tdx_2_1qalpha', 'vault', 'created', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '1', 100, 200),
+      (${testTeamId}, 'account_tdx_2_1qalpha', 'vault', 'ready', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '2', 100, 200),
+      (${testTeamId}, 'account_tdx_2_1qalpha', 'vault', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '3', 100, 200),
+      (${testTeamId}, 'account_tdx_2_1qbeta', 'vault', 'signing', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '4', 100, 200),
+      (${testTeamId}, 'account_tdx_2_1qbeta', 'vault', 'failed', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '5', 100, 200),
+      (${testTeamId}, 'account_tdx_2_1qgamma', 'vault', 'submitted', 'CALL_METHOD ...', '2026-12-31T23:59:59', 'account_tdx_2_1qcreator', '6', 100, 200)
   `
 })
 
@@ -81,7 +89,7 @@ const runWithRepo = <A>(
   )
 
 const listFromRepo = (pgClientLayer: ReturnType<typeof PgClient.layer>) =>
-  runWithRepo(pgClientLayer, (repo) => repo.list())
+  runWithRepo(pgClientLayer, (repo) => repo.list(testTeamId))
 
 describe('ListVaultsRepo', () => {
   it.scopedLive(
@@ -126,11 +134,71 @@ describe('ListVaultsRepo', () => {
         yield* seedVaultRows.pipe(Effect.provide(pgClientLayer))
 
         const detail = yield* runWithRepo(pgClientLayer, (repo) =>
-          repo.getDetailBase(VaultAddress.make('account_tdx_2_1qalpha'))
+          repo.getDetailBase(
+            testTeamId,
+            VaultAddress.make('account_tdx_2_1qalpha')
+          )
         )
 
         expect(detail.name).toBe('Alpha Vault')
         expect(detail.pendingProposalCount).toBe(2)
+      }).pipe(Effect.provide(PgContainer.Default)),
+    90_000
+  )
+
+  it.scopedLive(
+    'lists only vaults belonging to the given team',
+    () =>
+      Effect.gen(function* () {
+        const container = yield* PgContainer
+        const connectionUri = container.getConnectionUri()
+        const pgClientLayer = PgClient.layer({
+          url: Redacted.make(connectionUri)
+        })
+
+        yield* runMigrations(connectionUri)
+
+        const otherTeamId = '00000000-0000-0000-0000-000000000002'
+
+        // Seed two teams with different vaults
+        yield* Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient
+          yield* sql`TRUNCATE TABLE proposals RESTART IDENTITY CASCADE`
+          yield* sql`TRUNCATE TABLE vaults CASCADE`
+          yield* sql`TRUNCATE TABLE teams CASCADE`
+          yield* sql`
+            INSERT INTO teams (id, name, badge_address) VALUES
+              (${testTeamId}, 'Team One', 'resource_tdx_2_1badge_one'),
+              (${otherTeamId}, 'Team Two', 'resource_tdx_2_1badge_two')
+          `
+          yield* sql`
+            INSERT INTO vaults (team_id, account_address, name) VALUES
+              (${testTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault'),
+              (${testTeamId}, 'account_tdx_2_1qbeta', 'Beta Vault'),
+              (${otherTeamId}, 'account_tdx_2_1qgamma', 'Gamma Vault'),
+              (${otherTeamId}, 'account_tdx_2_1qalpha', 'Alpha Vault Copy')
+          `
+        }).pipe(Effect.provide(pgClientLayer))
+
+        // List for team one — should only see Alpha and Beta
+        const teamOneList = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.list(testTeamId)
+        )
+        expect(teamOneList).toHaveLength(2)
+        expect(teamOneList.map((v) => v.name)).toEqual([
+          'Alpha Vault',
+          'Beta Vault'
+        ])
+
+        // List for team two — should only see Gamma and Alpha Copy
+        const teamTwoList = yield* runWithRepo(pgClientLayer, (repo) =>
+          repo.list(otherTeamId)
+        )
+        expect(teamTwoList).toHaveLength(2)
+        expect(teamTwoList.map((v) => v.name).sort()).toEqual([
+          'Alpha Vault Copy',
+          'Gamma Vault'
+        ])
       }).pipe(Effect.provide(PgContainer.Default)),
     90_000
   )
@@ -150,7 +218,10 @@ describe('ListVaultsRepo', () => {
 
         const result = yield* runWithRepo(pgClientLayer, (repo) =>
           Effect.either(
-            repo.ensureExists(VaultAddress.make('account_tdx_2_1qmissing'))
+            repo.ensureExists(
+              testTeamId,
+              VaultAddress.make('account_tdx_2_1qmissing')
+            )
           )
         )
 

@@ -35,6 +35,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
       const db = yield* ORM
 
       const insert = (input: {
+        teamId: string
         entityAddress: string
         type: ProposalType
         manifest: string
@@ -46,10 +47,12 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
         partialTransactionHex: string
         epochMin: number
         epochMax: number
+        targetAccountAddress?: string | undefined
       }) =>
         db
           .insert(proposals)
           .values({
+            teamId: input.teamId,
             entityAddress: input.entityAddress,
             type: input.type,
             status: 'created',
@@ -61,7 +64,8 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             intentDiscriminator: input.intentDiscriminator,
             partialTransactionHex: input.partialTransactionHex,
             epochMin: input.epochMin,
-            epochMax: input.epochMax
+            epochMax: input.epochMax,
+            targetAccountAddress: input.targetAccountAddress ?? null
           })
           .returning()
           .pipe(
@@ -85,7 +89,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      const listByVault = (vaultAddress: VaultAddressType) =>
+      const listByVault = (teamId: string, vaultAddress: VaultAddressType) =>
         db
           .select({
             id: proposals.id,
@@ -97,6 +101,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .from(proposals)
           .where(
             and(
+              eq(proposals.teamId, teamId),
               eq(proposals.entityAddress, vaultAddress),
               eq(proposals.type, 'vault')
             )
@@ -115,6 +120,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           )
 
       const getById = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         proposalId: ProposalId
       ) =>
@@ -124,6 +130,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(
             and(
               eq(proposals.id, proposalId),
+              eq(proposals.teamId, teamId),
               eq(proposals.entityAddress, vaultAddress),
               eq(proposals.type, 'vault')
             )
@@ -156,7 +163,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      const listByTeam = () =>
+      const listByTeam = (teamId: string) =>
         db
           .select({
             id: proposals.id,
@@ -167,7 +174,12 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             createdAt: proposals.createdAt
           })
           .from(proposals)
-          .where(inArray(proposals.type, TEAM_TYPES))
+          .where(
+            and(
+              eq(proposals.teamId, teamId),
+              inArray(proposals.type, TEAM_TYPES)
+            )
+          )
           .orderBy(desc(proposals.createdAt))
           .pipe(
             Effect.map((rows) =>
@@ -182,13 +194,14 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             Effect.catchTags({ SqlError: Effect.die })
           )
 
-      const getByIdTeam = (proposalId: ProposalId) =>
+      const getByIdTeam = (teamId: string, proposalId: ProposalId) =>
         db
           .select()
           .from(proposals)
           .where(
             and(
               eq(proposals.id, proposalId),
+              eq(proposals.teamId, teamId),
               inArray(proposals.type, TEAM_TYPES)
             )
           )
@@ -217,6 +230,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
                 transactionIntentHash: row.transactionIntentHash,
                 submittedAt: row.submittedAt?.toISOString() ?? null,
                 statusReason: row.statusReason ?? null,
+                targetAccountAddress: row.targetAccountAddress ?? null,
                 createdAt: row.createdAt.toISOString()
               })
             }),
@@ -316,7 +330,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
           .where(eq(proposals.id, proposalId))
           .pipe(Effect.catchTags({ SqlError: Effect.die }))
 
-      const listAllPending = () =>
+      const listAllPending = (teamId: string) =>
         Effect.gen(function* () {
           yield* db
             .update(proposals)
@@ -326,6 +340,7 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             })
             .where(
               and(
+                eq(proposals.teamId, teamId),
                 inArray(proposals.status, PENDING_STATUSES),
                 lt(proposals.maxProposerTimestamp, new Date().toISOString())
               )
@@ -345,9 +360,17 @@ export class ProposalRepo extends Effect.Service<ProposalRepo>()(
             .from(proposals)
             .leftJoin(
               vaults,
-              eq(proposals.entityAddress, vaults.accountAddress)
+              and(
+                eq(proposals.entityAddress, vaults.accountAddress),
+                eq(proposals.teamId, vaults.teamId)
+              )
             )
-            .where(inArray(proposals.status, PENDING_STATUSES))
+            .where(
+              and(
+                eq(proposals.teamId, teamId),
+                inArray(proposals.status, PENDING_STATUSES)
+              )
+            )
             .orderBy(desc(proposals.createdAt))
             .pipe(
               Effect.map((rows) =>

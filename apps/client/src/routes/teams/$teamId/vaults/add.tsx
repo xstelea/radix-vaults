@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
+import { VaultAddress } from '@radix-vaults/shared'
 import { Exit } from 'effect'
 import { useState } from 'react'
-import { createVault, vaultsListAtom } from '@/atom/vaults'
+import { importVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -12,16 +13,17 @@ import {
   CardTitle
 } from '@/components/ui/card'
 
-export const Route = createFileRoute('/vaults/create')({
-  component: CreateVaultPage
+export const Route = createFileRoute('/teams/$teamId/vaults/add')({
+  component: AddVaultPage
 })
 
-function CreateVaultPage() {
+function AddVaultPage() {
+  const { teamId } = Route.useParams()
   const navigate = useNavigate()
-  const refreshVaults = useAtomRefresh(vaultsListAtom)
-  const [, dispatch] = useAtom(createVault, { mode: 'promiseExit' })
+  const refreshVaults = useAtomRefresh(vaultsListAtom(teamId))
+  const [, dispatch] = useAtom(importVault, { mode: 'promiseExit' })
+  const [accountAddress, setAccountAddress] = useState('')
   const [name, setName] = useState('')
-  const [threshold, setThreshold] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,27 +32,30 @@ function CreateVaultPage() {
     setError(null)
     setSubmitting(true)
 
-    const exit = await dispatch({ name: name.trim(), threshold })
+    const exit = await dispatch({
+      teamId,
+      accountAddress: VaultAddress.make(accountAddress.trim()),
+      name: name.trim()
+    })
 
     setSubmitting(false)
 
     Exit.match(exit, {
       onFailure: (cause) => {
         const msg = String(cause)
-        if (msg.includes('ThresholdExceedsSignersError')) {
+        if (msg.includes('UnsupportedAccessRuleError')) {
           setError(
-            'Threshold exceeds the number of team signers. Please choose a lower value.'
+            'This account does not have a supported multisig access rule (CountOf or AllOf).'
           )
-        } else if (msg.includes('CreateVaultFailedError')) {
-          const match = msg.match(/message":\s*"([^"]+)"/)
-          setError(match?.[1] ?? 'Vault creation failed. Please try again.')
+        } else if (msg.includes('VaultAlreadyExistsError')) {
+          setError('This vault has already been imported.')
         } else {
-          setError(`Create vault failed: ${msg}`)
+          setError(`Import failed: ${msg}`)
         }
       },
       onSuccess: () => {
         refreshVaults()
-        navigate({ to: '/vaults' })
+        navigate({ to: '/teams/$teamId/vaults', params: { teamId } })
       }
     })
   }
@@ -62,23 +67,42 @@ function CreateVaultPage() {
           Home
         </Link>
         <span className="mx-2">/</span>
-        <Link to="/vaults" className="hover:text-foreground">
+        <Link
+          to="/teams/$teamId/vaults"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
           Vaults
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-foreground font-medium">Create Vault</span>
+        <span className="text-foreground font-medium">Import Vault</span>
       </nav>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Create Vault</CardTitle>
+          <CardTitle className="text-2xl">Import Vault</CardTitle>
           <CardDescription>
-            Create a new multisig vault on-chain. The vault will use your
-            team&apos;s current signer set with the threshold you specify.
+            Import an existing multisig account as a vault. The account must
+            have a supported access rule (CountOf or AllOf of signature badges).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="accountAddress" className="text-sm font-medium">
+                Account Address
+              </label>
+              <input
+                id="accountAddress"
+                type="text"
+                required
+                placeholder="account_tdx_2_1..."
+                value={accountAddress}
+                onChange={(e) => setAccountAddress(e.target.value)}
+                className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              />
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
                 Display Name
@@ -95,25 +119,6 @@ function CreateVaultPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="threshold" className="text-sm font-medium">
-                Signature Threshold
-              </label>
-              <input
-                id="threshold"
-                type="number"
-                required
-                min={1}
-                value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value))}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-              />
-              <p className="text-xs text-muted-foreground">
-                Vault will use your team&apos;s current signer set. The
-                threshold determines how many signatures are required.
-              </p>
-            </div>
-
             {error && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
                 {error}
@@ -122,9 +127,9 @@ function CreateVaultPage() {
 
             <div className="flex gap-3">
               <Button type="submit" disabled={submitting}>
-                {submitting ? 'Creating...' : 'Create Vault'}
+                {submitting ? 'Importing...' : 'Import Vault'}
               </Button>
-              <Link to="/vaults">
+              <Link to="/teams/$teamId/vaults" params={{ teamId }}>
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>

@@ -15,7 +15,6 @@ import {
 import { Config, Effect, Layer, Logger, LogLevel } from 'effect'
 import { flow } from 'effect/Function'
 import { createServer } from 'node:http'
-import { BadgeChecker } from './auth/badgeChecker'
 import { ChallengeStore } from './auth/challengeStore'
 import { RolaVerifier } from './auth/rola'
 import { SessionStore } from './auth/sessionStore'
@@ -30,10 +29,12 @@ import { PgClientLive } from './db/pgClient'
 import { ImportVaultRepo } from './handlers/importVaultRepo'
 import { ListVaultsRepo } from './handlers/listVaultsRepo'
 import { ProposalRepo } from './handlers/proposalRepo'
+import { TeamRepo } from './handlers/teamRepo'
 import { AuthHandlersLive } from './api/authHandlers'
 import { DashboardHandlersLive } from './api/dashboardHandlers'
 import { ProposalHandlersLive } from './api/proposalHandlers'
 import { TeamHandlersLive } from './api/teamHandlers'
+import { TeamsHandlersLive } from './api/teamsHandlers'
 import { TeamProposalHandlersLive } from './api/teamProposalHandlers'
 import { VaultHandlersLive } from './api/vaultHandlers'
 import { SessionMiddlewareLive } from './api/sessionMiddleware'
@@ -57,8 +58,7 @@ const HealthHandlersLive = HttpApiBuilder.group(AppApi, 'health', (handlers) =>
 const AuthServicesLive = Layer.mergeAll(
   ChallengeStore.Default,
   SessionStore.Default,
-  RolaVerifier.Default,
-  BadgeChecker.Default
+  RolaVerifier.Default
 ).pipe(
   Layer.provide(ORM.Default),
   Layer.provide(AuthConfig.Live),
@@ -82,7 +82,8 @@ const GatewayServicesLive = Layer.mergeAll(
 const RepoServicesLive = Layer.mergeAll(
   ListVaultsRepo.Default,
   ImportVaultRepo.Default,
-  ProposalRepo.Default
+  ProposalRepo.Default,
+  TeamRepo.Default
 ).pipe(Layer.provide(ORM.Default))
 
 const ApiLive = HttpApiBuilder.api(AppApi).pipe(
@@ -90,6 +91,7 @@ const ApiLive = HttpApiBuilder.api(AppApi).pipe(
   Layer.provide(AuthHandlersLive),
   Layer.provide(VaultHandlersLive),
   Layer.provide(TeamHandlersLive),
+  Layer.provide(TeamsHandlersLive),
   Layer.provide(ProposalHandlersLive),
   Layer.provide(TeamProposalHandlersLive),
   Layer.provide(DashboardHandlersLive),

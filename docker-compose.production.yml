@@ -30,7 +30,6 @@ services:
       FEE_PAYER_PRIVATE_KEY_HEX: ${FEE_PAYER_PRIVATE_KEY_HEX}
       LOG_LEVEL: ${LOG_LEVEL:-Info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
-      TEAM_MEMBER_BADGE_ADDRESS: ${TEAM_MEMBER_BADGE_ADDRESS}
     depends_on:
       db:
         condition: service_healthy

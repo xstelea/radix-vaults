@@ -2,6 +2,7 @@ import { HttpApiSchema } from '@effect/platform'
 import * as Schema from 'effect/Schema'
 import { EntityAddress } from '../entityAddress'
 import { ProposalId } from '../proposalId'
+import { TeamId } from '../teamId'
 import { VaultAddress } from '../vaultAddress'
 
 export const SignerSchema = Schema.Struct({
@@ -113,13 +114,20 @@ export const BadgeHolderSchema = Schema.Struct({
   keyType: Schema.Literal('ed25519', 'secp256k1')
 })
 
+export const PendingMemberSchema = Schema.Struct({
+  accountAddress: Schema.String,
+  createdAt: Schema.String
+})
+
 export const TeamOverviewSchema = Schema.Struct({
   teamMemberBadgeAddress: Schema.String,
   threshold: Schema.Number,
   signers: Schema.Array(SignerSchema),
-  badgeHolders: Schema.Array(BadgeHolderSchema)
+  badgeHolders: Schema.Array(BadgeHolderSchema),
+  pendingMembers: Schema.Array(PendingMemberSchema)
 })
 
+export type PendingMember = typeof PendingMemberSchema.Type
 export type BadgeHolder = typeof BadgeHolderSchema.Type
 export type TeamOverview = typeof TeamOverviewSchema.Type
 
@@ -432,6 +440,54 @@ export type TeamProposalListItem = typeof TeamProposalListItemSchema.Type
 export type TeamProposalDetail = typeof TeamProposalDetailSchema.Type
 export type TeamProposalCreateResponse =
   typeof TeamProposalCreateResponseSchema.Type
+
+// --- Teams schemas ---
+
+export const CreateTeamRequestSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
+  virtualBadge: Schema.String.pipe(Schema.minLength(1)),
+  memberName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))
+})
+
+export const CreateTeamResponseSchema = Schema.Struct({
+  teamId: Schema.String,
+  name: Schema.String,
+  badgeAddress: Schema.String
+})
+
+export const TeamListItemSchema = Schema.Struct({
+  teamId: Schema.String,
+  name: Schema.String,
+  badgeAddress: Schema.String
+})
+
+export class TeamNotFoundError extends Schema.TaggedError<TeamNotFoundError>()(
+  'TeamNotFoundError',
+  {
+    teamId: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 404 })
+) {}
+
+export class NotATeamMemberError extends Schema.TaggedError<NotATeamMemberError>()(
+  'NotATeamMemberError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 403 })
+) {}
+
+export class CreateTeamFailedError extends Schema.TaggedError<CreateTeamFailedError>()(
+  'CreateTeamFailedError',
+  {
+    message: Schema.String
+  },
+  HttpApiSchema.annotations({ status: 422 })
+) {}
+
+export type CreateTeamRequest = typeof CreateTeamRequestSchema.Type
+export type CreateTeamResponse = typeof CreateTeamResponseSchema.Type
+export type TeamListItem = typeof TeamListItemSchema.Type
 
 // --- Dashboard schemas ---
 

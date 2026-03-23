@@ -66,13 +66,14 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
       const networkId = yield* Config.number('NETWORK_ID')
 
       const create = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         manifest: string,
         maxProposerTimestamp: string,
         createdBy: string
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
 
           yield* previewFn({
             payload: {
@@ -132,6 +133,7 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           ).pipe(Effect.orDie)
 
           const result = yield* proposalRepo.insert({
+            teamId,
             entityAddress: vaultAddress,
             type: 'vault',
             manifest,
@@ -147,13 +149,14 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ...result, vaultAddress }
         })
 
-      const list = (vaultAddress: VaultAddressType) =>
+      const list = (teamId: string, vaultAddress: VaultAddressType) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          return yield* proposalRepo.listByVault(vaultAddress)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
+          return yield* proposalRepo.listByVault(teamId, vaultAddress)
         })
 
       const getSignatureProgress = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         proposalId: ProposalId
       ) =>
@@ -182,13 +185,19 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         })
 
       const getDetail = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
+          const proposal = yield* proposalRepo.getById(
+            teamId,
+            vaultAddress,
+            proposalId
+          )
           const signatureProgress = yield* getSignatureProgress(
+            teamId,
             vaultAddress,
             proposalId
           )
@@ -201,14 +210,19 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         })
 
       const sign = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         proposalId: ProposalId,
         signerAccountAddress: AccountAddress,
         signedPartialTransactionHex: string
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
+          const proposal = yield* proposalRepo.getById(
+            teamId,
+            vaultAddress,
+            proposalId
+          )
 
           if (!SIGNABLE_STATUSES.has(proposal.status)) {
             return yield* new ProposalNotSignableError({
@@ -314,10 +328,18 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
           return { ok: true as const }
         })
 
-      const submit = (vaultAddress: VaultAddressType, proposalId: ProposalId) =>
+      const submit = (
+        teamId: string,
+        vaultAddress: VaultAddressType,
+        proposalId: ProposalId
+      ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
+          const proposal = yield* proposalRepo.getById(
+            teamId,
+            vaultAddress,
+            proposalId
+          )
 
           // Idempotent: if already submitted, return existing hash
           if (
@@ -390,12 +412,17 @@ export class ProposalsHandler extends Effect.Service<ProposalsHandler>()(
         })
 
       const refreshStatus = (
+        teamId: string,
         vaultAddress: VaultAddressType,
         proposalId: ProposalId
       ) =>
         Effect.gen(function* () {
-          yield* listVaultsRepo.ensureExists(vaultAddress)
-          const proposal = yield* proposalRepo.getById(vaultAddress, proposalId)
+          yield* listVaultsRepo.ensureExists(teamId, vaultAddress)
+          const proposal = yield* proposalRepo.getById(
+            teamId,
+            vaultAddress,
+            proposalId
+          )
 
           // Idempotent: if already in terminal state, return current
           if (proposal.status === 'committed' || proposal.status === 'failed') {

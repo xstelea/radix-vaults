@@ -22,14 +22,16 @@ const runtime = makeAtomRuntime(
   )
 )
 
-export const teamProposalListAtom = runtime
-  .atom(
-    Effect.gen(function* () {
-      const svc = yield* TeamService
-      return yield* svc.listProposals()
-    })
-  )
-  .pipe(Atom.withLabel('teamProposalListAtom'), Atom.keepAlive)
+export const teamProposalListAtom = Atom.family((teamId: string) =>
+  runtime
+    .atom(
+      Effect.gen(function* () {
+        const svc = yield* TeamService
+        return yield* svc.listProposals(teamId)
+      })
+    )
+    .pipe(Atom.withLabel(`teamProposalListAtom(${teamId})`))
+)
 
 export class CreateTeamProposalError extends Data.TaggedError(
   'CreateTeamProposalError'
@@ -38,10 +40,10 @@ export class CreateTeamProposalError extends Data.TaggedError(
 }> {}
 
 export const createAddMemberProposal = runtime.fn(
-  (args: { input: AddMemberRequest }) =>
+  (args: { teamId: string; input: AddMemberRequest }) =>
     Effect.gen(function* () {
       const svc = yield* TeamService
-      return yield* svc.addMember(args.input)
+      return yield* svc.addMember(args.teamId, args.input)
     }).pipe(
       disconnectOnUnauthorized,
       Effect.catchTags({
@@ -66,10 +68,10 @@ export const createAddMemberProposal = runtime.fn(
 )
 
 export const createRemoveMemberProposal = runtime.fn(
-  (args: { input: RemoveMemberRequest }) =>
+  (args: { teamId: string; input: RemoveMemberRequest }) =>
     Effect.gen(function* () {
       const svc = yield* TeamService
-      return yield* svc.removeMember(args.input)
+      return yield* svc.removeMember(args.teamId, args.input)
     }).pipe(
       disconnectOnUnauthorized,
       Effect.catchTags({
@@ -96,10 +98,10 @@ export const createRemoveMemberProposal = runtime.fn(
 )
 
 export const createChangeThresholdProposal = runtime.fn(
-  (args: { input: ChangeThresholdRequest }) =>
+  (args: { teamId: string; input: ChangeThresholdRequest }) =>
     Effect.gen(function* () {
       const svc = yield* TeamService
-      return yield* svc.changeThreshold(args.input)
+      return yield* svc.changeThreshold(args.teamId, args.input)
     }).pipe(
       disconnectOnUnauthorized,
       Effect.catchTags({
@@ -122,13 +124,18 @@ export const createChangeThresholdProposal = runtime.fn(
 )
 
 export const signTeamProposal = runtime.fn(
-  (args: { proposalId: ProposalId; proposal: TeamProposalDetail }) =>
+  (args: {
+    teamId: string
+    proposalId: ProposalId
+    proposal: TeamProposalDetail
+  }) =>
     Effect.gen(function* () {
       const signedPartialTransactionHex = yield* requestWalletSignature(
         args.proposal
       )
       const svc = yield* TeamService
       return yield* svc.signProposal(
+        args.teamId,
         args.proposalId,
         signedPartialTransactionHex
       )
@@ -144,10 +151,10 @@ export const signTeamProposal = runtime.fn(
 )
 
 export const submitTeamProposal = runtime.fn(
-  (args: { proposalId: ProposalId }) =>
+  (args: { teamId: string; proposalId: ProposalId }) =>
     Effect.gen(function* () {
       const svc = yield* TeamService
-      return yield* svc.submitProposal(args.proposalId)
+      return yield* svc.submitProposal(args.teamId, args.proposalId)
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -161,10 +168,10 @@ export const submitTeamProposal = runtime.fn(
 )
 
 export const refreshTeamProposalStatus = runtime.fn(
-  (args: { proposalId: ProposalId }) =>
+  (args: { teamId: string; proposalId: ProposalId }) =>
     Effect.gen(function* () {
       const svc = yield* TeamService
-      return yield* svc.refreshProposalStatus(args.proposalId)
+      return yield* svc.refreshProposalStatus(args.teamId, args.proposalId)
     }).pipe(
       disconnectOnUnauthorized,
       withToast({
@@ -189,21 +196,19 @@ export const refreshTeamProposalStatus = runtime.fn(
 )
 
 interface TeamProposalDetailKey {
+  readonly teamId: string
   readonly proposalId: ProposalId
 }
 export const TeamProposalDetailKey = Data.case<TeamProposalDetailKey>()
 
 export const teamProposalDetailAtom = Atom.family(
-  ({ proposalId }: TeamProposalDetailKey) =>
+  ({ teamId, proposalId }: TeamProposalDetailKey) =>
     runtime
       .atom(
         Effect.gen(function* () {
           const svc = yield* TeamService
-          return yield* svc.getProposalDetail(proposalId)
+          return yield* svc.getProposalDetail(teamId, proposalId)
         })
       )
-      .pipe(
-        Atom.withLabel(`teamProposalDetailAtom(${proposalId})`),
-        Atom.keepAlive
-      )
+      .pipe(Atom.withLabel(`teamProposalDetailAtom(${teamId}:${proposalId})`))
 )

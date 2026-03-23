@@ -4,6 +4,7 @@ import {
   useAtomValue,
   Result
 } from '@effect-atom/atom-react'
+import { VaultAddress } from '@radix-vaults/shared'
 import {
   createFileRoute,
   useNavigate,
@@ -11,10 +12,10 @@ import {
   ClientOnly
 } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { teamOverviewAtom } from '@/atom/team'
 import {
-  createRemoveMemberProposal,
+  createAddMemberProposal,
   teamProposalListAtom
 } from '@/atom/teamProposals'
 import { vaultsListAtom } from '@/atom/vaults'
@@ -28,20 +29,12 @@ import {
 } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
-type SearchParams = {
-  address?: string
-}
-
-export const Route = createFileRoute('/team/remove-member')({
-  component: RemoveMemberPage,
-  validateSearch: (search: Record<string, unknown>): SearchParams => {
-    const params: SearchParams = {}
-    if (typeof search.address === 'string') params.address = search.address
-    return params
-  }
+export const Route = createFileRoute('/teams/$teamId/team/add-member')({
+  component: AddMemberPage
 })
 
-function RemoveMemberPage() {
+function AddMemberPage() {
+  const { teamId } = Route.useParams()
   return (
     <main className="max-w-5xl space-y-6">
       <nav className="text-sm text-muted-foreground">
@@ -49,33 +42,38 @@ function RemoveMemberPage() {
           Home
         </Link>
         <span className="mx-2">/</span>
-        <Link to="/team" className="hover:text-foreground">
+        <Link
+          to="/teams/$teamId/team"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
           Team
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-foreground font-medium">Remove Member</span>
+        <span className="text-foreground font-medium">Add Member</span>
       </nav>
 
       <ClientOnly fallback={<Skeleton className="h-96 w-full" />}>
-        <RemoveMemberForm />
+        <AddMemberForm teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
-function RemoveMemberForm() {
-  const { address } = Route.useSearch()
+function AddMemberForm({ teamId }: { teamId: string }) {
   const navigate = useNavigate()
-  const refreshTeam = useAtomRefresh(teamOverviewAtom)
-  const refreshProposals = useAtomRefresh(teamProposalListAtom)
-  const [, dispatch] = useAtom(createRemoveMemberProposal, {
+  const refreshTeam = useAtomRefresh(teamOverviewAtom(teamId))
+  const refreshProposals = useAtomRefresh(teamProposalListAtom(teamId))
+  const [, dispatch] = useAtom(createAddMemberProposal, {
     mode: 'promiseExit'
   })
 
-  const teamResult = useAtomValue(teamOverviewAtom)
-  const vaultsResult = useAtomValue(vaultsListAtom)
+  const teamResult = useAtomValue(teamOverviewAtom(teamId))
+  const vaultsResult = useAtomValue(vaultsListAtom(teamId))
 
-  const [selectedVirtualBadge, setSelectedVirtualBadge] = useState('')
+  const [accountAddress, setAccountAddress] = useState('')
+  const [virtualBadge, setVirtualBadge] = useState('')
+  const [memberName, setMemberName] = useState('')
   const [badgeThreshold, setBadgeThreshold] = useState('')
   const [vaultThresholds, setVaultThresholds] = useState<
     Record<string, string>
@@ -95,35 +93,22 @@ function RemoveMemberForm() {
     .onSuccess((v) => v)
     .render()
 
-  useEffect(() => {
-    if (team && address) {
-      const match = team.badgeHolders.find((h) => h.holderAddress === address)
-      if (match) setSelectedVirtualBadge(match.mfaVirtualResource)
-    }
-  }, [team, address])
-
   if (!team || !vaults) {
     return <Skeleton className="h-96 w-full" />
   }
-
-  const selectedHolder = team.badgeHolders.find(
-    (h) => h.mfaVirtualResource === selectedVirtualBadge
-  )
-  const newSignerCount = Math.max(team.signers.length - 1, 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
 
-    if (!selectedHolder) return
-
     const exit = await dispatch({
+      teamId,
       input: {
-        memberAddress: selectedHolder.holderAddress,
-        virtualBadge: selectedVirtualBadge,
-        badgeThreshold:
-          Number(badgeThreshold) || Math.min(team.threshold, newSignerCount),
+        accountAddress: accountAddress.trim(),
+        virtualBadge: virtualBadge.trim(),
+        name: memberName.trim(),
+        badgeThreshold: Number(badgeThreshold) || team.threshold,
         vaultThresholds: vaults.map((v) => ({
           vaultAddress: v.accountAddress,
           threshold: Number(vaultThresholds[v.accountAddress]) || 1
@@ -150,8 +135,8 @@ function RemoveMemberForm() {
         refreshTeam()
         refreshProposals()
         navigate({
-          to: '/team/proposals/$proposalId',
-          params: { proposalId: String(result.id) }
+          to: '/teams/$teamId/team/proposals/$proposalId',
+          params: { teamId, proposalId: String(result.id) }
         })
       }
     })
@@ -160,61 +145,65 @@ function RemoveMemberForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-2xl">Remove Team Member</CardTitle>
+        <CardTitle className="text-2xl">Add Team Member</CardTitle>
         <CardDescription>
-          Create a proposal to recall and burn a badge, removing a signer from
-          the team and all vaults.
+          Create a proposal to mint a badge and add a new signer to the team and
+          all vaults.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="memberName" className="text-sm font-medium">
-              Member Name
-            </label>
-            <select
-              id="memberName"
-              required
-              value={selectedVirtualBadge}
-              onChange={(e) => setSelectedVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
-            >
-              <option value="">Select a member...</option>
-              {team.badgeHolders.map((holder) => (
-                <option
-                  key={holder.mfaVirtualResource}
-                  value={holder.mfaVirtualResource}
-                >
-                  {holder.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="signer" className="text-sm font-medium">
-              Signer
-            </label>
-            <input
-              id="signer"
-              type="text"
-              disabled
-              value={selectedHolder?.mfaVirtualResource ?? ''}
-              className="w-full rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground"
-            />
-          </div>
-
-          <div className="space-y-2">
             <label htmlFor="accountAddress" className="text-sm font-medium">
-              Account Address
+              Recipient Account Address
             </label>
             <input
               id="accountAddress"
               type="text"
-              disabled
-              value={selectedHolder?.holderAddress ?? ''}
-              className="w-full rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground"
+              required
+              placeholder="account_tdx_2_1..."
+              value={accountAddress}
+              onChange={(e) => setAccountAddress(e.target.value)}
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="memberName" className="text-sm font-medium">
+              Member Name
+            </label>
+            <input
+              id="memberName"
+              type="text"
+              required
+              maxLength={100}
+              placeholder="Alice"
+              value={memberName}
+              onChange={(e) => setMemberName(e.target.value)}
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">
+              A human-readable name for this team member (stored on-ledger in
+              the NFT badge).
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="virtualBadge" className="text-sm font-medium">
+              Virtual Badge (NonFungibleGlobalId)
+            </label>
+            <input
+              id="virtualBadge"
+              type="text"
+              required
+              placeholder="resource_tdx_2_...ed25sg...:[hex]"
+              value={virtualBadge}
+              onChange={(e) => setVirtualBadge(e.target.value)}
+              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">
+              The new member&apos;s signature virtual badge NonFungibleGlobalId.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -226,14 +215,13 @@ function RemoveMemberForm() {
               type="number"
               required
               min={1}
-              max={newSignerCount}
-              value={badgeThreshold || Math.min(team.threshold, newSignerCount)}
+              value={badgeThreshold || team.threshold}
               onChange={(e) => setBadgeThreshold(e.target.value)}
               className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
-              Current threshold: {team.threshold}. After removal:{' '}
-              {newSignerCount} signers.
+              Current threshold: {team.threshold}. The team will have{' '}
+              {team.signers.length + 1} signers after this addition.
             </p>
           </div>
 
@@ -251,7 +239,6 @@ function RemoveMemberForm() {
                   <input
                     type="number"
                     min={1}
-                    max={newSignerCount}
                     value={vaultThresholds[vault.accountAddress] ?? '1'}
                     onChange={(e) =>
                       setVaultThresholds((prev) => ({
@@ -274,9 +261,9 @@ function RemoveMemberForm() {
 
           <div className="flex gap-3">
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create Remove-Member Proposal'}
+              {submitting ? 'Creating...' : 'Create Add-Member Proposal'}
             </Button>
-            <Link to="/team">
+            <Link to="/teams/$teamId/team" params={{ teamId }}>
               <Button type="button" variant="outline">
                 Cancel
               </Button>

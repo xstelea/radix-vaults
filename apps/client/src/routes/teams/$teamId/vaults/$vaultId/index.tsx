@@ -6,8 +6,9 @@ import {
   ClientOnly,
   useNavigate
 } from '@tanstack/react-router'
-import { proposalListAtom } from '@/atom/proposals'
-import { vaultReadAtom } from '@/atom/vaults'
+import { sessionAtom } from '@/atom/auth'
+import { ProposalListKey, proposalListAtom } from '@/atom/proposals'
+import { VaultReadKey, vaultReadAtom } from '@/atom/vaults'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -33,12 +34,12 @@ const formatWithSpaces = (value: string): string => {
   return decimal !== undefined ? `${spaced}.${decimal}` : spaced
 }
 
-export const Route = createFileRoute('/vaults/$vaultId/')({
+export const Route = createFileRoute('/teams/$teamId/vaults/$vaultId/')({
   component: VaultDetailPage
 })
 
 function VaultDetailPage() {
-  const { vaultId } = Route.useParams()
+  const { teamId, vaultId } = Route.useParams()
 
   return (
     <main className="max-w-5xl space-y-6">
@@ -86,8 +87,12 @@ function VaultDetailPage() {
 }
 
 function RefreshVaultButton() {
-  const { vaultId } = Route.useParams()
-  const refresh = useAtomRefresh(vaultReadAtom(VaultAddress.make(vaultId)))
+  const { teamId, vaultId } = Route.useParams()
+  const refresh = useAtomRefresh(
+    vaultReadAtom(
+      VaultReadKey({ teamId, vaultAddress: VaultAddress.make(vaultId) })
+    )
+  )
 
   return (
     <Button variant="outline" onClick={refresh}>
@@ -97,8 +102,10 @@ function RefreshVaultButton() {
 }
 
 function VaultReadContent() {
-  const { vaultId } = Route.useParams()
-  const readAtom = vaultReadAtom(VaultAddress.make(vaultId))
+  const { teamId, vaultId } = Route.useParams()
+  const readAtom = vaultReadAtom(
+    VaultReadKey({ teamId, vaultAddress: VaultAddress.make(vaultId) })
+  )
   const readResult = useAtomValue(readAtom)
   const refresh = useAtomRefresh(readAtom)
 
@@ -212,11 +219,17 @@ const statusVariant: Record<
 }
 
 function ProposalListSection() {
-  const { vaultId } = Route.useParams()
+  const { teamId, vaultId } = Route.useParams()
   const navigate = useNavigate()
   const vaultAddress = VaultAddress.make(vaultId)
-  const listAtom = proposalListAtom(vaultAddress)
+  const listAtom = proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
   const listResult = useAtomValue(listAtom)
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
 
   return Result.builder(listResult)
     .onInitialOrWaiting(() => (
@@ -243,13 +256,15 @@ function ProposalListSection() {
                 : `${proposals.length} proposal${proposals.length !== 1 ? 's' : ''}`}
             </CardDescription>
           </div>
-          <Link
-            to="/vaults/$vaultId/proposals/new"
-            params={{ vaultId }}
-            className={buttonVariants({ size: 'sm' })}
-          >
-            New Proposal
-          </Link>
+          {session && (
+            <Link
+              to="/teams/$teamId/vaults/$vaultId/proposals/new"
+              params={{ teamId, vaultId }}
+              className={buttonVariants({ size: 'sm' })}
+            >
+              New Proposal
+            </Link>
+          )}
         </CardHeader>
         {proposals.length > 0 && (
           <CardContent>
@@ -269,15 +284,15 @@ function ProposalListSection() {
                     className="cursor-pointer"
                     onClick={() =>
                       navigate({
-                        to: '/vaults/$vaultId/proposals/$proposalId',
-                        params: { vaultId, proposalId: String(p.id) }
+                        to: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId',
+                        params: { teamId, vaultId, proposalId: String(p.id) }
                       })
                     }
                   >
                     <TableCell>
                       <Link
-                        to="/vaults/$vaultId/proposals/$proposalId"
-                        params={{ vaultId, proposalId: String(p.id) }}
+                        to="/teams/$teamId/vaults/$vaultId/proposals/$proposalId"
+                        params={{ teamId, vaultId, proposalId: String(p.id) }}
                         className="font-medium text-primary underline-offset-4 hover:underline"
                       >
                         #{p.id}

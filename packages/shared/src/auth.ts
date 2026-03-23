@@ -44,15 +44,6 @@ export class RolaVerificationFailedError extends Schema.TaggedError<RolaVerifica
   HttpApiSchema.annotations({ status: 401 })
 ) {}
 
-export class MissingTeamBadgeError extends Schema.TaggedError<MissingTeamBadgeError>()(
-  'MissingTeamBadgeError',
-  {
-    accountAddress: AccountAddress,
-    message: Schema.String
-  },
-  HttpApiSchema.annotations({ status: 401 })
-) {}
-
 export type SignedChallenge = typeof SignedChallengeSchema.Type
 export type SignedChallengeProof = typeof SignedChallengeProofSchema.Type
 export type SessionInfo = typeof SessionInfoSchema.Type

@@ -1,11 +1,9 @@
 import { Link, useMatches } from '@tanstack/react-router'
-import { Home, Users, FileText, X, Shield } from 'lucide-react'
-
-const navItems = [
-  { to: '/', label: 'Home', icon: Home },
-  { to: '/vaults', label: 'Vaults', icon: Shield },
-  { to: '/team', label: 'Team', icon: Users }
-] as const
+import { Result, useAtomValue } from '@effect-atom/atom-react'
+import { Users, FileText, X, Shield, ChevronRight, Plus } from 'lucide-react'
+import { sessionAtom } from '@/atom/auth'
+import { teamsListAtom } from '@/atom/teams'
+import { vaultsListAtom } from '@/atom/vaults'
 
 export function Sidebar({
   open,
@@ -16,10 +14,31 @@ export function Sidebar({
 }) {
   const matches = useMatches()
 
-  const vaultMatch = matches.find((m) =>
-    m.routeId.startsWith('/vaults/$vaultId')
+  const teamMatch = matches.find(
+    (m) => (m.params as { teamId?: string }).teamId
+  )
+  const teamId = (teamMatch?.params as { teamId?: string })?.teamId
+
+  const teamsResult = useAtomValue(teamsListAtom)
+
+  const activeExpandedTeamId = teamId
+
+  const vaultMatch = matches.find(
+    (m) => (m.params as { vaultId?: string }).vaultId
   )
   const vaultId = (vaultMatch?.params as { vaultId?: string })?.vaultId
+
+  const sessionResult = useAtomValue(sessionAtom)
+  const session = Result.builder(sessionResult)
+    .onInitialOrWaiting(() => null)
+    .onFailure(() => null)
+    .onSuccess((s) => s)
+    .render()
+
+  const teams =
+    Result.builder(teamsResult)
+      .onSuccess((t) => t)
+      .render() ?? []
 
   return (
     <>
@@ -88,30 +107,108 @@ export function Sidebar({
         </div>
 
         {/* ── Navigation ── */}
-        <nav className="flex-1 px-3 py-1 space-y-0.5">
-          {navItems.map((item, i) => {
-            const isActive =
-              item.to === '/'
-                ? matches[matches.length - 1]?.routeId === '/'
-                : matches.some((m) => m.fullPath.startsWith(item.to))
-
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={onClose}
-                className={`sidebar-nav-item${isActive ? ' active' : ''}`}
-                style={{ animation: `slide-in 300ms ease ${i * 50}ms both` }}
-              >
-                <item.icon className="sidebar-nav-icon" />
-                {item.label}
-              </Link>
-            )
-          })}
+        <nav className="flex-1 px-3 py-1 space-y-0.5 overflow-y-auto">
+          {/* ── My Teams ── */}
+          {teams.length > 0 && (
+            <>
+              <div className="sidebar-section-label">My teams</div>
+              <div
+                className="mx-2 mb-1 h-px"
+                style={{
+                  background:
+                    'linear-gradient(90deg, oklch(0.25 0.01 155), transparent)'
+                }}
+              />
+              {teams.map((team) => {
+                const isExpanded = activeExpandedTeamId === team.teamId
+                const isActiveTeam = teamId === team.teamId
+                return (
+                  <div
+                    key={team.teamId}
+                    className={
+                      isExpanded
+                        ? 'sidebar-team-group expanded'
+                        : 'sidebar-team-group'
+                    }
+                  >
+                    <Link
+                      to="/teams/$teamId"
+                      params={{ teamId: team.teamId }}
+                      onClick={onClose}
+                      className={`sidebar-nav-item sidebar-team-toggle${
+                        isActiveTeam ? ' active' : ''
+                      }`}
+                    >
+                      <ChevronRight
+                        className={`sidebar-nav-icon sidebar-chevron${
+                          isExpanded ? ' expanded' : ''
+                        }`}
+                      />
+                      <Users className="sidebar-nav-icon" />
+                      <span className="truncate">{team.name}</span>
+                    </Link>
+                    {isExpanded && (
+                      <>
+                        <Link
+                          to="/teams/$teamId/vaults"
+                          params={{ teamId: team.teamId }}
+                          onClick={onClose}
+                          className={`sidebar-nav-item sidebar-nav-nested${
+                            isActiveTeam &&
+                            matches.some((m) =>
+                              m.fullPath.startsWith('/teams/$teamId/vaults')
+                            )
+                              ? ' active'
+                              : ''
+                          }`}
+                        >
+                          Vaults
+                        </Link>
+                        <TeamVaults
+                          teamId={team.teamId}
+                          activeVaultId={isActiveTeam ? vaultId : undefined}
+                          onClose={onClose}
+                        />
+                        <Link
+                          to="/teams/$teamId/team"
+                          params={{ teamId: team.teamId }}
+                          onClick={onClose}
+                          className={`sidebar-nav-item sidebar-nav-nested${
+                            isActiveTeam &&
+                            matches.some((m) =>
+                              m.fullPath.startsWith('/teams/$teamId/team')
+                            )
+                              ? ' active'
+                              : ''
+                          }`}
+                        >
+                          Members
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
+              {session && (
+                <Link
+                  to="/teams/create"
+                  onClick={onClose}
+                  className={`sidebar-nav-item${
+                    matches.some((m) => m.fullPath === '/teams/create')
+                      ? ' active'
+                      : ''
+                  }`}
+                >
+                  <Plus className="sidebar-nav-icon" />
+                  Create team
+                </Link>
+              )}
+            </>
+          )}
         </nav>
 
         {/* ── Current vault ── */}
-        {vaultId && (
+        {teamId && vaultId && (
           <div className="px-3 pb-4">
             <div className="vault-card space-y-3">
               <div>
@@ -134,19 +231,57 @@ export function Sidebar({
                   {vaultId.slice(0, 12)}...{vaultId.slice(-8)}
                 </p>
               </div>
-              <Link
-                to="/vaults/$vaultId/proposals/new"
-                params={{ vaultId }}
-                onClick={onClose}
-                className="vault-card-btn"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                New Proposal
-              </Link>
+              {session && (
+                <Link
+                  to="/teams/$teamId/vaults/$vaultId/proposals/new"
+                  params={{ teamId: teamId!, vaultId }}
+                  onClick={onClose}
+                  className="vault-card-btn"
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  New Proposal
+                </Link>
+              )}
             </div>
           </div>
         )}
       </aside>
+    </>
+  )
+}
+
+function TeamVaults({
+  teamId,
+  activeVaultId,
+  onClose
+}: {
+  teamId: string
+  activeVaultId: string | undefined
+  onClose: () => void
+}) {
+  const vaultsResult = useAtomValue(vaultsListAtom(teamId))
+  const vaults =
+    Result.builder(vaultsResult)
+      .onSuccess((v) => v)
+      .render() ?? []
+
+  if (vaults.length === 0) return null
+
+  return (
+    <>
+      {vaults.map((vault) => (
+        <Link
+          key={vault.accountAddress}
+          to="/teams/$teamId/vaults/$vaultId"
+          params={{ teamId, vaultId: vault.accountAddress }}
+          onClick={onClose}
+          className={`sidebar-nav-item sidebar-nav-vault${
+            activeVaultId === vault.accountAddress ? ' active' : ''
+          }`}
+        >
+          <span className="truncate">{vault.name}</span>
+        </Link>
+      ))}
     </>
   )
 }

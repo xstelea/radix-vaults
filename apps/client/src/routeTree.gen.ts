@@ -9,212 +9,240 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TeamRouteImport } from './routes/team'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VaultsIndexRouteImport } from './routes/vaults/index'
-import { Route as TeamIndexRouteImport } from './routes/team/index'
-import { Route as VaultsCreateRouteImport } from './routes/vaults/create'
-import { Route as VaultsAddRouteImport } from './routes/vaults/add'
-import { Route as TeamRemoveMemberRouteImport } from './routes/team/remove-member'
-import { Route as TeamChangeThresholdRouteImport } from './routes/team/change-threshold'
-import { Route as TeamAddMemberRouteImport } from './routes/team/add-member'
-import { Route as VaultsVaultIdIndexRouteImport } from './routes/vaults/$vaultId/index'
-import { Route as TeamProposalsIndexRouteImport } from './routes/team/proposals/index'
-import { Route as TeamProposalsProposalIdRouteImport } from './routes/team/proposals/$proposalId'
-import { Route as VaultsVaultIdProposalsNewRouteImport } from './routes/vaults/$vaultId/proposals/new'
-import { Route as VaultsVaultIdProposalsProposalIdRouteImport } from './routes/vaults/$vaultId/proposals/$proposalId'
+import { Route as TeamsCreateRouteImport } from './routes/teams/create'
+import { Route as TeamsTeamIdRouteImport } from './routes/teams/$teamId'
+import { Route as TeamsTeamIdIndexRouteImport } from './routes/teams/$teamId/index'
+import { Route as TeamsTeamIdTeamRouteImport } from './routes/teams/$teamId/team'
+import { Route as TeamsTeamIdVaultsIndexRouteImport } from './routes/teams/$teamId/vaults/index'
+import { Route as TeamsTeamIdTeamIndexRouteImport } from './routes/teams/$teamId/team/index'
+import { Route as TeamsTeamIdVaultsCreateRouteImport } from './routes/teams/$teamId/vaults/create'
+import { Route as TeamsTeamIdVaultsAddRouteImport } from './routes/teams/$teamId/vaults/add'
+import { Route as TeamsTeamIdTeamRemoveMemberRouteImport } from './routes/teams/$teamId/team/remove-member'
+import { Route as TeamsTeamIdTeamChangeThresholdRouteImport } from './routes/teams/$teamId/team/change-threshold'
+import { Route as TeamsTeamIdTeamAddMemberRouteImport } from './routes/teams/$teamId/team/add-member'
+import { Route as TeamsTeamIdVaultsVaultIdIndexRouteImport } from './routes/teams/$teamId/vaults/$vaultId/index'
+import { Route as TeamsTeamIdTeamProposalsIndexRouteImport } from './routes/teams/$teamId/team/proposals/index'
+import { Route as TeamsTeamIdTeamProposalsProposalIdRouteImport } from './routes/teams/$teamId/team/proposals/$proposalId'
+import { Route as TeamsTeamIdVaultsVaultIdProposalsNewRouteImport } from './routes/teams/$teamId/vaults/$vaultId/proposals/new'
+import { Route as TeamsTeamIdVaultsVaultIdProposalsProposalIdRouteImport } from './routes/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
 
-const TeamRoute = TeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VaultsIndexRoute = VaultsIndexRouteImport.update({
-  id: '/vaults/',
-  path: '/vaults/',
+const TeamsCreateRoute = TeamsCreateRouteImport.update({
+  id: '/teams/create',
+  path: '/teams/create',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TeamIndexRoute = TeamIndexRouteImport.update({
+const TeamsTeamIdRoute = TeamsTeamIdRouteImport.update({
+  id: '/teams/$teamId',
+  path: '/teams/$teamId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TeamsTeamIdIndexRoute = TeamsTeamIdIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => TeamRoute,
+  getParentRoute: () => TeamsTeamIdRoute,
 } as any)
-const VaultsCreateRoute = VaultsCreateRouteImport.update({
+const TeamsTeamIdTeamRoute = TeamsTeamIdTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => TeamsTeamIdRoute,
+} as any)
+const TeamsTeamIdVaultsIndexRoute = TeamsTeamIdVaultsIndexRouteImport.update({
+  id: '/vaults/',
+  path: '/vaults/',
+  getParentRoute: () => TeamsTeamIdRoute,
+} as any)
+const TeamsTeamIdTeamIndexRoute = TeamsTeamIdTeamIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TeamsTeamIdTeamRoute,
+} as any)
+const TeamsTeamIdVaultsCreateRoute = TeamsTeamIdVaultsCreateRouteImport.update({
   id: '/vaults/create',
   path: '/vaults/create',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => TeamsTeamIdRoute,
 } as any)
-const VaultsAddRoute = VaultsAddRouteImport.update({
+const TeamsTeamIdVaultsAddRoute = TeamsTeamIdVaultsAddRouteImport.update({
   id: '/vaults/add',
   path: '/vaults/add',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => TeamsTeamIdRoute,
 } as any)
-const TeamRemoveMemberRoute = TeamRemoveMemberRouteImport.update({
-  id: '/remove-member',
-  path: '/remove-member',
-  getParentRoute: () => TeamRoute,
-} as any)
-const TeamChangeThresholdRoute = TeamChangeThresholdRouteImport.update({
-  id: '/change-threshold',
-  path: '/change-threshold',
-  getParentRoute: () => TeamRoute,
-} as any)
-const TeamAddMemberRoute = TeamAddMemberRouteImport.update({
-  id: '/add-member',
-  path: '/add-member',
-  getParentRoute: () => TeamRoute,
-} as any)
-const VaultsVaultIdIndexRoute = VaultsVaultIdIndexRouteImport.update({
-  id: '/vaults/$vaultId/',
-  path: '/vaults/$vaultId/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TeamProposalsIndexRoute = TeamProposalsIndexRouteImport.update({
-  id: '/proposals/',
-  path: '/proposals/',
-  getParentRoute: () => TeamRoute,
-} as any)
-const TeamProposalsProposalIdRoute = TeamProposalsProposalIdRouteImport.update({
-  id: '/proposals/$proposalId',
-  path: '/proposals/$proposalId',
-  getParentRoute: () => TeamRoute,
-} as any)
-const VaultsVaultIdProposalsNewRoute =
-  VaultsVaultIdProposalsNewRouteImport.update({
+const TeamsTeamIdTeamRemoveMemberRoute =
+  TeamsTeamIdTeamRemoveMemberRouteImport.update({
+    id: '/remove-member',
+    path: '/remove-member',
+    getParentRoute: () => TeamsTeamIdTeamRoute,
+  } as any)
+const TeamsTeamIdTeamChangeThresholdRoute =
+  TeamsTeamIdTeamChangeThresholdRouteImport.update({
+    id: '/change-threshold',
+    path: '/change-threshold',
+    getParentRoute: () => TeamsTeamIdTeamRoute,
+  } as any)
+const TeamsTeamIdTeamAddMemberRoute =
+  TeamsTeamIdTeamAddMemberRouteImport.update({
+    id: '/add-member',
+    path: '/add-member',
+    getParentRoute: () => TeamsTeamIdTeamRoute,
+  } as any)
+const TeamsTeamIdVaultsVaultIdIndexRoute =
+  TeamsTeamIdVaultsVaultIdIndexRouteImport.update({
+    id: '/vaults/$vaultId/',
+    path: '/vaults/$vaultId/',
+    getParentRoute: () => TeamsTeamIdRoute,
+  } as any)
+const TeamsTeamIdTeamProposalsIndexRoute =
+  TeamsTeamIdTeamProposalsIndexRouteImport.update({
+    id: '/proposals/',
+    path: '/proposals/',
+    getParentRoute: () => TeamsTeamIdTeamRoute,
+  } as any)
+const TeamsTeamIdTeamProposalsProposalIdRoute =
+  TeamsTeamIdTeamProposalsProposalIdRouteImport.update({
+    id: '/proposals/$proposalId',
+    path: '/proposals/$proposalId',
+    getParentRoute: () => TeamsTeamIdTeamRoute,
+  } as any)
+const TeamsTeamIdVaultsVaultIdProposalsNewRoute =
+  TeamsTeamIdVaultsVaultIdProposalsNewRouteImport.update({
     id: '/vaults/$vaultId/proposals/new',
     path: '/vaults/$vaultId/proposals/new',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => TeamsTeamIdRoute,
   } as any)
-const VaultsVaultIdProposalsProposalIdRoute =
-  VaultsVaultIdProposalsProposalIdRouteImport.update({
+const TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute =
+  TeamsTeamIdVaultsVaultIdProposalsProposalIdRouteImport.update({
     id: '/vaults/$vaultId/proposals/$proposalId',
     path: '/vaults/$vaultId/proposals/$proposalId',
-    getParentRoute: () => rootRouteImport,
+    getParentRoute: () => TeamsTeamIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/team': typeof TeamRouteWithChildren
-  '/team/add-member': typeof TeamAddMemberRoute
-  '/team/change-threshold': typeof TeamChangeThresholdRoute
-  '/team/remove-member': typeof TeamRemoveMemberRoute
-  '/vaults/add': typeof VaultsAddRoute
-  '/vaults/create': typeof VaultsCreateRoute
-  '/team/': typeof TeamIndexRoute
-  '/vaults/': typeof VaultsIndexRoute
-  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
-  '/team/proposals/': typeof TeamProposalsIndexRoute
-  '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
-  '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
-  '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
+  '/teams/$teamId': typeof TeamsTeamIdRouteWithChildren
+  '/teams/create': typeof TeamsCreateRoute
+  '/teams/$teamId/team': typeof TeamsTeamIdTeamRouteWithChildren
+  '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
+  '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
+  '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
+  '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
+  '/teams/$teamId/vaults/add': typeof TeamsTeamIdVaultsAddRoute
+  '/teams/$teamId/vaults/create': typeof TeamsTeamIdVaultsCreateRoute
+  '/teams/$teamId/team/': typeof TeamsTeamIdTeamIndexRoute
+  '/teams/$teamId/vaults/': typeof TeamsTeamIdVaultsIndexRoute
+  '/teams/$teamId/team/proposals/$proposalId': typeof TeamsTeamIdTeamProposalsProposalIdRoute
+  '/teams/$teamId/team/proposals/': typeof TeamsTeamIdTeamProposalsIndexRoute
+  '/teams/$teamId/vaults/$vaultId/': typeof TeamsTeamIdVaultsVaultIdIndexRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/$proposalId': typeof TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/new': typeof TeamsTeamIdVaultsVaultIdProposalsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/team/add-member': typeof TeamAddMemberRoute
-  '/team/change-threshold': typeof TeamChangeThresholdRoute
-  '/team/remove-member': typeof TeamRemoveMemberRoute
-  '/vaults/add': typeof VaultsAddRoute
-  '/vaults/create': typeof VaultsCreateRoute
-  '/team': typeof TeamIndexRoute
-  '/vaults': typeof VaultsIndexRoute
-  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
-  '/team/proposals': typeof TeamProposalsIndexRoute
-  '/vaults/$vaultId': typeof VaultsVaultIdIndexRoute
-  '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
-  '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
+  '/teams/create': typeof TeamsCreateRoute
+  '/teams/$teamId': typeof TeamsTeamIdIndexRoute
+  '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
+  '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
+  '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
+  '/teams/$teamId/vaults/add': typeof TeamsTeamIdVaultsAddRoute
+  '/teams/$teamId/vaults/create': typeof TeamsTeamIdVaultsCreateRoute
+  '/teams/$teamId/team': typeof TeamsTeamIdTeamIndexRoute
+  '/teams/$teamId/vaults': typeof TeamsTeamIdVaultsIndexRoute
+  '/teams/$teamId/team/proposals/$proposalId': typeof TeamsTeamIdTeamProposalsProposalIdRoute
+  '/teams/$teamId/team/proposals': typeof TeamsTeamIdTeamProposalsIndexRoute
+  '/teams/$teamId/vaults/$vaultId': typeof TeamsTeamIdVaultsVaultIdIndexRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/$proposalId': typeof TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/new': typeof TeamsTeamIdVaultsVaultIdProposalsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/team': typeof TeamRouteWithChildren
-  '/team/add-member': typeof TeamAddMemberRoute
-  '/team/change-threshold': typeof TeamChangeThresholdRoute
-  '/team/remove-member': typeof TeamRemoveMemberRoute
-  '/vaults/add': typeof VaultsAddRoute
-  '/vaults/create': typeof VaultsCreateRoute
-  '/team/': typeof TeamIndexRoute
-  '/vaults/': typeof VaultsIndexRoute
-  '/team/proposals/$proposalId': typeof TeamProposalsProposalIdRoute
-  '/team/proposals/': typeof TeamProposalsIndexRoute
-  '/vaults/$vaultId/': typeof VaultsVaultIdIndexRoute
-  '/vaults/$vaultId/proposals/$proposalId': typeof VaultsVaultIdProposalsProposalIdRoute
-  '/vaults/$vaultId/proposals/new': typeof VaultsVaultIdProposalsNewRoute
+  '/teams/$teamId': typeof TeamsTeamIdRouteWithChildren
+  '/teams/create': typeof TeamsCreateRoute
+  '/teams/$teamId/team': typeof TeamsTeamIdTeamRouteWithChildren
+  '/teams/$teamId/': typeof TeamsTeamIdIndexRoute
+  '/teams/$teamId/team/add-member': typeof TeamsTeamIdTeamAddMemberRoute
+  '/teams/$teamId/team/change-threshold': typeof TeamsTeamIdTeamChangeThresholdRoute
+  '/teams/$teamId/team/remove-member': typeof TeamsTeamIdTeamRemoveMemberRoute
+  '/teams/$teamId/vaults/add': typeof TeamsTeamIdVaultsAddRoute
+  '/teams/$teamId/vaults/create': typeof TeamsTeamIdVaultsCreateRoute
+  '/teams/$teamId/team/': typeof TeamsTeamIdTeamIndexRoute
+  '/teams/$teamId/vaults/': typeof TeamsTeamIdVaultsIndexRoute
+  '/teams/$teamId/team/proposals/$proposalId': typeof TeamsTeamIdTeamProposalsProposalIdRoute
+  '/teams/$teamId/team/proposals/': typeof TeamsTeamIdTeamProposalsIndexRoute
+  '/teams/$teamId/vaults/$vaultId/': typeof TeamsTeamIdVaultsVaultIdIndexRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/$proposalId': typeof TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute
+  '/teams/$teamId/vaults/$vaultId/proposals/new': typeof TeamsTeamIdVaultsVaultIdProposalsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/team'
-    | '/team/add-member'
-    | '/team/change-threshold'
-    | '/team/remove-member'
-    | '/vaults/add'
-    | '/vaults/create'
-    | '/team/'
-    | '/vaults/'
-    | '/team/proposals/$proposalId'
-    | '/team/proposals/'
-    | '/vaults/$vaultId/'
-    | '/vaults/$vaultId/proposals/$proposalId'
-    | '/vaults/$vaultId/proposals/new'
+    | '/teams/$teamId'
+    | '/teams/create'
+    | '/teams/$teamId/team'
+    | '/teams/$teamId/'
+    | '/teams/$teamId/team/add-member'
+    | '/teams/$teamId/team/change-threshold'
+    | '/teams/$teamId/team/remove-member'
+    | '/teams/$teamId/vaults/add'
+    | '/teams/$teamId/vaults/create'
+    | '/teams/$teamId/team/'
+    | '/teams/$teamId/vaults/'
+    | '/teams/$teamId/team/proposals/$proposalId'
+    | '/teams/$teamId/team/proposals/'
+    | '/teams/$teamId/vaults/$vaultId/'
+    | '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
+    | '/teams/$teamId/vaults/$vaultId/proposals/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/team/add-member'
-    | '/team/change-threshold'
-    | '/team/remove-member'
-    | '/vaults/add'
-    | '/vaults/create'
-    | '/team'
-    | '/vaults'
-    | '/team/proposals/$proposalId'
-    | '/team/proposals'
-    | '/vaults/$vaultId'
-    | '/vaults/$vaultId/proposals/$proposalId'
-    | '/vaults/$vaultId/proposals/new'
+    | '/teams/create'
+    | '/teams/$teamId'
+    | '/teams/$teamId/team/add-member'
+    | '/teams/$teamId/team/change-threshold'
+    | '/teams/$teamId/team/remove-member'
+    | '/teams/$teamId/vaults/add'
+    | '/teams/$teamId/vaults/create'
+    | '/teams/$teamId/team'
+    | '/teams/$teamId/vaults'
+    | '/teams/$teamId/team/proposals/$proposalId'
+    | '/teams/$teamId/team/proposals'
+    | '/teams/$teamId/vaults/$vaultId'
+    | '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
+    | '/teams/$teamId/vaults/$vaultId/proposals/new'
   id:
     | '__root__'
     | '/'
-    | '/team'
-    | '/team/add-member'
-    | '/team/change-threshold'
-    | '/team/remove-member'
-    | '/vaults/add'
-    | '/vaults/create'
-    | '/team/'
-    | '/vaults/'
-    | '/team/proposals/$proposalId'
-    | '/team/proposals/'
-    | '/vaults/$vaultId/'
-    | '/vaults/$vaultId/proposals/$proposalId'
-    | '/vaults/$vaultId/proposals/new'
+    | '/teams/$teamId'
+    | '/teams/create'
+    | '/teams/$teamId/team'
+    | '/teams/$teamId/'
+    | '/teams/$teamId/team/add-member'
+    | '/teams/$teamId/team/change-threshold'
+    | '/teams/$teamId/team/remove-member'
+    | '/teams/$teamId/vaults/add'
+    | '/teams/$teamId/vaults/create'
+    | '/teams/$teamId/team/'
+    | '/teams/$teamId/vaults/'
+    | '/teams/$teamId/team/proposals/$proposalId'
+    | '/teams/$teamId/team/proposals/'
+    | '/teams/$teamId/vaults/$vaultId/'
+    | '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
+    | '/teams/$teamId/vaults/$vaultId/proposals/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  TeamRoute: typeof TeamRouteWithChildren
-  VaultsAddRoute: typeof VaultsAddRoute
-  VaultsCreateRoute: typeof VaultsCreateRoute
-  VaultsIndexRoute: typeof VaultsIndexRoute
-  VaultsVaultIdIndexRoute: typeof VaultsVaultIdIndexRoute
-  VaultsVaultIdProposalsProposalIdRoute: typeof VaultsVaultIdProposalsProposalIdRoute
-  VaultsVaultIdProposalsNewRoute: typeof VaultsVaultIdProposalsNewRoute
+  TeamsTeamIdRoute: typeof TeamsTeamIdRouteWithChildren
+  TeamsCreateRoute: typeof TeamsCreateRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/team': {
-      id: '/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof TeamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -222,122 +250,176 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/vaults/': {
-      id: '/vaults/'
-      path: '/vaults'
-      fullPath: '/vaults/'
-      preLoaderRoute: typeof VaultsIndexRouteImport
+    '/teams/create': {
+      id: '/teams/create'
+      path: '/teams/create'
+      fullPath: '/teams/create'
+      preLoaderRoute: typeof TeamsCreateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/team/': {
-      id: '/team/'
+    '/teams/$teamId': {
+      id: '/teams/$teamId'
+      path: '/teams/$teamId'
+      fullPath: '/teams/$teamId'
+      preLoaderRoute: typeof TeamsTeamIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/teams/$teamId/': {
+      id: '/teams/$teamId/'
       path: '/'
-      fullPath: '/team/'
-      preLoaderRoute: typeof TeamIndexRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/'
+      preLoaderRoute: typeof TeamsTeamIdIndexRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
-    '/vaults/create': {
-      id: '/vaults/create'
+    '/teams/$teamId/team': {
+      id: '/teams/$teamId/team'
+      path: '/team'
+      fullPath: '/teams/$teamId/team'
+      preLoaderRoute: typeof TeamsTeamIdTeamRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
+    }
+    '/teams/$teamId/vaults/': {
+      id: '/teams/$teamId/vaults/'
+      path: '/vaults'
+      fullPath: '/teams/$teamId/vaults/'
+      preLoaderRoute: typeof TeamsTeamIdVaultsIndexRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
+    }
+    '/teams/$teamId/team/': {
+      id: '/teams/$teamId/team/'
+      path: '/'
+      fullPath: '/teams/$teamId/team/'
+      preLoaderRoute: typeof TeamsTeamIdTeamIndexRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
+    }
+    '/teams/$teamId/vaults/create': {
+      id: '/teams/$teamId/vaults/create'
       path: '/vaults/create'
-      fullPath: '/vaults/create'
-      preLoaderRoute: typeof VaultsCreateRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/teams/$teamId/vaults/create'
+      preLoaderRoute: typeof TeamsTeamIdVaultsCreateRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
-    '/vaults/add': {
-      id: '/vaults/add'
+    '/teams/$teamId/vaults/add': {
+      id: '/teams/$teamId/vaults/add'
       path: '/vaults/add'
-      fullPath: '/vaults/add'
-      preLoaderRoute: typeof VaultsAddRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/teams/$teamId/vaults/add'
+      preLoaderRoute: typeof TeamsTeamIdVaultsAddRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
-    '/team/remove-member': {
-      id: '/team/remove-member'
+    '/teams/$teamId/team/remove-member': {
+      id: '/teams/$teamId/team/remove-member'
       path: '/remove-member'
-      fullPath: '/team/remove-member'
-      preLoaderRoute: typeof TeamRemoveMemberRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/team/remove-member'
+      preLoaderRoute: typeof TeamsTeamIdTeamRemoveMemberRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
     }
-    '/team/change-threshold': {
-      id: '/team/change-threshold'
+    '/teams/$teamId/team/change-threshold': {
+      id: '/teams/$teamId/team/change-threshold'
       path: '/change-threshold'
-      fullPath: '/team/change-threshold'
-      preLoaderRoute: typeof TeamChangeThresholdRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/team/change-threshold'
+      preLoaderRoute: typeof TeamsTeamIdTeamChangeThresholdRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
     }
-    '/team/add-member': {
-      id: '/team/add-member'
+    '/teams/$teamId/team/add-member': {
+      id: '/teams/$teamId/team/add-member'
       path: '/add-member'
-      fullPath: '/team/add-member'
-      preLoaderRoute: typeof TeamAddMemberRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/team/add-member'
+      preLoaderRoute: typeof TeamsTeamIdTeamAddMemberRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
     }
-    '/vaults/$vaultId/': {
-      id: '/vaults/$vaultId/'
+    '/teams/$teamId/vaults/$vaultId/': {
+      id: '/teams/$teamId/vaults/$vaultId/'
       path: '/vaults/$vaultId'
-      fullPath: '/vaults/$vaultId/'
-      preLoaderRoute: typeof VaultsVaultIdIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/teams/$teamId/vaults/$vaultId/'
+      preLoaderRoute: typeof TeamsTeamIdVaultsVaultIdIndexRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
-    '/team/proposals/': {
-      id: '/team/proposals/'
+    '/teams/$teamId/team/proposals/': {
+      id: '/teams/$teamId/team/proposals/'
       path: '/proposals'
-      fullPath: '/team/proposals/'
-      preLoaderRoute: typeof TeamProposalsIndexRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/team/proposals/'
+      preLoaderRoute: typeof TeamsTeamIdTeamProposalsIndexRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
     }
-    '/team/proposals/$proposalId': {
-      id: '/team/proposals/$proposalId'
+    '/teams/$teamId/team/proposals/$proposalId': {
+      id: '/teams/$teamId/team/proposals/$proposalId'
       path: '/proposals/$proposalId'
-      fullPath: '/team/proposals/$proposalId'
-      preLoaderRoute: typeof TeamProposalsProposalIdRouteImport
-      parentRoute: typeof TeamRoute
+      fullPath: '/teams/$teamId/team/proposals/$proposalId'
+      preLoaderRoute: typeof TeamsTeamIdTeamProposalsProposalIdRouteImport
+      parentRoute: typeof TeamsTeamIdTeamRoute
     }
-    '/vaults/$vaultId/proposals/new': {
-      id: '/vaults/$vaultId/proposals/new'
+    '/teams/$teamId/vaults/$vaultId/proposals/new': {
+      id: '/teams/$teamId/vaults/$vaultId/proposals/new'
       path: '/vaults/$vaultId/proposals/new'
-      fullPath: '/vaults/$vaultId/proposals/new'
-      preLoaderRoute: typeof VaultsVaultIdProposalsNewRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/teams/$teamId/vaults/$vaultId/proposals/new'
+      preLoaderRoute: typeof TeamsTeamIdVaultsVaultIdProposalsNewRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
-    '/vaults/$vaultId/proposals/$proposalId': {
-      id: '/vaults/$vaultId/proposals/$proposalId'
+    '/teams/$teamId/vaults/$vaultId/proposals/$proposalId': {
+      id: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
       path: '/vaults/$vaultId/proposals/$proposalId'
-      fullPath: '/vaults/$vaultId/proposals/$proposalId'
-      preLoaderRoute: typeof VaultsVaultIdProposalsProposalIdRouteImport
-      parentRoute: typeof rootRouteImport
+      fullPath: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
+      preLoaderRoute: typeof TeamsTeamIdVaultsVaultIdProposalsProposalIdRouteImport
+      parentRoute: typeof TeamsTeamIdRoute
     }
   }
 }
 
-interface TeamRouteChildren {
-  TeamAddMemberRoute: typeof TeamAddMemberRoute
-  TeamChangeThresholdRoute: typeof TeamChangeThresholdRoute
-  TeamRemoveMemberRoute: typeof TeamRemoveMemberRoute
-  TeamIndexRoute: typeof TeamIndexRoute
-  TeamProposalsProposalIdRoute: typeof TeamProposalsProposalIdRoute
-  TeamProposalsIndexRoute: typeof TeamProposalsIndexRoute
+interface TeamsTeamIdTeamRouteChildren {
+  TeamsTeamIdTeamAddMemberRoute: typeof TeamsTeamIdTeamAddMemberRoute
+  TeamsTeamIdTeamChangeThresholdRoute: typeof TeamsTeamIdTeamChangeThresholdRoute
+  TeamsTeamIdTeamRemoveMemberRoute: typeof TeamsTeamIdTeamRemoveMemberRoute
+  TeamsTeamIdTeamIndexRoute: typeof TeamsTeamIdTeamIndexRoute
+  TeamsTeamIdTeamProposalsProposalIdRoute: typeof TeamsTeamIdTeamProposalsProposalIdRoute
+  TeamsTeamIdTeamProposalsIndexRoute: typeof TeamsTeamIdTeamProposalsIndexRoute
 }
 
-const TeamRouteChildren: TeamRouteChildren = {
-  TeamAddMemberRoute: TeamAddMemberRoute,
-  TeamChangeThresholdRoute: TeamChangeThresholdRoute,
-  TeamRemoveMemberRoute: TeamRemoveMemberRoute,
-  TeamIndexRoute: TeamIndexRoute,
-  TeamProposalsProposalIdRoute: TeamProposalsProposalIdRoute,
-  TeamProposalsIndexRoute: TeamProposalsIndexRoute,
+const TeamsTeamIdTeamRouteChildren: TeamsTeamIdTeamRouteChildren = {
+  TeamsTeamIdTeamAddMemberRoute: TeamsTeamIdTeamAddMemberRoute,
+  TeamsTeamIdTeamChangeThresholdRoute: TeamsTeamIdTeamChangeThresholdRoute,
+  TeamsTeamIdTeamRemoveMemberRoute: TeamsTeamIdTeamRemoveMemberRoute,
+  TeamsTeamIdTeamIndexRoute: TeamsTeamIdTeamIndexRoute,
+  TeamsTeamIdTeamProposalsProposalIdRoute:
+    TeamsTeamIdTeamProposalsProposalIdRoute,
+  TeamsTeamIdTeamProposalsIndexRoute: TeamsTeamIdTeamProposalsIndexRoute,
 }
 
-const TeamRouteWithChildren = TeamRoute._addFileChildren(TeamRouteChildren)
+const TeamsTeamIdTeamRouteWithChildren = TeamsTeamIdTeamRoute._addFileChildren(
+  TeamsTeamIdTeamRouteChildren,
+)
+
+interface TeamsTeamIdRouteChildren {
+  TeamsTeamIdTeamRoute: typeof TeamsTeamIdTeamRouteWithChildren
+  TeamsTeamIdIndexRoute: typeof TeamsTeamIdIndexRoute
+  TeamsTeamIdVaultsAddRoute: typeof TeamsTeamIdVaultsAddRoute
+  TeamsTeamIdVaultsCreateRoute: typeof TeamsTeamIdVaultsCreateRoute
+  TeamsTeamIdVaultsIndexRoute: typeof TeamsTeamIdVaultsIndexRoute
+  TeamsTeamIdVaultsVaultIdIndexRoute: typeof TeamsTeamIdVaultsVaultIdIndexRoute
+  TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute: typeof TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute
+  TeamsTeamIdVaultsVaultIdProposalsNewRoute: typeof TeamsTeamIdVaultsVaultIdProposalsNewRoute
+}
+
+const TeamsTeamIdRouteChildren: TeamsTeamIdRouteChildren = {
+  TeamsTeamIdTeamRoute: TeamsTeamIdTeamRouteWithChildren,
+  TeamsTeamIdIndexRoute: TeamsTeamIdIndexRoute,
+  TeamsTeamIdVaultsAddRoute: TeamsTeamIdVaultsAddRoute,
+  TeamsTeamIdVaultsCreateRoute: TeamsTeamIdVaultsCreateRoute,
+  TeamsTeamIdVaultsIndexRoute: TeamsTeamIdVaultsIndexRoute,
+  TeamsTeamIdVaultsVaultIdIndexRoute: TeamsTeamIdVaultsVaultIdIndexRoute,
+  TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute:
+    TeamsTeamIdVaultsVaultIdProposalsProposalIdRoute,
+  TeamsTeamIdVaultsVaultIdProposalsNewRoute:
+    TeamsTeamIdVaultsVaultIdProposalsNewRoute,
+}
+
+const TeamsTeamIdRouteWithChildren = TeamsTeamIdRoute._addFileChildren(
+  TeamsTeamIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  TeamRoute: TeamRouteWithChildren,
-  VaultsAddRoute: VaultsAddRoute,
-  VaultsCreateRoute: VaultsCreateRoute,
-  VaultsIndexRoute: VaultsIndexRoute,
-  VaultsVaultIdIndexRoute: VaultsVaultIdIndexRoute,
-  VaultsVaultIdProposalsProposalIdRoute: VaultsVaultIdProposalsProposalIdRoute,
-  VaultsVaultIdProposalsNewRoute: VaultsVaultIdProposalsNewRoute,
+  TeamsTeamIdRoute: TeamsTeamIdRouteWithChildren,
+  TeamsCreateRoute: TeamsCreateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

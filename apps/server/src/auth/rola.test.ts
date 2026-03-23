@@ -23,8 +23,7 @@ const testOrigin = 'https://dashboard.rdx.works'
 const testAuthConfig = AuthConfig.layer({
   networkId: 2,
   dAppDefinitionAddress: testDAppAddress,
-  expectedOrigin: testOrigin,
-  teamMemberBadgeAddress: 'resource_tdx_2_1t5dummy'
+  expectedOrigin: testOrigin
 })
 
 const mockEntityDetailsLayer = (ownerKeysRawHex?: string) =>

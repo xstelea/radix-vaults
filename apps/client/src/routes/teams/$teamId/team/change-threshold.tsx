@@ -32,7 +32,7 @@ type SearchParams = {
   vault?: string
 }
 
-export const Route = createFileRoute('/team/change-threshold')({
+export const Route = createFileRoute('/teams/$teamId/team/change-threshold')({
   component: ChangeThresholdPage,
   validateSearch: (search: Record<string, unknown>): SearchParams => {
     const params: SearchParams = {}
@@ -42,6 +42,7 @@ export const Route = createFileRoute('/team/change-threshold')({
 })
 
 function ChangeThresholdPage() {
+  const { teamId } = Route.useParams()
   return (
     <main className="max-w-5xl space-y-6">
       <nav className="text-sm text-muted-foreground">
@@ -49,7 +50,11 @@ function ChangeThresholdPage() {
           Home
         </Link>
         <span className="mx-2">/</span>
-        <Link to="/team" className="hover:text-foreground">
+        <Link
+          to="/teams/$teamId/team"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
           Team
         </Link>
         <span className="mx-2">/</span>
@@ -57,21 +62,21 @@ function ChangeThresholdPage() {
       </nav>
 
       <ClientOnly fallback={<Skeleton className="h-64 w-full" />}>
-        <ChangeThresholdForm />
+        <ChangeThresholdForm teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
-function ChangeThresholdForm() {
+function ChangeThresholdForm({ teamId }: { teamId: string }) {
   const { vault: prefilledVault } = Route.useSearch()
   const navigate = useNavigate()
-  const refreshProposals = useAtomRefresh(teamProposalListAtom)
+  const refreshProposals = useAtomRefresh(teamProposalListAtom(teamId))
   const [, dispatch] = useAtom(createChangeThresholdProposal, {
     mode: 'promiseExit'
   })
 
-  const vaultsResult = useAtomValue(vaultsListAtom)
+  const vaultsResult = useAtomValue(vaultsListAtom(teamId))
 
   const [vaultAddress, setVaultAddress] = useState(prefilledVault ?? '')
   const [threshold, setThreshold] = useState('')
@@ -94,6 +99,7 @@ function ChangeThresholdForm() {
     setSubmitting(true)
 
     const exit = await dispatch({
+      teamId,
       input: {
         vaultAddress: VaultAddress.make(vaultAddress.trim()),
         threshold: Number(threshold)
@@ -118,8 +124,8 @@ function ChangeThresholdForm() {
       onSuccess: (result) => {
         refreshProposals()
         navigate({
-          to: '/team/proposals/$proposalId',
-          params: { proposalId: String(result.id) }
+          to: '/teams/$teamId/team/proposals/$proposalId',
+          params: { teamId, proposalId: String(result.id) }
         })
       }
     })
@@ -181,7 +187,7 @@ function ChangeThresholdForm() {
             <Button type="submit" disabled={submitting}>
               {submitting ? 'Creating...' : 'Create Threshold Proposal'}
             </Button>
-            <Link to="/team">
+            <Link to="/teams/$teamId/team" params={{ teamId }}>
               <Button type="button" variant="outline">
                 Cancel
               </Button>

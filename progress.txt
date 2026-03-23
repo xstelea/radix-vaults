@@ -124,3 +124,98 @@
 - `main.ts`: CLI entry point reading config JSON, outputting TEAM_ACCOUNT_ADDRESS and TEAM_MEMBER_BADGE_ADDRESS
 - Network-aware addresses: stokenet (networkId=2) and mainnet (networkId=1) resource/package addresses
 - Tests: config validation (6), manifest builders (8), bootstrap flow with mocked TransactionService (3) = 17 new tests, 84 total
+
+## Multi-team Phase 1: Auth simplification (DONE)
+- Commit be5bd51 on multi-team-support branch
+- Removed BadgeChecker.hasBadge() call from POST /auth/verify handler
+- ROLA-only login — any Radix account can create a session without badge ownership
+- Deleted MissingTeamBadgeError class from shared auth schema
+- Removed MissingTeamBadgeError from verify endpoint error schema (AuthGroup)
+- Removed MissingTeamBadgeError catch branch from frontend wallet atom
+- BadgeChecker service kept wired in main.ts (cleanup deferred to Phase 8)
+- No test changes needed — no tests asserted on badge checking
+- All 36 tests pass, 5/5 packages typecheck clean
+
+## Multi-team Phase 2: Team creation (DONE)
+- On multi-team-support branch
+- Database: `teams` table (id, name, badgeAddress, createdAt) + `team_members` table (teamId + accountAddress composite PK, confirmed boolean). Migration 0011.
+- Shared: `TeamId` branded type. New schemas: `CreateTeamRequestSchema`, `CreateTeamResponseSchema`, `TeamListItemSchema`, `TeamNotFoundError`, `CreateTeamFailedError`.
+- API: `TeamsGroup` with `POST /teams/create` (session required) and `GET /teams` (session required)
+- Server: `buildCreateTeamBadgeManifest()` in manifests.ts — 3-field NFT schema (name, teamId, mfa_virtual_resource), 1-of-1 access rule, fee payer only submission, extracts `resource_` address from affected_global_entities
+- Server: `TeamRepo` Effect.Service (insert, addMember, getById, listByMember with teams/team_members join)
+- Server: `TeamsHandler` Effect.Service (createTeam orchestrates: UUID gen → manifest build → submitFeePayerOnly → extract badge address → insert team + member)
+- Server: `TeamsHandlersLive` API handlers wired into main.ts
+- Frontend: `TeamsService`, `teamsListAtom`, `createTeam` atom function
+- Frontend: Home page (`/`) replaced with team list page (list teams, "Create Team" button, empty state)
+- Frontend: `/teams/create` page with form (name, virtualBadge, memberName), redirects to home on success
+- Tests: TeamRepo (4: insert+getById, TeamNotFoundError, addMember+listByMember, empty list), buildCreateTeamBadgeManifest (3: 3-field schema, 1-of-1 rule, WellKnown count) = 7 new tests, 43 total
+- All 43 tests pass, 5/5 packages typecheck clean
+
+## Multi-team Phase 3: Team-scoped routing (DONE)
+- On multi-team-support branch
+- Database: Added `teamId` FK (NOT NULL) to `vaults` table, changed vault PK to composite `(teamId, accountAddress)`. Added `teamId` FK (NOT NULL) to `proposals` table. Migration 0012.
+- Shared: `NotATeamMemberError` (403). All API groups restructured: VaultsGroup → `/teams/:teamId/vaults/...`, ProposalsGroup → `/teams/:teamId/vaults/:vaultAddress/proposals/...`, TeamGroup → `/teams/:teamId/team`, TeamProposalsGroup → `/teams/:teamId/team/proposals/...`, DashboardGroup → `/teams/:teamId/dashboard/...`. Reusable path schemas (`TeamPath`, `TeamVaultPath`, `TeamVaultProposalPath`, `TeamProposalPath`).
+- Server: `TeamMembershipChecker` Effect.Service — DB confirmed-member check + on-chain badge ownership via gateway. Called in write-op API handlers (not middleware).
+- Server: All repos gain `teamId` parameter — ListVaultsRepo (list, getDetailBase, ensureExists), ImportVaultRepo (insert), ProposalRepo (insert, listByVault, getById, listByTeam, getByIdTeam, listAllPending). TeamRepo gains `getConfirmedMembers`.
+- Server: All handlers accept `teamId` — VaultsHandler, ProposalsHandler, TeamHandler, TeamProposalsHandler. Badge address from `teamRepo.getById(teamId).badgeAddress` (not AuthConfig env var). API handlers extract `teamId` from path, write-ops call TeamMembershipChecker.check().
+- Frontend: All services gain `teamId` parameter with `TeamId.make()` branding. All atoms updated: family atoms keyed by `teamId`, action atoms include `teamId` in args.
+- Frontend: Routes moved under `teams/$teamId/` layout. `$teamId.tsx` layout route renders Outlet. Sidebar shows team-scoped links when `teamId` present. Team list page links to `/teams/$teamId/vaults`.
+- Tests: listVaultsRepo.test (3), proposalRepo.test (4) updated with teamId — seed data includes team insert, all repo calls pass teamId. All 43 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 4: Team-scoped vault operations (DONE)
+- On multi-team-support branch
+- All vault and proposal flows already wired end-to-end with team context in Phase 3 (repos, handlers, API handlers, frontend services/atoms/routes all accept teamId)
+- Badge address for vault creation comes from `teamRepo.getById(teamId).badgeAddress` (not env var)
+- Composite PK `(teamId, accountAddress)` allows same vault address in multiple teams independently
+- New ImportVaultRepo tests (3): import stores (teamId, accountAddress), same vault address in different teams succeeds, duplicate in same team rejected with VaultAlreadyExistsError
+- New ListVaultsRepo test (1): vault list scoped to team — two teams with overlapping vault addresses return only their own vaults
+- New ProposalRepo test (1): proposals scoped to team — listByVault only returns proposals for the given team even when vault address shared across teams
+- Tests: importVaultRepo.test (3), listVaultsRepo.test (4), proposalRepo.test (5) = 5 new tests, 48 total. All pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 5: Team governance — add member (DONE)
+- On multi-team-support branch
+- Database: Added `target_account_address` nullable column to proposals table. Migration 0013.
+- TeamRepo: Added `confirmMember(teamId, accountAddress)` sets confirmed=true, `removeMember(teamId, accountAddress)` deletes row, `getMembers(teamId)` returns all members including unconfirmed. `listByMember` now filters by confirmed=true only.
+- ProposalRepo: `insert` and `getByIdTeam` support optional `targetAccountAddress` field for tracking add/remove member targets.
+- TeamProposalsHandler.createAddMember: Inserts unconfirmed team_member (optimistic insert), stores `targetAccountAddress` on proposal record.
+- TeamProposalsHandler.createRemoveMember: Stores `targetAccountAddress` on proposal record.
+- TeamProposalsHandler.refreshStatus: On committed add_member → `confirmMember` flips confirmed=true. On committed remove_member → `removeMember` deletes team_member. On failed add_member → removes unconfirmed member (cleanup).
+- Shared schemas: Added `PendingMemberSchema` and `pendingMembers` array to `TeamOverviewSchema`.
+- TeamHandler.getOverview: Fetches unconfirmed members from `teamRepo.getMembers()` and includes them as `pendingMembers` in response.
+- Frontend: Post-team-creation redirect changed from `/` to `/teams/$teamId/team/add-member`.
+- Frontend: Team overview page shows pending members section with amber "Pending" badge when unconfirmed members exist.
+- Tests: 3 new TeamRepo tests (confirmMember flips confirmed, removeMember deletes record, listByMember excludes unconfirmed). 52 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 6: Team governance — remove member + change threshold (DONE)
+- On multi-team-support branch
+- All code implemented during Phase 5 as part of team proposals infrastructure:
+  - `TeamProposalsHandler.createRemoveMember`: Validates signer exists, filters from set, enforces min 1 signer, looks up member's internal badge vault via gateway, builds remove manifest, stores proposal with `targetAccountAddress`.
+  - `TeamProposalsHandler.createChangeThreshold`: Validates vault exists, fetches signers, validates threshold ≤ signer count, builds change-threshold manifest.
+  - `buildRemoveMemberManifest`: RECALL_NON_FUNGIBLES_FROM_VAULT → TAKE_ALL_FROM_WORKTOP → BURN_RESOURCE → SET_OWNER_ROLE on badge + all vaults.
+  - `buildChangeThresholdManifest`: Single SET_OWNER_ROLE on the target vault only.
+  - `refreshStatus`: On committed remove_member → `teamRepo.removeMember()` deletes team_member row. On failed add_member → cleans up unconfirmed member.
+  - Frontend: `remove-member.tsx` (member dropdown, per-vault thresholds), `change-threshold.tsx` (vault dropdown, threshold input). Both use existing team proposals atoms.
+  - Shared schemas: `RemoveMemberRequestSchema` (memberAddress, virtualBadge, badgeThreshold, vaultThresholds), `ChangeThresholdRequestSchema` (vaultAddress, threshold).
+  - API: POST `/teams/:teamId/team/proposals/remove-member`, POST `/teams/:teamId/team/proposals/change-threshold`.
+  - Error types: MemberNotFoundError, BadgeVaultNotFoundError, ThresholdExceedsSignersError for validation failures.
+- Tests: 4 new manifest tests — buildRemoveMemberManifest (2: recall+burn+SET_OWNER_ROLE, AllOf rule), buildChangeThresholdManifest (2: single SET_OWNER_ROLE, no badge mutation). 56 tests pass, 5/5 packages typecheck clean.
+
+## Multi-team Phase 7: Team-scoped dashboard (DONE)
+- On multi-team-support branch
+- Backend already fully implemented in prior phases: `DashboardGroup` API endpoint (`GET /teams/:teamId/dashboard/pending-proposals`), `DashboardHandlersLive` handler (fetches from `ProposalRepo.listAllPending` + enriches with badge holder names), `DashboardService` frontend client, `pendingProposalsAtom`.
+- Frontend: New dashboard route page at `teams/$teamId/index.tsx` — shows pending proposals table with type badges, entity names, status, creator names, and creation dates. Vault proposals link to `/teams/$teamId/vaults/$vaultId/proposals/$proposalId`, team proposals link to `/teams/$teamId/team/proposals/$proposalId`. Empty state: "No pending proposals for this team."
+- Sidebar: Added "Dashboard" link with `LayoutDashboard` icon when inside a team. Appears above Vaults and Team links. Active state detection based on route match.
+- Team list page: Links now navigate to `/teams/$teamId` (dashboard) instead of `/teams/$teamId/vaults` — dashboard is the team landing page.
+- Route tree regenerated via `tsr generate`.
+- Tests: 2 new ProposalRepo tests — listAllPending returns only pending proposals for given team (team isolation + excludes committed), listAllPending auto-expires proposals past their deadline. 58 tests total (56 passed + 1 flaky container timeout + 1 todo), 5/5 packages typecheck clean.
+
+## Multi-team Phase 8: Cleanup (DONE)
+- On multi-team-support branch
+- Deleted `BadgeChecker` service (`apps/server/src/auth/badgeChecker.ts`) and its error types (`BadgeCheckError`, `NoBadgeError`).
+- Removed `BadgeChecker.Default` from `AuthServicesLive` in `apps/server/src/main.ts`.
+- Removed `teamMemberBadgeAddress` from `AuthConfig` type, `layer()` method, and `Live` layer in `packages/shared/src/config.ts`. Server no longer reads `TEAM_MEMBER_BADGE_ADDRESS` env var.
+- Removed `TEAM_MEMBER_BADGE_ADDRESS` from: `.env.example`, `fly.server.toml`, `docker-compose.production.yml`, `README.md` env var table, `apps/client/playwright.config.ts`.
+- Updated `apps/server/src/auth/rola.test.ts` mock config to remove `teamMemberBadgeAddress`.
+- Old flat route files (`routes/vaults/`, `routes/team/`) already removed in prior phases — confirmed no remnants.
+- `TeamOverviewSchema.teamMemberBadgeAddress` retained as API response field (populated from per-team `team.badgeAddress` in DB, not env var).
+- All 58 tests pass (57 server + 1 todo, 12 CLI), 5/5 packages typecheck clean.

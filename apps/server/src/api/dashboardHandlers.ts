@@ -8,13 +8,13 @@ export const DashboardHandlersLive = HttpApiBuilder.group(
   AppApi,
   'dashboard',
   (handlers) =>
-    handlers.handle('pendingProposals', () =>
+    handlers.handle('pendingProposals', ({ path: { teamId } }) =>
       Effect.gen(function* () {
         const repo = yield* ProposalRepo
         const teamHandler = yield* TeamHandler
         const [proposals, overview] = yield* Effect.all([
-          repo.listAllPending(),
-          teamHandler.getOverview()
+          repo.listAllPending(teamId),
+          teamHandler.getOverview(teamId)
         ])
 
         const nameByAddress = new Map(

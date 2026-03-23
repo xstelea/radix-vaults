@@ -1,5 +1,5 @@
 import type { BadgeHolder, TeamOverview } from '@radix-vaults/shared'
-import { AuthConfig } from '@radix-vaults/shared'
+import { TeamRepo } from './teamRepo'
 import {
   GetEntityDetailsVaultAggregated,
   GetResourceHoldersService,
@@ -25,16 +25,27 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
   '@radix-vaults/server/handlers/TeamHandler',
   {
     effect: Effect.gen(function* () {
-      const authConfig = yield* AuthConfig
+      const teamRepo = yield* TeamRepo
       const accessRuleValidator = yield* AccessRuleValidator
       const getResourceHolders = yield* GetResourceHoldersService
       const getEntityDetails = yield* GetEntityDetailsVaultAggregated
       const getNonFungibleData = yield* NonFungibleData
 
-      const getOverview = (): Effect.Effect<TeamOverview> =>
+      const getOverview = (teamId: string): Effect.Effect<TeamOverview> =>
         Effect.gen(function* () {
+          const team = yield* teamRepo.getById(teamId).pipe(Effect.orDie)
+
+          // Fetch pending (unconfirmed) members from DB
+          const allMembers = yield* teamRepo.getMembers(teamId)
+          const pendingMembers = allMembers
+            .filter((m) => !m.confirmed)
+            .map((m) => ({
+              accountAddress: m.accountAddress,
+              createdAt: m.createdAt.toISOString()
+            }))
+
           const accessRule = yield* accessRuleValidator
-            .validate(authConfig.teamMemberBadgeAddress)
+            .validate(team.badgeAddress)
             .pipe(Effect.orDie)
 
           const threshold =
@@ -50,7 +61,7 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
           }))
 
           const holders = yield* getResourceHolders({
-            resourceAddress: authConfig.teamMemberBadgeAddress
+            resourceAddress: team.badgeAddress
           }).pipe(Effect.orDie)
 
           const nftHolderAddresses = holders
@@ -59,10 +70,11 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
 
           if (nftHolderAddresses.length === 0) {
             return {
-              teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
+              teamMemberBadgeAddress: team.badgeAddress,
               threshold,
               signers,
-              badgeHolders: []
+              badgeHolders: [],
+              pendingMembers
             } satisfies TeamOverview
           }
 
@@ -84,7 +96,7 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
             const nfResources = entity.non_fungible_resources?.items ?? []
             const badgeResource = nfResources.find(
               (r: { resource_address?: string }) =>
-                r.resource_address === authConfig.teamMemberBadgeAddress
+                r.resource_address === team.badgeAddress
             ) as
               | {
                   vaults?: {
@@ -111,16 +123,17 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
 
           if (allLocalIds.length === 0) {
             return {
-              teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
+              teamMemberBadgeAddress: team.badgeAddress,
               threshold,
               signers,
-              badgeHolders: []
+              badgeHolders: [],
+              pendingMembers
             } satisfies TeamOverview
           }
 
           // Fetch NFT data for all local IDs
           const nftDataItems = yield* getNonFungibleData({
-            resource_address: authConfig.teamMemberBadgeAddress,
+            resource_address: team.badgeAddress,
             non_fungible_ids: allLocalIds
           }).pipe(Effect.orDie)
 
@@ -165,10 +178,11 @@ export class TeamHandler extends Effect.Service<TeamHandler>()(
           }
 
           return {
-            teamMemberBadgeAddress: authConfig.teamMemberBadgeAddress,
+            teamMemberBadgeAddress: team.badgeAddress,
             threshold,
             signers,
-            badgeHolders
+            badgeHolders,
+            pendingMembers
           } satisfies TeamOverview
         })
 

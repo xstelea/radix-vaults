@@ -1,6 +1,6 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
-import { teamProposalListAtom } from '@/atom/teamProposals'
+import { pendingProposalsAtom } from '@/atom/pendingProposals'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,8 +20,8 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/team/proposals/')({
-  component: TeamProposalsPage
+export const Route = createFileRoute('/teams/$teamId/')({
+  component: DashboardPage
 })
 
 const statusVariant: Record<
@@ -30,21 +30,18 @@ const statusVariant: Record<
 > = {
   created: 'outline',
   signing: 'secondary',
-  ready: 'default',
-  submitted: 'secondary',
-  committed: 'default',
-  failed: 'destructive',
-  expired: 'destructive',
-  invalid: 'destructive'
+  ready: 'default'
 }
 
 const typeLabel: Record<string, string> = {
+  vault: 'Vault',
   add_member: 'Add Member',
   remove_member: 'Remove Member',
   change_threshold: 'Change Threshold'
 }
 
-function TeamProposalsPage() {
+function DashboardPage() {
+  const { teamId } = Route.useParams()
   return (
     <main className="max-w-5xl space-y-6">
       <div className="flex items-center justify-between gap-4">
@@ -53,11 +50,7 @@ function TeamProposalsPage() {
             Home
           </Link>
           <span className="mx-2">/</span>
-          <Link to="/team" className="hover:text-foreground">
-            Team
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-foreground font-medium">Team Proposals</span>
+          <span className="text-foreground font-medium">Dashboard</span>
         </nav>
         <ClientOnly
           fallback={
@@ -84,14 +77,15 @@ function TeamProposalsPage() {
           </Card>
         }
       >
-        <TeamProposalsList />
+        <PendingProposalsList teamId={teamId} />
       </ClientOnly>
     </main>
   )
 }
 
 function RefreshButton() {
-  const refresh = useAtomRefresh(teamProposalListAtom)
+  const { teamId } = Route.useParams()
+  const refresh = useAtomRefresh(pendingProposalsAtom(teamId))
   return (
     <Button variant="outline" onClick={refresh}>
       Refresh
@@ -99,9 +93,29 @@ function RefreshButton() {
   )
 }
 
-function TeamProposalsList() {
-  const result = useAtomValue(teamProposalListAtom)
-  const refresh = useAtomRefresh(teamProposalListAtom)
+function proposalLink(
+  teamId: string,
+  proposal: { id: number; type: string; entityAddress: string }
+) {
+  if (proposal.type === 'vault') {
+    return {
+      to: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId' as const,
+      params: {
+        teamId,
+        vaultId: proposal.entityAddress,
+        proposalId: String(proposal.id)
+      }
+    }
+  }
+  return {
+    to: '/teams/$teamId/team/proposals/$proposalId' as const,
+    params: { teamId, proposalId: String(proposal.id) }
+  }
+}
+
+function PendingProposalsList({ teamId }: { teamId: string }) {
+  const result = useAtomValue(pendingProposalsAtom(teamId))
+  const refresh = useAtomRefresh(pendingProposalsAtom(teamId))
 
   return Result.builder(result)
     .onInitialOrWaiting(() => (
@@ -120,7 +134,7 @@ function TeamProposalsList() {
       <Card className="border-red-900/20 bg-red-50/80">
         <CardHeader>
           <CardTitle className="text-base">
-            Could not load team proposals
+            Could not load pending proposals
           </CardTitle>
           <CardDescription className="text-red-900/90">
             {String(cause)}
@@ -136,11 +150,11 @@ function TeamProposalsList() {
     .onSuccess((proposals) => (
       <Card>
         <CardHeader>
-          <CardTitle>Team Proposals</CardTitle>
+          <CardTitle>Pending Proposals</CardTitle>
           <CardDescription>
             {proposals.length === 0
-              ? 'No team proposals yet.'
-              : `${proposals.length} proposal${proposals.length === 1 ? '' : 's'}`}
+              ? 'No pending proposals for this team.'
+              : `${proposals.length} pending proposal${proposals.length === 1 ? '' : 's'}`}
           </CardDescription>
         </CardHeader>
         {proposals.length > 0 && (
@@ -150,41 +164,49 @@ function TeamProposalsList() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Entity</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created By</TableHead>
                   <TableHead>Created</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {proposals.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <Link
-                        to="/team/proposals/$proposalId"
-                        params={{ proposalId: String(p.id) }}
-                        className="font-medium underline decoration-muted-foreground/40 hover:decoration-foreground"
-                      >
-                        #{p.id}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {typeLabel[p.type] ?? p.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant[p.status] ?? 'outline'}>
-                        {p.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(p.createdAt).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {proposals.map((p) => {
+                  const link = proposalLink(teamId, p)
+                  return (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <Link
+                          to={link.to}
+                          params={link.params}
+                          className="font-medium underline decoration-muted-foreground/40 hover:decoration-foreground"
+                        >
+                          #{p.id}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {typeLabel[p.type] ?? p.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {p.entityName ??
+                          `${p.entityAddress.slice(0, 16)}...${p.entityAddress.slice(-6)}`}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant[p.status] ?? 'outline'}>
+                          {p.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(p.createdAt).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </CardContent>

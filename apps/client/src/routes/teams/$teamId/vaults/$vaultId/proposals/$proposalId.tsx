@@ -37,12 +37,14 @@ import {
   TableRow
 } from '@/components/ui/table'
 
-export const Route = createFileRoute('/vaults/$vaultId/proposals/$proposalId')({
+export const Route = createFileRoute(
+  '/teams/$teamId/vaults/$vaultId/proposals/$proposalId'
+)({
   component: ProposalDetailPage
 })
 
 function ProposalDetailPage() {
-  const { vaultId, proposalId } = Route.useParams()
+  const { teamId, vaultId, proposalId } = Route.useParams()
 
   return (
     <main className="max-w-5xl space-y-6">
@@ -52,8 +54,8 @@ function ProposalDetailPage() {
         </Link>
         <span className="mx-2">/</span>
         <Link
-          to="/vaults/$vaultId"
-          params={{ vaultId }}
+          to="/teams/$teamId/vaults/$vaultId"
+          params={{ teamId, vaultId }}
           className="hover:text-foreground"
         >
           Vault
@@ -103,10 +105,11 @@ const SIGNABLE_STATUSES = new Set(['created', 'signing'])
 const TERMINAL_STATUSES = new Set(['committed', 'failed', 'expired', 'invalid'])
 
 function ProposalDetailContent() {
-  const { vaultId, proposalId } = Route.useParams()
+  const { teamId, vaultId, proposalId } = Route.useParams()
   const vaultAddress = VaultAddress.make(vaultId)
   const detailAtom = proposalDetailAtom(
     ProposalDetailKey({
+      teamId,
       vaultAddress,
       proposalId: ProposalId.make(Number(proposalId))
     })
@@ -207,12 +210,14 @@ function ProposalDetailContent() {
         )}
 
         <SignatureProgressCard
+          teamId={teamId}
           proposal={proposal}
           vaultAddress={vaultAddress}
           onSigned={refresh}
         />
 
         <SubmitCard
+          teamId={teamId}
           proposal={proposal}
           vaultAddress={vaultAddress}
           onSubmitted={refresh}
@@ -220,6 +225,7 @@ function ProposalDetailContent() {
 
         {proposal.transactionIntentHash && (
           <TransactionInfoCard
+            teamId={teamId}
             proposal={proposal}
             vaultAddress={vaultAddress}
             onStatusRefreshed={refresh}
@@ -249,10 +255,12 @@ function ProposalDetailContent() {
 }
 
 function SignatureProgressCard({
+  teamId,
   proposal,
   vaultAddress,
   onSigned
 }: {
+  teamId: string
   proposal: ProposalDetail
   vaultAddress: VaultAddress
   onSigned: () => void
@@ -274,6 +282,7 @@ function SignatureProgressCard({
     setSigning(true)
     try {
       const exit = await dispatch({
+        teamId,
         vaultAddress,
         proposalId: proposal.id,
         proposal
@@ -285,7 +294,7 @@ function SignatureProgressCard({
     } finally {
       setSigning(false)
     }
-  }, [vaultAddress, proposal, onSigned, dispatch])
+  }, [teamId, vaultAddress, proposal, onSigned, dispatch])
 
   return (
     <Card>
@@ -337,10 +346,12 @@ function SignatureProgressCard({
 }
 
 function SubmitCard({
+  teamId,
   proposal,
   vaultAddress,
   onSubmitted
 }: {
+  teamId: string
   proposal: ProposalDetail
   vaultAddress: VaultAddress
   onSubmitted: () => void
@@ -360,7 +371,11 @@ function SubmitCard({
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
+      const exit = await dispatch({
+        teamId,
+        vaultAddress,
+        proposalId: proposal.id
+      })
       Exit.match(exit, {
         onSuccess: () => onSubmitted(),
         onFailure: () => {}
@@ -389,10 +404,12 @@ function SubmitCard({
 }
 
 function TransactionInfoCard({
+  teamId,
   proposal,
   vaultAddress,
   onStatusRefreshed
 }: {
+  teamId: string
   proposal: ProposalDetail
   vaultAddress: VaultAddress
   onStatusRefreshed: () => void
@@ -412,7 +429,11 @@ function TransactionInfoCard({
   const handleCheckStatus = useCallback(async () => {
     setChecking(true)
     try {
-      const exit = await dispatch({ vaultAddress, proposalId: proposal.id })
+      const exit = await dispatch({
+        teamId,
+        vaultAddress,
+        proposalId: proposal.id
+      })
       Exit.match(exit, {
         onSuccess: () => onStatusRefreshed(),
         onFailure: () => {}
@@ -420,7 +441,7 @@ function TransactionInfoCard({
     } finally {
       setChecking(false)
     }
-  }, [vaultAddress, proposal.id, onStatusRefreshed, dispatch])
+  }, [teamId, vaultAddress, proposal.id, onStatusRefreshed, dispatch])
 
   return (
     <Card>

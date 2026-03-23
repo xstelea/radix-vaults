@@ -3,8 +3,12 @@ import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
-import { createProposal, proposalListAtom } from '@/atom/proposals'
-import { vaultReadAtom } from '@/atom/vaults'
+import {
+  createProposal,
+  ProposalListKey,
+  proposalListAtom
+} from '@/atom/proposals'
+import { VaultReadKey, vaultReadAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -14,16 +18,22 @@ import {
   CardTitle
 } from '@/components/ui/card'
 
-export const Route = createFileRoute('/vaults/$vaultId/proposals/new')({
+export const Route = createFileRoute(
+  '/teams/$teamId/vaults/$vaultId/proposals/new'
+)({
   component: NewProposalPage
 })
 
 function NewProposalPage() {
-  const { vaultId } = Route.useParams()
+  const { teamId, vaultId } = Route.useParams()
   const navigate = useNavigate()
   const vaultAddress = VaultAddress.make(vaultId)
-  const refreshProposals = useAtomRefresh(proposalListAtom(vaultAddress))
-  const refreshVault = useAtomRefresh(vaultReadAtom(vaultAddress))
+  const refreshProposals = useAtomRefresh(
+    proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
+  )
+  const refreshVault = useAtomRefresh(
+    vaultReadAtom(VaultReadKey({ teamId, vaultAddress }))
+  )
   const [, dispatch] = useAtom(createProposal, { mode: 'promiseExit' })
 
   const [manifest, setManifest] = useState('')
@@ -41,6 +51,7 @@ function NewProposalPage() {
     const maxProposerTimestamp = deadline.toISOString().slice(0, 19)
 
     const exit = await dispatch({
+      teamId,
       vaultAddress,
       manifest: manifest.trim(),
       maxProposerTimestamp
@@ -65,8 +76,8 @@ function NewProposalPage() {
         refreshProposals()
         refreshVault()
         navigate({
-          to: '/vaults/$vaultId/proposals/$proposalId',
-          params: { vaultId, proposalId: String(result.id) }
+          to: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId',
+          params: { teamId, vaultId, proposalId: String(result.id) }
         })
       }
     })
@@ -80,8 +91,8 @@ function NewProposalPage() {
         </Link>
         <span className="mx-2">/</span>
         <Link
-          to="/vaults/$vaultId"
-          params={{ vaultId }}
+          to="/teams/$teamId/vaults/$vaultId"
+          params={{ teamId, vaultId }}
           className="hover:text-foreground"
         >
           Vault
@@ -144,7 +155,10 @@ function NewProposalPage() {
               <Button type="submit" disabled={submitting}>
                 {submitting ? 'Creating...' : 'Create Proposal'}
               </Button>
-              <Link to="/vaults/$vaultId" params={{ vaultId }}>
+              <Link
+                to="/teams/$teamId/vaults/$vaultId"
+                params={{ teamId, vaultId }}
+              >
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>

@@ -17,7 +17,6 @@ primary_region = 'ams'
   LOG_FORMAT = 'json'
   NETWORK_ID = '2'
   SERVER_PORT = '8080'
-  TEAM_MEMBER_BADGE_ADDRESS = 'resource_tdx_2_1ng76wgzcuz4kup25hnggx7x0ujc7cc2em9ct80j94zkzz5zglejup2'
 
 [http_service]
   internal_port = 8080

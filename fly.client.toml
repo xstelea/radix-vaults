@@ -11,7 +11,7 @@ primary_region = 'ams'
 
   [build.args]
     VITE_API_BASE_URL = 'https://radix-vaults-server.fly.dev'
-    VITE_DAPP_DEFINITION_ADDRESS = 'account_tdx_2_12yf9gd53yfep7a669fv2t3wm7nz9zeezwd04n02a433ker8vza6rhe'
+    VITE_DAPP_DEFINITION_ADDRESS = 'account_tdx_2_1c84d22un4jrfgwthrwkagfceppmg62c99dxey7u9vmv67s9ahvw6kn'
     VITE_ENV = 'prod'
     VITE_NETWORK_ID = '2'
 
