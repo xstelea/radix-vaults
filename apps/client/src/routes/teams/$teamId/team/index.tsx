@@ -57,7 +57,7 @@ function TeamPage() {
           </Link>
           <ClientOnly
             fallback={
-              <Button variant="outline" disabled>
+              <Button variant="outline" disabled aria-label="Refresh">
                 <RefreshCw className="h-4 w-4" />
               </Button>
             }
@@ -78,7 +78,7 @@ function RefreshTeamButton() {
   const { teamId } = Route.useParams()
   const refresh = useAtomRefresh(teamOverviewAtom(teamId))
   return (
-    <Button variant="outline" onClick={refresh}>
+    <Button variant="outline" onClick={refresh} aria-label="Refresh">
       <RefreshCw className="h-4 w-4" />
     </Button>
   )
@@ -183,9 +183,15 @@ function TeamContent({ teamId }: { teamId: string }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Key Type</TableHead>
-                  <TableHead>Badge ID</TableHead>
-                  <TableHead>Account Address</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Key Type
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Badge ID
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Account Address
+                  </TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -193,13 +199,13 @@ function TeamContent({ teamId }: { teamId: string }) {
                 {overview.badgeHolders.map((holder) => (
                   <TableRow key={holder.holderAddress}>
                     <TableCell className="font-medium">{holder.name}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline">{holder.keyType}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">
                       {holder.localId}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <AddressLink address={holder.holderAddress} />
                     </TableCell>
                     <TableCell>

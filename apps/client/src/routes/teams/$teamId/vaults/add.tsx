@@ -109,7 +109,7 @@ function AddVaultPage() {
                 placeholder="account_tdx_2_1..."
                 value={accountAddress}
                 onChange={(e) => setAccountAddress(e.target.value)}
-                className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
@@ -125,12 +125,15 @@ function AddVaultPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={255}
-                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
             {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              <div
+                role="alert"
+                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+              >
                 {error}
               </div>
             )}

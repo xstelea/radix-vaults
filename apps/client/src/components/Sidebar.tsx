@@ -61,6 +61,15 @@ export function Sidebar({
     }
   }, [teamId])
 
+  useEffect(() => {
+    if (!open) return
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [open, onClose])
+
   const toggleTeam = useCallback((id: string) => {
     setExpandedTeams((prev) => {
       const next = new Set(prev)
@@ -85,6 +94,7 @@ export function Sidebar({
         <div
           className="fixed inset-0 z-40 bg-black/30 lg:hidden"
           onClick={onClose}
+          role="presentation"
         />
       )}
 
@@ -116,8 +126,9 @@ export function Sidebar({
             </span>
           </Link>
           <button
-            className="lg:hidden p-1 rounded-md hover:bg-white/10 transition-colors"
+            className="lg:hidden p-2 rounded-md hover:bg-white/10 transition-colors"
             onClick={onClose}
+            aria-label="Close navigation"
           >
             <X className="h-4 w-4" style={{ color: 'oklch(0.55 0.01 55)' }} />
           </button>
@@ -140,7 +151,7 @@ export function Sidebar({
           />
           <span
             className="text-[10px] font-semibold uppercase"
-            style={{ color: 'oklch(0.45 0.015 55)', letterSpacing: '0.1em' }}
+            style={{ color: 'oklch(0.55 0.015 55)', letterSpacing: '0.1em' }}
           >
             Stokenet
           </span>
@@ -192,14 +203,21 @@ export function Sidebar({
                     <div
                       className={`sidebar-row sidebar-row--team${isActiveTeam ? ' active' : ''}`}
                     >
-                      <span
+                      <button
+                        type="button"
                         className="sidebar-chevron-area"
                         onClick={() => toggleTeam(team.teamId)}
+                        aria-expanded={isExpanded}
+                        aria-label={
+                          isExpanded
+                            ? `Collapse ${team.name}`
+                            : `Expand ${team.name}`
+                        }
                       >
                         <ChevronRight
                           className={`sidebar-chevron${isExpanded ? ' expanded' : ''}`}
                         />
-                      </span>
+                      </button>
                       <Link
                         to="/teams/$teamId"
                         params={{ teamId: team.teamId }}
@@ -230,14 +248,21 @@ export function Sidebar({
                         <div
                           className={`sidebar-row sidebar-row--child${isVaultsActive ? ' active' : ''}`}
                         >
-                          <span
+                          <button
+                            type="button"
                             className="sidebar-chevron-area"
                             onClick={() => toggleVaults(team.teamId)}
+                            aria-expanded={isVaultsExpanded}
+                            aria-label={
+                              isVaultsExpanded
+                                ? 'Collapse vaults'
+                                : 'Expand vaults'
+                            }
                           >
                             <ChevronRight
                               className={`sidebar-chevron${isVaultsExpanded ? ' expanded' : ''}`}
                             />
-                          </span>
+                          </button>
                           <Link
                             to="/teams/$teamId/vaults"
                             params={{ teamId: team.teamId }}

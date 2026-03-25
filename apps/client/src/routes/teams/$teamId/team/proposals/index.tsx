@@ -77,7 +77,7 @@ function TeamProposalsPage() {
         </nav>
         <ClientOnly
           fallback={
-            <Button variant="outline" disabled>
+            <Button variant="outline" disabled aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           }
@@ -110,7 +110,7 @@ function RefreshButton() {
   const { teamId } = Route.useParams()
   const refresh = useAtomRefresh(teamProposalListAtom(teamId))
   return (
-    <Button variant="outline" onClick={refresh}>
+    <Button variant="outline" onClick={refresh} aria-label="Refresh">
       <RefreshCw className="h-4 w-4" />
     </Button>
   )
@@ -168,8 +168,12 @@ function TeamProposalsList({ teamId }: { teamId: string }) {
                   <TableHead>ID</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created By
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -194,10 +198,10 @@ function TeamProposalsList({ teamId }: { teamId: string }) {
                         {p.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">
                       {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
                       {new Date(p.createdAt).toLocaleString()}
                     </TableCell>
                   </TableRow>

@@ -177,7 +177,7 @@ function ProposalDetailContent() {
                 <AddressLink address={proposal.vaultAddress} />
               </CardDescription>
             </div>
-            <Button variant="outline" onClick={refresh}>
+            <Button variant="outline" onClick={refresh} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </CardHeader>

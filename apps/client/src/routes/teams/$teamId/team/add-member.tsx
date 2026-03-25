@@ -175,7 +175,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="account_tdx_2_1..."
               value={accountAddress}
               onChange={(e) => setAccountAddress(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
 
@@ -191,7 +191,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="Alice"
               value={memberName}
               onChange={(e) => setMemberName(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               A human-readable name for this team member (stored on-ledger in
@@ -210,7 +210,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="resource_tdx_2_...ed25sg...:[hex]"
               value={virtualBadge}
               onChange={(e) => setVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               The new member&apos;s signature virtual badge NonFungibleGlobalId.
@@ -228,7 +228,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               min={1}
               value={badgeThreshold || team.threshold}
               onChange={(e) => setBadgeThreshold(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               Current threshold: {team.threshold}. The team will have{' '}
@@ -255,7 +255,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
                         [vault.accountAddress]: e.target.value
                       }))
                     }
-                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
               ))}
@@ -263,7 +263,10 @@ function AddMemberForm({ teamId }: { teamId: string }) {
           )}
 
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div
+              role="alert"
+              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+            >
               {error}
             </div>
           )}

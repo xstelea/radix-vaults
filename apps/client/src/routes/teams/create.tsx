@@ -91,7 +91,7 @@ function CreateTeamPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={255}
-                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
@@ -106,7 +106,7 @@ function CreateTeamPage() {
                 placeholder="resource_tdx_2_...:..."
                 value={virtualBadge}
                 onChange={(e) => setVirtualBadge(e.target.value)}
-                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-mono text-xs outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm font-mono text-xs outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 Your virtual signature badge NonFungibleGlobalId (e.g.
@@ -126,7 +126,7 @@ function CreateTeamPage() {
                 value={memberName}
                 onChange={(e) => setMemberName(e.target.value)}
                 maxLength={100}
-                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 Display name stored in the NFT badge metadata.
@@ -134,7 +134,10 @@ function CreateTeamPage() {
             </div>
 
             {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              <div
+                role="alert"
+                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+              >
                 {error}
               </div>
             )}

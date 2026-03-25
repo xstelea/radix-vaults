@@ -15,7 +15,7 @@
   --secondary: oklch(0.965 0 0);
   --secondary-foreground: oklch(0.2 0 0);
   --muted: oklch(0.965 0 0);
-  --muted-foreground: oklch(0.55 0 0);
+  --muted-foreground: oklch(0.46 0 0);
   --accent: oklch(0.965 0 0);
   --accent-foreground: oklch(0.2 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -40,40 +40,6 @@
   --sidebar-ring: oklch(0.87 0 0);
 }
 
-.dark {
-  --background: oklch(0.16 0 0);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.23 0 0);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.23 0 0);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.97 0 0);
-  --primary-foreground: oklch(0.16 0 0);
-  --secondary: oklch(0.25 0 0);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.25 0 0);
-  --muted-foreground: oklch(0.63 0 0);
-  --accent: oklch(0.25 0 0);
-  --accent-foreground: oklch(0.97 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.30 0 0);
-  --input: oklch(0.30 0 0);
-  --ring: oklch(0.4 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.19 0 0);
-  --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.97 0 0);
-  --sidebar-accent: oklch(0.25 0 0);
-  --sidebar-accent-foreground: oklch(0.97 0 0);
-  --sidebar-border: oklch(0.30 0 0);
-  --sidebar-ring: oklch(0.4 0 0);
-}
 
 @theme inline {
   --color-background: var(--background);
@@ -236,7 +202,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.5rem 0.875rem;
   font-size: 13.5px;
   font-weight: 500;
-  color: oklch(0.50 0.01 55);
+  color: oklch(0.58 0.01 55);
   transition: color 150ms ease, background 150ms ease;
   position: relative;
 }
@@ -322,13 +288,13 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: oklch(0.40 0.015 55);
+  color: oklch(0.52 0.015 55);
   padding: 1.25rem 0.875rem 0.5rem;
   transition: color 150ms ease;
 }
 
 .sidebar-section-link:hover {
-  color: oklch(0.58 0.015 55);
+  color: oklch(0.65 0.015 55);
 }
 
 .sidebar-section-link.active {
@@ -362,7 +328,7 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-chevron {
   width: 11px !important;
   height: 11px !important;
-  opacity: 0.30;
+  opacity: 0.40;
   transition: transform 200ms ease, opacity 200ms ease;
 }
 

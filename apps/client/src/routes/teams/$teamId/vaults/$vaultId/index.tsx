@@ -74,7 +74,7 @@ function VaultDetailPage() {
         </nav>
         <ClientOnly
           fallback={
-            <Button variant="outline" disabled>
+            <Button variant="outline" disabled aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           }
@@ -116,7 +116,7 @@ function RefreshVaultButton() {
   )
 
   return (
-    <Button variant="outline" onClick={refresh}>
+    <Button variant="outline" onClick={refresh} aria-label="Refresh">
       <RefreshCw className="h-4 w-4" />
     </Button>
   )
@@ -294,8 +294,12 @@ function ProposalListSection() {
                 <TableRow>
                   <TableHead>ID</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created By
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -303,12 +307,23 @@ function ProposalListSection() {
                   <TableRow
                     key={p.id}
                     className="cursor-pointer"
+                    tabIndex={0}
+                    role="link"
                     onClick={() =>
                       navigate({
                         to: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId',
                         params: { teamId, vaultId, proposalId: String(p.id) }
                       })
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate({
+                          to: '/teams/$teamId/vaults/$vaultId/proposals/$proposalId',
+                          params: { teamId, vaultId, proposalId: String(p.id) }
+                        })
+                      }
+                    }}
                   >
                     <TableCell>
                       <Link
@@ -324,10 +339,10 @@ function ProposalListSection() {
                         {p.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">
                       {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
                       {new Date(p.createdAt).toLocaleString()}
                     </TableCell>
                   </TableRow>

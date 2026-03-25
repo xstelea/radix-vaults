@@ -194,7 +194,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
               required
               value={selectedVirtualBadge}
               onChange={(e) => setSelectedVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="">Select a member...</option>
               {team.badgeHolders.map((holder) => (
@@ -246,7 +246,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
               max={newSignerCount}
               value={badgeThreshold || Math.min(team.threshold, newSignerCount)}
               onChange={(e) => setBadgeThreshold(e.target.value)}
-              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               Current threshold: {team.threshold}. After removal:{' '}
@@ -274,7 +274,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
                         [vault.accountAddress]: e.target.value
                       }))
                     }
-                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
               ))}
@@ -282,7 +282,10 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
           )}
 
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div
+              role="alert"
+              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+            >
               {error}
             </div>
           )}

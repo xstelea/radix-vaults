@@ -40,7 +40,7 @@ function HomePage() {
           <div className="flex gap-2">
             <ClientOnly
               fallback={
-                <Button variant="outline" disabled>
+                <Button variant="outline" disabled aria-label="Refresh">
                   <RefreshCw className="h-4 w-4" />
                 </Button>
               }
@@ -76,7 +76,7 @@ function HomePage() {
 function RefreshButton() {
   const refresh = useAtomRefresh(teamsListAtom)
   return (
-    <Button variant="outline" onClick={() => refresh()}>
+    <Button variant="outline" onClick={() => refresh()} aria-label="Refresh">
       <RefreshCw className="h-4 w-4" />
     </Button>
   )

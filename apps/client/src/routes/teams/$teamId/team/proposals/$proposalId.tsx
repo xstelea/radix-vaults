@@ -181,7 +181,7 @@ function TeamProposalDetailContent({ teamId }: { teamId: string }) {
                 <AddressLink address={proposal.entityAddress} />
               </CardDescription>
             </div>
-            <Button variant="outline" onClick={refresh}>
+            <Button variant="outline" onClick={refresh} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </CardHeader>
