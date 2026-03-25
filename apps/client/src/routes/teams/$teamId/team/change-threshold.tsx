@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
+import { useTeamName } from '@/hooks/useNames'
 import {
   createChangeThresholdProposal,
   teamProposalListAtom
@@ -43,11 +44,20 @@ export const Route = createFileRoute('/teams/$teamId/team/change-threshold')({
 
 function ChangeThresholdPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -55,7 +65,7 @@ function ChangeThresholdPage() {
           params={{ teamId }}
           className="hover:text-foreground"
         >
-          Team
+          Members
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">Change Threshold</span>
@@ -151,12 +161,12 @@ function ChangeThresholdForm({ teamId }: { teamId: string }) {
               required
               value={vaultAddress}
               onChange={(e) => setVaultAddress(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             >
               <option value="">Select a vault...</option>
               {vaults.map((v) => (
                 <option key={v.accountAddress} value={v.accountAddress}>
-                  {v.name} ({v.accountAddress.slice(0, 20)}...)
+                  {v.name} (account_...{v.accountAddress.slice(-6)})
                 </option>
               ))}
             </select>
@@ -173,7 +183,7 @@ function ChangeThresholdForm({ teamId }: { teamId: string }) {
               min={1}
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
           </div>
 

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useAtom } from '@effect-atom/atom-react'
 import { Exit } from 'effect'
 import { previewProposal } from '@/atom/proposals'
+import { AddressLink } from '@/components/AddressLink'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -58,19 +59,14 @@ export function TransactionPreviewCard({ manifest }: { manifest: string }) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <CardTitle>Transaction Preview</CardTitle>
           <p className="text-sm text-muted-foreground">
             Simulate execution to estimate fees and check for errors.
           </p>
         </div>
-        <Button
-          onClick={handlePreview}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-        >
+        <Button onClick={handlePreview} disabled={loading} variant="outline">
           {loading ? 'Previewing...' : 'Run Preview'}
         </Button>
       </CardHeader>
@@ -144,27 +140,12 @@ export function TransactionPreviewCard({ manifest }: { manifest: string }) {
   )
 }
 
-const DASHBOARD_BASE =
-  Number(import.meta.env.VITE_NETWORK_ID ?? '2') === 1
-    ? 'https://dashboard.radixdlt.com'
-    : 'https://stokenet-dashboard.radixdlt.com'
-
-function dashboardUrl(address: string) {
-  if (address.startsWith('account_'))
-    return `${DASHBOARD_BASE}/account/${address}`
-  if (address.startsWith('resource_'))
-    return `${DASHBOARD_BASE}/resource/${address}`
-  return `${DASHBOARD_BASE}/component/${address}`
-}
-
 function ResourceChanges({ changes }: { changes: ResourceChange[] }) {
   const sorted = [...changes].sort(
     (a, b) =>
       a.accountAddress.localeCompare(b.accountAddress) ||
       a.resourceAddress.localeCompare(b.resourceAddress)
   )
-
-  const truncate = (addr: string) => `${addr.slice(0, 12)}...${addr.slice(-8)}`
 
   return (
     <div className="space-y-2">
@@ -184,27 +165,11 @@ function ResourceChanges({ changes }: { changes: ResourceChange[] }) {
             const isNegative = change.amount.startsWith('-')
             return (
               <TableRow key={i}>
-                <TableCell className="font-mono text-xs">
-                  <a
-                    href={dashboardUrl(change.accountAddress)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline decoration-muted-foreground/40 hover:decoration-foreground"
-                    title={change.accountAddress}
-                  >
-                    {truncate(change.accountAddress)}
-                  </a>
+                <TableCell>
+                  <AddressLink address={change.accountAddress} />
                 </TableCell>
-                <TableCell className="font-mono text-xs">
-                  <a
-                    href={dashboardUrl(change.resourceAddress)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline decoration-muted-foreground/40 hover:decoration-foreground"
-                    title={change.resourceAddress}
-                  >
-                    {truncate(change.resourceAddress)}
-                  </a>
+                <TableCell>
+                  <AddressLink address={change.resourceAddress} />
                 </TableCell>
                 <TableCell
                   className={`text-right font-mono text-xs font-medium ${

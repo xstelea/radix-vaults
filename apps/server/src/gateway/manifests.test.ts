@@ -14,6 +14,7 @@ describe('buildCreateTeamBadgeManifest', () => {
         'resource_tdx_2_1nfxxxxxxxxxxsgnvbdge_ed25sg:[abcdef1234567890]',
       creatorAccount: 'account_tdx_2_creator',
       memberName: 'Alice',
+      teamName: 'My Team',
       teamId: 'test-team-uuid',
       networkId: 2
     })
@@ -53,6 +54,7 @@ describe('buildCreateTeamBadgeManifest', () => {
         'resource_tdx_2_1nfxxxxxxxxxxsgnvbdge_ed25sg:[aabbccdd]',
       creatorAccount: 'account_tdx_2_creator',
       memberName: 'Bob',
+      teamName: 'Bob Team',
       teamId: 'team-123',
       networkId: 2
     })
@@ -73,6 +75,7 @@ describe('buildCreateTeamBadgeManifest', () => {
         'resource_tdx_2_1nfxxxxxxxxxxsgnvbdge_ed25sg:[aabbccdd]',
       creatorAccount: 'account_tdx_2_creator',
       memberName: 'Carol',
+      teamName: 'Carol Team',
       teamId: 'team-456',
       networkId: 2
     })

@@ -1,4 +1,7 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
+import { useTeamName, useVaultName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
+import { RefreshCw } from 'lucide-react'
 import { VaultAddress } from '@radix-vaults/shared'
 import {
   createFileRoute,
@@ -40,21 +43,39 @@ export const Route = createFileRoute('/teams/$teamId/vaults/$vaultId/')({
 
 function VaultDetailPage() {
   const { teamId, vaultId } = Route.useParams()
+  const teamName = useTeamName(teamId)
+  const vaultName = useVaultName(teamId, vaultId)
 
   return (
     <main className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <nav className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
           <Link to="/" className="hover:text-foreground">
-            Home
+            My Teams
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-foreground font-medium">Vault</span>
+          <Link
+            to="/teams/$teamId"
+            params={{ teamId }}
+            className="hover:text-foreground"
+          >
+            {teamName}
+          </Link>
+          <span className="mx-2">/</span>
+          <Link
+            to="/teams/$teamId/vaults"
+            params={{ teamId }}
+            className="hover:text-foreground"
+          >
+            Vaults
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground font-medium">{vaultName}</span>
         </nav>
         <ClientOnly
           fallback={
             <Button variant="outline" disabled>
-              Refresh
+              <RefreshCw className="h-4 w-4" />
             </Button>
           }
         >
@@ -96,7 +117,7 @@ function RefreshVaultButton() {
 
   return (
     <Button variant="outline" onClick={refresh}>
-      Refresh
+      <RefreshCw className="h-4 w-4" />
     </Button>
   )
 }
@@ -131,8 +152,8 @@ function VaultReadContent() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">{detail.name}</CardTitle>
-            <CardDescription className="font-mono text-xs">
-              {detail.accountAddress}
+            <CardDescription>
+              <AddressLink address={detail.accountAddress} />
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -247,7 +268,7 @@ function ProposalListSection() {
     .onFailure(() => null)
     .onSuccess((proposals) => (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle>Proposals</CardTitle>
             <CardDescription>

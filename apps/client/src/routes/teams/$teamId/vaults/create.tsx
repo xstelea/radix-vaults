@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { Exit } from 'effect'
+import { useTeamName } from '@/hooks/useNames'
 import { useState } from 'react'
 import { createVault, vaultsListAtom } from '@/atom/vaults'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,7 @@ export const Route = createFileRoute('/teams/$teamId/vaults/create')({
 function CreateVaultPage() {
   const { teamId } = Route.useParams()
   const navigate = useNavigate()
+  const teamName = useTeamName(teamId)
   const refreshVaults = useAtomRefresh(vaultsListAtom(teamId))
   const [, dispatch] = useAtom(createVault, { mode: 'promiseExit' })
   const [name, setName] = useState('')
@@ -58,9 +60,17 @@ function CreateVaultPage() {
 
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -96,7 +106,7 @@ function CreateVaultPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={255}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
@@ -111,7 +121,7 @@ function CreateVaultPage() {
                 min={1}
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 Vault will use your team&apos;s current signer set. The

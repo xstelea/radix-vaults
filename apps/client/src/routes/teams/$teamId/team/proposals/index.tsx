@@ -1,6 +1,8 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { teamProposalListAtom } from '@/atom/teamProposals'
+import { useTeamName } from '@/hooks/useNames'
+import { RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,12 +48,21 @@ const typeLabel: Record<string, string> = {
 
 function TeamProposalsPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <nav className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
           <Link to="/" className="hover:text-foreground">
-            Home
+            My Teams
+          </Link>
+          <span className="mx-2">/</span>
+          <Link
+            to="/teams/$teamId"
+            params={{ teamId }}
+            className="hover:text-foreground"
+          >
+            {teamName}
           </Link>
           <span className="mx-2">/</span>
           <Link
@@ -59,7 +70,7 @@ function TeamProposalsPage() {
             params={{ teamId }}
             className="hover:text-foreground"
           >
-            Team
+            Members
           </Link>
           <span className="mx-2">/</span>
           <span className="text-foreground font-medium">Team Proposals</span>
@@ -67,7 +78,7 @@ function TeamProposalsPage() {
         <ClientOnly
           fallback={
             <Button variant="outline" disabled>
-              Refresh
+              <RefreshCw className="h-4 w-4" />
             </Button>
           }
         >
@@ -100,7 +111,7 @@ function RefreshButton() {
   const refresh = useAtomRefresh(teamProposalListAtom(teamId))
   return (
     <Button variant="outline" onClick={refresh}>
-      Refresh
+      <RefreshCw className="h-4 w-4" />
     </Button>
   )
 }

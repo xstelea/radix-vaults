@@ -2,6 +2,8 @@ import { Link, ClientOnly, createFileRoute } from '@tanstack/react-router'
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { sessionAtom } from '@/atom/auth'
 import { vaultsListAtom } from '@/atom/vaults'
+import { useTeamName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,12 +22,21 @@ export const Route = createFileRoute('/teams/$teamId/vaults/')({
 
 function VaultsPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
 
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">Vaults</span>
@@ -69,7 +80,7 @@ function VaultHeader({ teamId }: { teamId: string }) {
   }
 
   return (
-    <CardHeader className="flex flex-row items-start justify-between gap-4">
+    <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <CardTitle className="text-2xl">Vaults</CardTitle>
         <CardDescription>Manage your multisig vaults.</CardDescription>
@@ -78,13 +89,13 @@ function VaultHeader({ teamId }: { teamId: string }) {
         <Link to="/teams/$teamId/vaults/create" params={{ teamId }}>
           <Button size="sm">
             <PlusCircle className="mr-1.5 h-4 w-4" />
-            Create Vault
+            Create
           </Button>
         </Link>
         <Link to="/teams/$teamId/vaults/add" params={{ teamId }}>
           <Button variant="outline" size="sm">
             <Download className="mr-1.5 h-4 w-4" />
-            Import Vault
+            Import
           </Button>
         </Link>
       </div>
@@ -141,9 +152,12 @@ function VaultsList({ teamId }: { teamId: string }) {
                     <h2 className="truncate text-base font-semibold">
                       {vault.name}
                     </h2>
-                    <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
-                      {vault.accountAddress}
-                    </p>
+                    <span
+                      className="mt-1 block"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <AddressLink address={vault.accountAddress} />
+                    </span>
                   </div>
                   <Badge variant="secondary">
                     {vault.pendingProposalCount} pending

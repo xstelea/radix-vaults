@@ -12,6 +12,8 @@ import {
 } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
 import { useEffect, useState } from 'react'
+import { useTeamName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
 import { teamOverviewAtom } from '@/atom/team'
 import {
   createRemoveMemberProposal,
@@ -43,11 +45,20 @@ export const Route = createFileRoute('/teams/$teamId/team/remove-member')({
 
 function RemoveMemberPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -55,7 +66,7 @@ function RemoveMemberPage() {
           params={{ teamId }}
           className="hover:text-foreground"
         >
-          Team
+          Members
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">Remove Member</span>
@@ -183,7 +194,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
               required
               value={selectedVirtualBadge}
               onChange={(e) => setSelectedVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             >
               <option value="">Select a member...</option>
               {team.badgeHolders.map((holder) => (
@@ -235,7 +246,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
               max={newSignerCount}
               value={badgeThreshold || Math.min(team.threshold, newSignerCount)}
               onChange={(e) => setBadgeThreshold(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               Current threshold: {team.threshold}. After removal:{' '}
@@ -248,11 +259,9 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
               <p className="text-sm font-medium">Per-Vault Thresholds</p>
               {vaults.map((vault) => (
                 <div key={vault.accountAddress} className="space-y-1">
-                  <label className="text-xs text-muted-foreground">
-                    {vault.name}{' '}
-                    <span className="font-mono">
-                      ({vault.accountAddress.slice(0, 20)}...)
-                    </span>
+                  <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    {vault.name} (<AddressLink address={vault.accountAddress} />
+                    )
                   </label>
                   <input
                     type="number"
@@ -265,7 +274,7 @@ function RemoveMemberForm({ teamId }: { teamId: string }) {
                         [vault.accountAddress]: e.target.value
                       }))
                     }
-                    className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
                   />
                 </div>
               ))}

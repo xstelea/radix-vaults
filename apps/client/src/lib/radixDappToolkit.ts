@@ -29,7 +29,7 @@ export class RadixDappToolkit extends Context.Tag('RadixDappToolkit')<
       })
 
       rdt.walletApi.setRequestData(
-        DataRequestBuilder.accounts().atLeast(1).withProof()
+        DataRequestBuilder.accounts().exactly(1).withProof()
       )
 
       const client = yield* AppApiClient

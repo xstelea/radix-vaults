@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
+import { useTeamName } from '@/hooks/useNames'
 import { Exit } from 'effect'
 import { useState } from 'react'
 import { importVault, vaultsListAtom } from '@/atom/vaults'
@@ -20,6 +21,7 @@ export const Route = createFileRoute('/teams/$teamId/vaults/add')({
 function AddVaultPage() {
   const { teamId } = Route.useParams()
   const navigate = useNavigate()
+  const teamName = useTeamName(teamId)
   const refreshVaults = useAtomRefresh(vaultsListAtom(teamId))
   const [, dispatch] = useAtom(importVault, { mode: 'promiseExit' })
   const [accountAddress, setAccountAddress] = useState('')
@@ -62,9 +64,17 @@ function AddVaultPage() {
 
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -99,7 +109,7 @@ function AddVaultPage() {
                 placeholder="account_tdx_2_1..."
                 value={accountAddress}
                 onChange={(e) => setAccountAddress(e.target.value)}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
@@ -115,7 +125,7 @@ function AddVaultPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={255}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
               />
             </div>
 
