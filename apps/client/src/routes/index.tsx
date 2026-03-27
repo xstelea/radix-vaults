@@ -19,7 +19,8 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Plus, Users } from 'lucide-react'
+import { Plus, Users, RefreshCw } from 'lucide-react'
+import { AddressLink } from '@/components/AddressLink'
 
 export const Route = createFileRoute('/')({
   component: HomePage
@@ -29,7 +30,7 @@ function HomePage() {
   return (
     <main className="max-w-5xl space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle className="text-2xl">Teams</CardTitle>
             <CardDescription>
@@ -39,8 +40,8 @@ function HomePage() {
           <div className="flex gap-2">
             <ClientOnly
               fallback={
-                <Button variant="outline" disabled>
-                  Refresh
+                <Button variant="outline" disabled aria-label="Refresh">
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               }
             >
@@ -75,8 +76,8 @@ function HomePage() {
 function RefreshButton() {
   const refresh = useAtomRefresh(teamsListAtom)
   return (
-    <Button variant="outline" onClick={() => refresh()}>
-      Refresh
+    <Button variant="outline" onClick={() => refresh()} aria-label="Refresh">
+      <RefreshCw className="h-4 w-4" />
     </Button>
   )
 }
@@ -95,7 +96,7 @@ function CreateTeamButton() {
     <Link to="/teams/create">
       <Button>
         <Plus className="mr-2 h-4 w-4" />
-        Create Team
+        Create
       </Button>
     </Link>
   )
@@ -167,13 +168,12 @@ function TeamsListSection() {
                         params={{ teamId: team.teamId }}
                         className="flex items-center gap-2"
                       >
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        {team.name}
+                        <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{team.name}</span>
                       </Link>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {team.badgeAddress.slice(0, 20)}...
-                      {team.badgeAddress.slice(-8)}
+                    <TableCell>
+                      <AddressLink address={team.badgeAddress} />
                     </TableCell>
                   </TableRow>
                 ))}

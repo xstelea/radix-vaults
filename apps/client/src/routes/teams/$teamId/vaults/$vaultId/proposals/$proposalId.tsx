@@ -9,6 +9,9 @@ import type { ProposalDetail } from '@radix-vaults/shared'
 import { ProposalId, VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { Exit } from 'effect'
+import { useTeamName, useVaultName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
+import { RefreshCw } from 'lucide-react'
 import { sessionAtom } from '@/atom/auth'
 import {
   ProposalDetailKey,
@@ -45,12 +48,30 @@ export const Route = createFileRoute(
 
 function ProposalDetailPage() {
   const { teamId, vaultId, proposalId } = Route.useParams()
+  const teamName = useTeamName(teamId)
+  const vaultName = useVaultName(teamId, vaultId)
 
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId/vaults"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          Vaults
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -58,7 +79,7 @@ function ProposalDetailPage() {
           params={{ teamId, vaultId }}
           className="hover:text-foreground"
         >
-          Vault
+          {vaultName}
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">
@@ -147,17 +168,17 @@ function ProposalDetailContent() {
     .onSuccess((proposal) => (
       <>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-2xl">
                 Proposal #{proposal.id}
               </CardTitle>
-              <CardDescription className="font-mono text-xs">
-                {proposal.vaultAddress}
+              <CardDescription>
+                <AddressLink address={proposal.vaultAddress} />
               </CardDescription>
             </div>
-            <Button variant="outline" onClick={refresh}>
-              Refresh
+            <Button variant="outline" onClick={refresh} aria-label="Refresh">
+              <RefreshCw className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
@@ -298,7 +319,7 @@ function SignatureProgressCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <CardTitle>Signature Progress</CardTitle>
           <CardDescription>
@@ -387,7 +408,7 @@ function SubmitCard({
 
   return (
     <Card className="border-green-200 bg-green-50/80">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <CardTitle>Ready to Submit</CardTitle>
           <CardDescription>
@@ -445,7 +466,7 @@ function TransactionInfoCard({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <CardTitle>Transaction</CardTitle>
           <CardDescription>

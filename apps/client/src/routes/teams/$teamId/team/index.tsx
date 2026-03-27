@@ -1,6 +1,9 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
 import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
 import { teamOverviewAtom } from '@/atom/team'
+import { useTeamName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
+import { RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,27 +29,36 @@ export const Route = createFileRoute('/teams/$teamId/team/')({
 
 function TeamPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <nav className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
           <Link to="/" className="hover:text-foreground">
-            Home
+            My Teams
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-foreground font-medium">Team</span>
+          <Link
+            to="/teams/$teamId"
+            params={{ teamId }}
+            className="hover:text-foreground"
+          >
+            {teamName}
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground font-medium">Members</span>
         </nav>
         <div className="flex gap-2">
           <Link to="/teams/$teamId/team/proposals" params={{ teamId }}>
-            <Button variant="outline">Team Proposals</Button>
+            <Button variant="outline">Proposals</Button>
           </Link>
           <Link to="/teams/$teamId/team/add-member" params={{ teamId }}>
-            <Button>Add Member</Button>
+            <Button className="whitespace-nowrap">Add Member</Button>
           </Link>
           <ClientOnly
             fallback={
-              <Button variant="outline" disabled>
-                Refresh
+              <Button variant="outline" disabled aria-label="Refresh">
+                <RefreshCw className="h-4 w-4" />
               </Button>
             }
           >
@@ -66,8 +78,8 @@ function RefreshTeamButton() {
   const { teamId } = Route.useParams()
   const refresh = useAtomRefresh(teamOverviewAtom(teamId))
   return (
-    <Button variant="outline" onClick={refresh}>
-      Refresh
+    <Button variant="outline" onClick={refresh} aria-label="Refresh">
+      <RefreshCw className="h-4 w-4" />
     </Button>
   )
 }
@@ -100,8 +112,8 @@ function TeamContent({ teamId }: { teamId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Team Overview</CardTitle>
-            <CardDescription className="font-mono text-xs">
-              {overview.teamMemberBadgeAddress}
+            <CardDescription>
+              <AddressLink address={overview.teamMemberBadgeAddress} />
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -171,9 +183,15 @@ function TeamContent({ teamId }: { teamId: string }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Key Type</TableHead>
-                  <TableHead>Badge ID</TableHead>
-                  <TableHead>Account Address</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Key Type
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Badge ID
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Account Address
+                  </TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -181,14 +199,14 @@ function TeamContent({ teamId }: { teamId: string }) {
                 {overview.badgeHolders.map((holder) => (
                   <TableRow key={holder.holderAddress}>
                     <TableCell className="font-medium">{holder.name}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden sm:table-cell">
                       <Badge variant="outline">{holder.keyType}</Badge>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className="hidden sm:table-cell font-mono text-xs">
                       {holder.localId}
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {holder.holderAddress}
+                    <TableCell className="hidden sm:table-cell">
+                      <AddressLink address={holder.holderAddress} />
                     </TableCell>
                     <TableCell>
                       <Link

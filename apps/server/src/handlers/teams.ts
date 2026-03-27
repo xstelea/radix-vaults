@@ -32,6 +32,7 @@ export class TeamsHandler extends Effect.Service<TeamsHandler>()(
               creatorVirtualBadge: virtualBadge,
               creatorAccount: creatorAccountAddress,
               memberName,
+              teamName: name,
               teamId,
               networkId: authConfig.networkId
             })

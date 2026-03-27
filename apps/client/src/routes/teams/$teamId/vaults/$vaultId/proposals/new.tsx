@@ -1,6 +1,7 @@
 import { useAtom, useAtomRefresh } from '@effect-atom/atom-react'
 import { VaultAddress } from '@radix-vaults/shared'
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { useTeamName, useVaultName } from '@/hooks/useNames'
 import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
 import {
@@ -27,6 +28,8 @@ export const Route = createFileRoute(
 function NewProposalPage() {
   const { teamId, vaultId } = Route.useParams()
   const navigate = useNavigate()
+  const teamName = useTeamName(teamId)
+  const vaultName = useVaultName(teamId, vaultId)
   const vaultAddress = VaultAddress.make(vaultId)
   const refreshProposals = useAtomRefresh(
     proposalListAtom(ProposalListKey({ teamId, vaultAddress }))
@@ -85,9 +88,25 @@ function NewProposalPage() {
 
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId/vaults"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          Vaults
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -95,7 +114,7 @@ function NewProposalPage() {
           params={{ teamId, vaultId }}
           className="hover:text-foreground"
         >
-          Vault
+          {vaultName}
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">New Proposal</span>
@@ -122,7 +141,7 @@ function NewProposalPage() {
                 placeholder={`CALL_METHOD\n  Address("...")\n  "deposit_batch"\n  Expression("ENTIRE_WORKTOP")\n;`}
                 value={manifest}
                 onChange={(e) => setManifest(e.target.value)}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
 
@@ -138,7 +157,7 @@ function NewProposalPage() {
                 step={1}
                 value={expiresInHours}
                 onChange={(e) => setExpiresInHours(e.target.value)}
-                className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
               />
               <p className="text-xs text-muted-foreground">
                 Number of hours from now until this proposal expires.
@@ -146,7 +165,10 @@ function NewProposalPage() {
             </div>
 
             {error && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+              <div
+                role="alert"
+                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+              >
                 {error}
               </div>
             )}

@@ -46,7 +46,7 @@ function RootComponent() {
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <div className="main-content">
           <AppHeader onMenuClick={() => setSidebarOpen(true)} />
-          <div className="p-6">
+          <div className="p-4 sm:p-6 lg:p-8">
             <Outlet />
           </div>
         </div>

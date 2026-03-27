@@ -1,6 +1,13 @@
 import { Result, useAtomRefresh, useAtomValue } from '@effect-atom/atom-react'
-import { createFileRoute, Link, ClientOnly } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  ClientOnly,
+  useNavigate
+} from '@tanstack/react-router'
 import { pendingProposalsAtom } from '@/atom/pendingProposals'
+import { useTeamName } from '@/hooks/useNames'
+import { RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,20 +49,21 @@ const typeLabel: Record<string, string> = {
 
 function DashboardPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <nav className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
           <Link to="/" className="hover:text-foreground">
-            Home
+            My Teams
           </Link>
           <span className="mx-2">/</span>
-          <span className="text-foreground font-medium">Dashboard</span>
+          <span className="text-foreground font-medium">{teamName}</span>
         </nav>
         <ClientOnly
           fallback={
-            <Button variant="outline" disabled>
-              Refresh
+            <Button variant="outline" disabled aria-label="Refresh">
+              <RefreshCw className="h-4 w-4" />
             </Button>
           }
         >
@@ -87,8 +95,8 @@ function RefreshButton() {
   const { teamId } = Route.useParams()
   const refresh = useAtomRefresh(pendingProposalsAtom(teamId))
   return (
-    <Button variant="outline" onClick={refresh}>
-      Refresh
+    <Button variant="outline" onClick={refresh} aria-label="Refresh">
+      <RefreshCw className="h-4 w-4" />
     </Button>
   )
 }
@@ -111,6 +119,58 @@ function proposalLink(
     to: '/teams/$teamId/team/proposals/$proposalId' as const,
     params: { teamId, proposalId: String(proposal.id) }
   }
+}
+
+function ClickableProposalRow({
+  teamId,
+  proposal: p
+}: {
+  teamId: string
+  proposal: {
+    id: number
+    type: string
+    entityAddress: string
+    entityName?: string | null
+    status: string
+    createdBy: string
+    createdByName?: string | null
+    createdAt: string
+  }
+}) {
+  const navigate = useNavigate()
+  const link = proposalLink(teamId, p)
+  return (
+    <TableRow
+      className="cursor-pointer"
+      tabIndex={0}
+      role="link"
+      onClick={() => navigate({ to: link.to, params: link.params })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate({ to: link.to, params: link.params })
+        }
+      }}
+    >
+      <TableCell className="font-medium">#{p.id}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{typeLabel[p.type] ?? p.type}</Badge>
+      </TableCell>
+      <TableCell className="text-sm">
+        {p.entityName ??
+          `${p.entityAddress.slice(0, 16)}...${p.entityAddress.slice(-6)}`}
+      </TableCell>
+      <TableCell>
+        <Badge variant={statusVariant[p.status] ?? 'outline'}>{p.status}</Badge>
+      </TableCell>
+      <TableCell className="hidden sm:table-cell font-mono text-xs">
+        {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
+      </TableCell>
+      <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
+        {new Date(p.createdAt).toLocaleString()}
+      </TableCell>
+    </TableRow>
+  )
 }
 
 function PendingProposalsList({ teamId }: { teamId: string }) {
@@ -166,47 +226,22 @@ function PendingProposalsList({ teamId }: { teamId: string }) {
                   <TableHead>Type</TableHead>
                   <TableHead>Entity</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created By</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created By
+                  </TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    Created
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {proposals.map((p) => {
-                  const link = proposalLink(teamId, p)
-                  return (
-                    <TableRow key={p.id}>
-                      <TableCell>
-                        <Link
-                          to={link.to}
-                          params={link.params}
-                          className="font-medium underline decoration-muted-foreground/40 hover:decoration-foreground"
-                        >
-                          #{p.id}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {typeLabel[p.type] ?? p.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {p.entityName ??
-                          `${p.entityAddress.slice(0, 16)}...${p.entityAddress.slice(-6)}`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant[p.status] ?? 'outline'}>
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {p.createdByName ?? `${p.createdBy.slice(0, 20)}...`}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(p.createdAt).toLocaleString()}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                {proposals.map((p) => (
+                  <ClickableProposalRow
+                    key={p.id}
+                    teamId={teamId}
+                    proposal={p}
+                  />
+                ))}
               </TableBody>
             </Table>
           </CardContent>

@@ -13,6 +13,8 @@ import {
 } from '@tanstack/react-router'
 import { Cause, Exit, Option } from 'effect'
 import { useState } from 'react'
+import { useTeamName } from '@/hooks/useNames'
+import { AddressLink } from '@/components/AddressLink'
 import { teamOverviewAtom } from '@/atom/team'
 import {
   createAddMemberProposal,
@@ -35,11 +37,20 @@ export const Route = createFileRoute('/teams/$teamId/team/add-member')({
 
 function AddMemberPage() {
   const { teamId } = Route.useParams()
+  const teamName = useTeamName(teamId)
   return (
     <main className="max-w-5xl space-y-6">
-      <nav className="text-sm text-muted-foreground">
+      <nav className="text-sm text-muted-foreground sm:min-h-10 flex items-center flex-wrap">
         <Link to="/" className="hover:text-foreground">
-          Home
+          My Teams
+        </Link>
+        <span className="mx-2">/</span>
+        <Link
+          to="/teams/$teamId"
+          params={{ teamId }}
+          className="hover:text-foreground"
+        >
+          {teamName}
         </Link>
         <span className="mx-2">/</span>
         <Link
@@ -47,7 +58,7 @@ function AddMemberPage() {
           params={{ teamId }}
           className="hover:text-foreground"
         >
-          Team
+          Members
         </Link>
         <span className="mx-2">/</span>
         <span className="text-foreground font-medium">Add Member</span>
@@ -164,7 +175,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="account_tdx_2_1..."
               value={accountAddress}
               onChange={(e) => setAccountAddress(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
           </div>
 
@@ -180,7 +191,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="Alice"
               value={memberName}
               onChange={(e) => setMemberName(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               A human-readable name for this team member (stored on-ledger in
@@ -199,7 +210,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               placeholder="resource_tdx_2_...ed25sg...:[hex]"
               value={virtualBadge}
               onChange={(e) => setVirtualBadge(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 font-mono text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 font-mono text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               The new member&apos;s signature virtual badge NonFungibleGlobalId.
@@ -217,7 +228,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               min={1}
               value={badgeThreshold || team.threshold}
               onChange={(e) => setBadgeThreshold(e.target.value)}
-              className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
             <p className="text-xs text-muted-foreground">
               Current threshold: {team.threshold}. The team will have{' '}
@@ -230,11 +241,9 @@ function AddMemberForm({ teamId }: { teamId: string }) {
               <p className="text-sm font-medium">Per-Vault Thresholds</p>
               {vaults.map((vault) => (
                 <div key={vault.accountAddress} className="space-y-1">
-                  <label className="text-xs text-muted-foreground">
-                    {vault.name}{' '}
-                    <span className="font-mono">
-                      ({vault.accountAddress.slice(0, 20)}...)
-                    </span>
+                  <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    {vault.name} (<AddressLink address={vault.accountAddress} />
+                    )
                   </label>
                   <input
                     type="number"
@@ -246,7 +255,7 @@ function AddMemberForm({ teamId }: { teamId: string }) {
                         [vault.accountAddress]: e.target.value
                       }))
                     }
-                    className="w-full rounded-lg border border-input bg-white px-3 py-2 text-sm outline-none focus:border-ring focus:ring-1 focus:ring-ring"
+                    className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
               ))}
@@ -254,14 +263,17 @@ function AddMemberForm({ teamId }: { teamId: string }) {
           )}
 
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+            <div
+              role="alert"
+              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+            >
               {error}
             </div>
           )}
 
           <div className="flex gap-3">
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create Add-Member Proposal'}
+              {submitting ? 'Creating...' : 'Propose Member Add'}
             </Button>
             <Link to="/teams/$teamId/team" params={{ teamId }}>
               <Button type="button" variant="outline">

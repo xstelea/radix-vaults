@@ -254,6 +254,7 @@ export async function buildCreateTeamBadgeManifest(input: {
   creatorVirtualBadge: string
   creatorAccount: string
   memberName: string
+  teamName: string
   teamId: string
   networkId: number
 }): Promise<string> {
@@ -341,7 +342,7 @@ CREATE_NON_FUNGIBLE_RESOURCE_WITH_INITIAL_SUPPLY
     )
     Tuple(
         Map<String, Tuple>(
-            "name" => Tuple(Enum<1u8>(Enum<0u8>("${input.memberName} Team Badge")), true)
+            "name" => Tuple(Enum<1u8>(Enum<0u8>("${input.teamName} Team Badge")), true)
         ),
         Map<String, Enum>()
     )
